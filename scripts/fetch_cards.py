@@ -1,5 +1,5 @@
 import requests
-from goldfish_staple_scraper import scrape_staple_names
+from generate_meta import scrape_staple_names
 
 def fetch_many(names):
     url = "https://api.scryfall.com/cards/collection"
