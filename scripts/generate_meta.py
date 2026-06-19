@@ -12,7 +12,6 @@ def scrape_staple_names():
         raise RuntimeError("Could not find staples table on page.")
 
     names = []
-
     for row in table.select("tr"):
         cols = row.find_all("td")
         if not cols:
