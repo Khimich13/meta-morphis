@@ -1,11 +1,16 @@
 import requests
+
 from generate_meta import scrape_staple_names
 
 def fetch_many(names):
-    url = "https://api.scryfall.com/cards/collection"
-    identifiers = [{"name": n} for n in names]
 
-    r = requests.post(url, json={"identifiers": identifiers})
+    url = "https://api.scryfall.com/cards/collection"
+    headers = {
+        "User-Agent": "meta-morphis",
+        "Accept": "application/json"
+    }
+    identifiers = [{"name": n} for n in names]
+    r = requests.post(url, json={"identifiers": identifiers}, headers=headers)
     r.raise_for_status()
     cards = r.json()["data"]
     
