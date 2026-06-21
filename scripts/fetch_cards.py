@@ -2,8 +2,11 @@ import requests
 import time
 
 from generate_meta import scrape_staple_names
+from db.schema import init_db
+from db.cache import get_card_from_cache, save_card_to_cache
 
-def fetch_many(names):
+
+def fetch_cards_from_scryfall(names):
     url = "https://api.scryfall.com/cards/collection"
     headers = {
         "User-Agent": "meta-morphis",
@@ -35,11 +38,38 @@ def fetch_many(names):
             # Hard failure
             r.raise_for_status()
     
+    return all_cards
+    
+
+def fetch_cards(names):
+    print("initializing db")
+    init_db()
+    print("db initialized")
+    output = []
+    missing = []
+    for name in names:
+        
+        cashed = get_card_from_cache(name)
+        if cashed:
+            print("from cache", name)
+            output.append(get_card_from_cache(name))
+        else:
+            print("not from cache", name)
+            missing.append(name)
+    
+    if missing:
+        fetched = fetch_cards_from_scryfall(missing)
+        for card in fetched:
+            save_card_to_cache(card)
+        output.extend(fetched)
+
     # test
-    for card in all_cards:
+    for card in output:
         print(card["name"], card["mana_cost"], card["type_line"], card["oracle_text"])
+    return output
 
-fetch_many(scrape_staple_names())
+fetch_cards(scrape_staple_names())
 
+# TODO: fix a bug with Lorien Revield 
 # TODO: save cards 
 # TODO: remove tests
