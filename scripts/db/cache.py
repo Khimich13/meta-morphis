@@ -2,10 +2,13 @@ import time
 import json
 import sqlite3
 
+from .utils import normalize_name
+
 def get_card_from_cache(name):
     conn = sqlite3.connect("cards.db")
     c = conn.cursor()
-    c.execute("SELECT json, updated_at FROM cards WHERE name = ?", (name,))
+    key = normalize_name(name)
+    c.execute("SELECT json, updated_at FROM cards WHERE name = ?", (key,))
     row = c.fetchone()
     conn.close()
 
@@ -24,6 +27,7 @@ def get_card_from_cache(name):
 def save_card_to_cache(card):
     conn = sqlite3.connect("cards.db")
     c = conn.cursor()
+    key = normalize_name(card["name"])
     c.execute("""
         INSERT INTO cards (id, name, json, updated_at)
         VALUES (?, ?, ?, ?)
@@ -32,7 +36,7 @@ def save_card_to_cache(card):
             updated_at = excluded.updated_at
     """, (
         card["id"],
-        card["name"],
+        key, 
         json.dumps(card),
         int(time.time())
     ))

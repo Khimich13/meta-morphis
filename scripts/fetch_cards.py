@@ -42,13 +42,10 @@ def fetch_cards_from_scryfall(names):
     
 
 def fetch_cards(names):
-    print("initializing db")
     init_db()
-    print("db initialized")
     output = []
     missing = []
     for name in names:
-        
         cashed = get_card_from_cache(name)
         if cashed:
             print("from cache", name)
@@ -68,8 +65,8 @@ def fetch_cards(names):
         print(card["name"], card["mana_cost"], card["type_line"], card["oracle_text"])
     return output
 
+# test
 fetch_cards(scrape_staple_names())
 
-# TODO: fix a bug with Lorien Revield 
-# TODO: save cards 
+# TODO: cache logic for goldfish website
 # TODO: remove tests
