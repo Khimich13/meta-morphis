@@ -1,7 +1,7 @@
 import requests
 import time
 
-from generate_meta import scrape_staple_names
+from generate_meta import get_meta_cards
 from db.schema import init_db
 from db.cache import get_card_from_cache, save_card_to_cache
 
@@ -48,10 +48,8 @@ def fetch_cards(names):
     for name in names:
         cashed = get_card_from_cache(name)
         if cashed:
-            print("from cache", name)
             output.append(get_card_from_cache(name))
         else:
-            print("not from cache", name)
             missing.append(name)
     
     if missing:
@@ -66,7 +64,7 @@ def fetch_cards(names):
     return output
 
 # test
-fetch_cards(scrape_staple_names())
+fetch_cards(get_meta_cards())
 
 # TODO: cache logic for goldfish website
 # TODO: remove tests
