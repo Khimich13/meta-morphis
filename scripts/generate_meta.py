@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 
 URL = "https://www.mtggoldfish.com/format-staples/pauper/full/spells"
 
-def scrape_staple_names():
+def get_meta_cards() -> list[str]:
     html = requests.get(URL, headers={"User-Agent": "Mozilla/5.0"}, timeout=10).text
     soup = BeautifulSoup(html, "html.parser")
 
