@@ -1,10 +1,7 @@
 import requests
 import time
 
-from generate_meta import get_meta_cards
-from db.schema import init_db
-from db.cache import get_card_from_cache, save_card_to_cache
-
+from meta_morphis.db.cache import get_card_from_cache, save_card_to_cache
 
 def fetch_cards_from_scryfall(names):
     url = "https://api.scryfall.com/cards/collection"
@@ -19,6 +16,8 @@ def fetch_cards_from_scryfall(names):
         batch = names[i:i+75]
         identifiers = [{"name": n, "unique": "exact"} for n in batch]
 
+        
+
         # Retry loop for robustness
         for attempt in range(3):
             r = requests.post(url, json={"identifiers": identifiers}, headers=headers)
@@ -27,6 +26,9 @@ def fetch_cards_from_scryfall(names):
                 data = r.json()
                 if data.get("object") == "error":
                     raise RuntimeError(f"Scryfall error: {data.get('details')}")
+                if "not_found" in data:
+                    print("Not found:", data["not_found"])
+
                 all_cards.extend(data["data"])
                 break
 
@@ -41,30 +43,21 @@ def fetch_cards_from_scryfall(names):
     return all_cards
     
 
-def fetch_cards(names):
-    init_db()
+def fetch_cards(conn, meta_list):
     output = []
     missing = []
-    for name in names:
-        cashed = get_card_from_cache(name)
-        if cashed:
-            output.append(get_card_from_cache(name))
+    for entry in meta_list:
+        card_name = entry["name"]
+        cached = get_card_from_cache(conn, card_name)
+        if cached:
+            output.append(cached)
         else:
-            missing.append(name)
+            missing.append(card_name)
     
     if missing:
         fetched = fetch_cards_from_scryfall(missing)
         for card in fetched:
-            save_card_to_cache(card)
+            save_card_to_cache(conn, card)
         output.extend(fetched)
 
-    # test
-    for card in output:
-        print(card["name"], card["mana_cost"], card["type_line"], card["oracle_text"])
     return output
-
-# test
-fetch_cards(get_meta_cards())
-
-# TODO: cache logic for goldfish website
-# TODO: remove tests
