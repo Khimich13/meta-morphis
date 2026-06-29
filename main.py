@@ -33,9 +33,18 @@ def main():
 
     meta = get_meta_cards(CONN, format)
     cards = fetch_cards(CONN, meta)
-
     for card in cards:
-        print(card["name"], card["mana_cost"], card["type_line"])
+        name = card["name"]
+        type_line = card["type_line"]
+        mana_value = ""
+
+        if "mana_cost" in card:
+            mana_value = card["mana_cost"]
+        # covers double-faced and other differently structured cards
+        elif "card_faces" in card:
+            mana_value = card["card_faces"][0]["mana_cost"]
+            
+        print(name, mana_value, type_line)
 
     CONN.close()
 
@@ -44,4 +53,3 @@ if __name__ == "__main__":
 
 # TODO: fetch from cache if internet/scryfall/goldfish are down
 # TODO: deal with the pioneer format's bug: Not found: [{'name': 'Unholy Annex // Ritual Chamber\n\n //'}]
-# TODO: deal with the pioneer format's bug: 'mana_cost' of supposedly "Graveyard Trespasser" (day and night card, double-sided)
