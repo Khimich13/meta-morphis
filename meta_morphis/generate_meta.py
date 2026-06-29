@@ -2,26 +2,27 @@ import requests
 from bs4 import BeautifulSoup
 
 from meta_morphis.db.cache import should_refresh_meta, load_cached_meta, save_meta_to_cache, update_meta_timestamp
+from meta_morphis.formats import FORMATS
 
-URL = "https://www.mtggoldfish.com/format-staples/pauper/full/spells"
-
-def get_meta_cards(conn) -> list[dict]:
-    if not should_refresh_meta(conn):
+def get_meta_cards(conn, format) -> list[dict]:
+    if not should_refresh_meta(conn, format):
         print("Using cached meta data")
-        return load_cached_meta(conn)
-    
+        return load_cached_meta(conn, format)
+
     print("Refreshing meta data from MTGGoldfish...")
-    meta_list = scrape_meta_cards()
+    
+    url = FORMATS[format]
+    meta_list = scrape_meta_cards(url)
 
-    save_meta_to_cache(conn, meta_list)
+    save_meta_to_cache(conn, meta_list, format)
 
-    update_meta_timestamp(conn)
+    update_meta_timestamp(conn, format)
     return meta_list
     
 
-def scrape_meta_cards():
+def scrape_meta_cards(url):
     try:
-        html = requests.get(URL, headers={"User-Agent": "Mozilla/5.0"}, timeout=10).text
+        html = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10).text
     except Exception as e:
         raise RuntimeError(f"Failed to fetch Goldfish meta: {e}")
 

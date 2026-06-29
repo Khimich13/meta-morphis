@@ -14,7 +14,7 @@ def init_db(conn):
     # Create Goldfish meta refresh timestamp table
     c.execute("""
         CREATE TABLE IF NOT EXISTS meta_refresh (
-            key TEXT PRIMARY KEY,
+            format TEXT PRIMARY KEY,
             last_updated INTEGER NOT NULL
         )
     """)
@@ -22,10 +22,12 @@ def init_db(conn):
     # Create Goldfish meta card list table
     c.execute("""
         CREATE TABLE IF NOT EXISTS meta_cards (
-            name TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            format TEXT NOT NULL,
             rank INTEGER,
             percent REAL,
-            deck_count INTEGER
+            deck_count FLOAT,
+            PRIMARY KEY (name, format)
         )
     """)
 

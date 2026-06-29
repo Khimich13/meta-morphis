@@ -46,10 +46,10 @@ def save_card_to_cache(conn, card):
     ))
     conn.commit()
 
-def should_refresh_meta(conn):
+def should_refresh_meta(conn, format):
     c = conn.cursor()
     row = c.execute(
-        "SELECT last_updated FROM meta_refresh WHERE key = 'goldfish_meta'"
+        "SELECT last_updated FROM meta_refresh WHERE format = ?", (format,)
     ).fetchone()
 
     if row is None:
@@ -58,22 +58,23 @@ def should_refresh_meta(conn):
     last_updated = row[0]
     return (time.time() - last_updated) > META_REFRESH_RATE
 
-def update_meta_timestamp(conn):
+def update_meta_timestamp(conn, format):
     c = conn.cursor()
     c.execute("""
-        INSERT INTO meta_refresh (key, last_updated)
-        VALUES ('goldfish_meta', ?)
-        ON CONFLICT(key) DO UPDATE SET last_updated = excluded.last_updated
-    """, (int(time.time()),))
+        INSERT INTO meta_refresh (format, last_updated)
+        VALUES (?, ?)
+        ON CONFLICT(format) DO UPDATE SET last_updated = excluded.last_updated
+    """, (format, int(time.time()),))
     conn.commit()
 
-def load_cached_meta(conn):
+def load_cached_meta(conn, format):
     c = conn.cursor()
     rows = c.execute("""
         SELECT name, rank, percent, deck_count
         FROM meta_cards
+        WHERE format = ?
         ORDER BY rank ASC
-    """).fetchall()
+    """, (format,)).fetchall()
 
     meta = []
     for name, rank, percent, deck_count in rows:
@@ -86,7 +87,7 @@ def load_cached_meta(conn):
 
     return meta
 
-def save_meta_to_cache(conn, meta_list):
+def save_meta_to_cache(conn, meta_list, format):
     """
     Save the scraped Goldfish meta list into the meta_cards table.
     meta_list should be a list of dicts like:
@@ -97,17 +98,19 @@ def save_meta_to_cache(conn, meta_list):
     """
     c = conn.cursor()
 
-    # Clear old meta before inserting new one
-    c.execute("DELETE FROM meta_cards")
-
-    now = int(time.time())
+    # Clear old format meta before inserting new one
+    c.execute("""
+        DELETE FROM meta_cards
+        WHERE format = ?
+        """, (format,))
 
     for entry in meta_list:
         c.execute("""
-            INSERT INTO meta_cards (name, rank, percent, deck_count)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO meta_cards (name, format, rank, percent, deck_count)
+            VALUES (?, ?, ?, ?, ?)
         """, (
             entry["name"],
+            format,
             entry.get("rank"),
             entry.get("percent"),
             entry.get("deck_count"),
