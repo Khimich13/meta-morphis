@@ -38,7 +38,7 @@ def scrape_meta_cards(url):
         if not cols:
             continue
         meta_list.append({
-            "name": cols[1].text.strip(),
+            "name": cols[1].text.strip().rstrip("/").strip(),
             "rank": int(cols[0].text.strip()),
             "percent": float(cols[3].text.strip().replace("%", "")),
             "deck_count": float(cols[4].text.strip()),

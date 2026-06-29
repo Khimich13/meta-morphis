@@ -52,4 +52,3 @@ if __name__ == "__main__":
     main()
 
 # TODO: fetch from cache if internet/scryfall/goldfish are down
-# TODO: deal with the pioneer format's bug: Not found: [{'name': 'Unholy Annex // Ritual Chamber\n\n //'}]
