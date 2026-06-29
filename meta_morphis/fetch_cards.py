@@ -16,8 +16,6 @@ def fetch_cards_from_scryfall(names):
         batch = names[i:i+75]
         identifiers = [{"name": n, "unique": "exact"} for n in batch]
 
-        
-
         # Retry loop for robustness
         for attempt in range(3):
             r = requests.post(url, json={"identifiers": identifiers}, headers=headers)
@@ -26,7 +24,7 @@ def fetch_cards_from_scryfall(names):
                 data = r.json()
                 if data.get("object") == "error":
                     raise RuntimeError(f"Scryfall error: {data.get('details')}")
-                if "not_found" in data:
+                if "not_found" in data and len(data["not_found"]) > 0:
                     print("Not found:", data["not_found"])
 
                 all_cards.extend(data["data"])
