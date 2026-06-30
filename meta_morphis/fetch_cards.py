@@ -5,12 +5,13 @@ from meta_morphis.db.cache import get_card_from_cache, save_card_to_cache
 
 URL_COLLECTION = "https://api.scryfall.com/cards/collection"
 URL_NAMED = "https://api.scryfall.com/cards/named"
-
-def fetch_cards_from_scryfall(names):
-    headers = {
+# Required by Scryfall
+HEADERS = {
         "User-Agent": "meta-morphis",
         "Accept": "application/json"
     }
+
+def fetch_cards_from_scryfall(names):
     all_cards = []
     
     # Scryfall API limits requests to 75 cards per request
@@ -20,7 +21,7 @@ def fetch_cards_from_scryfall(names):
 
         # Retry loop for robustness
         for attempt in range(3):
-            r = requests.post(URL_COLLECTION, json={"identifiers": identifiers}, headers=headers)
+            r = requests.post(URL_COLLECTION, json={"identifiers": identifiers}, headers=HEADERS)
 
             if r.status_code == 200:
                 data = r.json()
@@ -29,11 +30,9 @@ def fetch_cards_from_scryfall(names):
 
                 still_not_found = []
                 for item in data["not_found"]:
-                    params = {"fuzzy": item["name"]}
-                    single_card_r = requests.get(URL_NAMED, headers=headers, params=params)
-                    
-                    if single_card_r.status_code == 200:
-                        all_cards.append(single_card_r.json())
+                    card = fetch_single_card_from_scryfall(item["name"])
+                    if card:
+                        all_cards.append(card)
                     else:
                         still_not_found.append(item)
                         
@@ -52,7 +51,14 @@ def fetch_cards_from_scryfall(names):
             r.raise_for_status()
     
     return all_cards
-    
+
+def fetch_single_card_from_scryfall(name):
+    params = {"fuzzy": name}
+
+    r = requests.get(URL_NAMED, headers=HEADERS, params=params)
+    if r.status_code == 200:
+        return r.json()
+    return None
 
 def fetch_cards(conn, meta_list):
     output = []

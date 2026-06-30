@@ -6,10 +6,10 @@ from meta_morphis.formats import FORMATS
 
 def get_meta_cards(conn, format) -> list[dict]:
     if not should_refresh_meta(conn, format):
-        print("Using cached meta data")
+        print("Using cached meta data\n")
         return load_cached_meta(conn, format)
 
-    print("Refreshing meta data from MTGGoldfish...")
+    print("Refreshing meta data from MTGGoldfish...\n")
     
     url = FORMATS[format]
     meta_list = scrape_meta_cards(url)
