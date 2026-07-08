@@ -6,7 +6,7 @@ from .utils import normalize_name
 META_REFRESH_RATE = 24 * 60 * 60 # 24 hours
 SCRYFALL_REFRESH_RATE = 24 * 60 * 60 * 30 # 30 days
 
-def get_card_from_cache(conn, name):
+def get_card_from_cache(conn, name, refresh_if_stale=False):
     c = conn.cursor()
 
     key = normalize_name(name)
@@ -19,7 +19,7 @@ def get_card_from_cache(conn, name):
     json_blob, updated_at = row
     age = time.time() - updated_at
 
-    if age > SCRYFALL_REFRESH_RATE:
+    if age > SCRYFALL_REFRESH_RATE and refresh_if_stale:
         return None  # stale
 
     try:
@@ -27,6 +27,12 @@ def get_card_from_cache(conn, name):
     except json.JSONDecodeError:
         return None
 
+def is_card_in_cache(conn, name):
+    c = conn.cursor()
+    key = normalize_name(name)
+    c.execute("SELECT id FROM cards WHERE name = ?", (key,))
+    row = c.fetchone()
+    return row is not None
 
 def save_card_to_cache(conn, card):
     c = conn.cursor()
