@@ -96,6 +96,8 @@ def fetch_cards(conn, meta_list):
     
     if missing:
         print(f"Fetching {len(missing)} cards from Scryfall")
+        for name in missing:
+            print(f"Fetching card {name} from Scryfall")
         fetched = fetch_cards_from_scryfall(conn, missing)
         for card in fetched:
             save_card_to_cache(conn, card)

@@ -10,7 +10,7 @@ def get_card_from_cache(conn, name, refresh_if_stale=False):
     c = conn.cursor()
 
     key = normalize_name(name)
-    c.execute("SELECT json, updated_at FROM cards WHERE name = ?", (key,))
+    c.execute("SELECT json, updated_at FROM cards WHERE name LIKE ?", (f"%{key}%",))
     row = c.fetchone()
 
     if not row:
@@ -30,7 +30,7 @@ def get_card_from_cache(conn, name, refresh_if_stale=False):
 def is_card_in_cache(conn, name):
     c = conn.cursor()
     key = normalize_name(name)
-    c.execute("SELECT id FROM cards WHERE name = ?", (key,))
+    c.execute("SELECT id FROM cards WHERE name LIKE ?", (f"%{key}%",))
     row = c.fetchone()
     return row is not None
 

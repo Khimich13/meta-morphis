@@ -51,6 +51,5 @@ def main():
 if __name__ == "__main__":
     main()
 
-# TODO: Fix a bug: Fetching 4 cards from Scryfall (supposed to be 0, because all cards are in cache)
 # TODO: Refactor the code to make it more readable and maintainable
 # TODO: Test fetching cards from Scryfall fallback prevent logic
