@@ -2,7 +2,7 @@ import sqlite3
 import time
 
 from meta_morphis.db.schema import init_db
-from meta_morphis.fetch_cards import fetch_cards
+from meta_morphis.fetch_from_scryfall import fetch_cards
 from meta_morphis.generate_meta import get_meta_cards
 from meta_morphis.formats import FORMATS
 
