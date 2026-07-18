@@ -1,10 +1,13 @@
 import requests
 import time
 
-from meta_morphis.db.cache import get_card_from_cache, save_card_to_cache, is_card_in_cache
+from meta_morphis.db.cache import get_card_from_cache, save_cards_to_cache
 
 URL_COLLECTION = "https://api.scryfall.com/cards/collection"
 URL_NAMED = "https://api.scryfall.com/cards/named"
+
+SCRYFALL_REFRESH_RATE = 24 * 60 * 60 * 30 # 30 days
+SCRYFALL_BATCH_SIZE_LIMIT = 75
 # Required by Scryfall
 HEADERS = {
         "User-Agent": "meta-morphis",
@@ -14,24 +17,27 @@ HEADERS = {
 def fetch_one_by_one(conn, names):
     cards = []
     print(f"Failed to find {len(names)} card(s) in Scryfall in batch request")
-    print(f"This/these card(s) will be fetched from Scryfall one by one")
+    print(f"This/these card(s) will be fetched from either Scryfall or cache one by one")
     for name in names:
-        card = fetch_single(conn, name)
-        if card:
+        cached_card = get_card_from_cache(conn, name)
+        if cached_card:
+            print(f"Card {name} found in cache")
+            cards.append(cached_card)
+            continue
+        
+        fetched_card = fetch_single(name)
+        if fetched_card:
             print(f"Found card {name} in Scryfall")
-            cards.append(card)
-        elif is_card_in_cache(conn, name):
-            print(f"Card {name} not found in Scryfall, but in cache")
-            cards.append(get_card_from_cache(conn, name))
-        else:
-            print("Not found:", name)
+            cards.append(fetched_card)
+            continue
+
+        print("Not found:", name)
     return cards
 
 def fetch_batch(conn, names):
     all_cards = []
     
-    # Scryfall API limits requests to 75 cards per request
-    identifiers = [{"name": n} for n in names[:75]]
+    identifiers = [{"name": n} for n in names]
 
     # Retry loop for robustness
     for attempt in range(3):
@@ -39,72 +45,107 @@ def fetch_batch(conn, names):
         r = requests.post(URL_COLLECTION, json={"identifiers": identifiers}, headers=HEADERS)
 
         if r.status_code == 200:
-            data = r.json()
-            if data.get("object") == "error":
-                print(f"Scryfall error: {data.get('details')}")
-                continue
+            all_cards = process_request(conn, r)
+            if all_cards:
+                return all_cards
+        else:
+            print(f"Scryfall returned status {r.status_code}")
 
-            if len(data["not_found"]) > 0:
-                not_found_names = [item["name"] for item in data.get("not_found", [])]
-                all_cards.extend(fetch_one_by_one(conn, not_found_names))
+        time.sleep(0.5 * (attempt + 1))
 
-            all_cards.extend(data["data"])
-            break
+    print(f"Failed to fetch cards from Scryfall")
+    return []
 
-        # Retry on transient errors
-        if r.status_code in (429, 503):
-            time.sleep(0.5 * (attempt + 1))
-            continue
-        
-        print(f"Failed to fetch cards from Scryfall, attempting to fetch from cache")
-        for name in names:
-            if not is_card_in_cache(conn, name):
-                print(f"Card {name} not found in cache")
-                continue
-            card = get_card_from_cache(conn, name)
-            all_cards.append(card)
-                
-    if len(all_cards) == 0:
-        print(f"Failed to fetch any cards from Scryfall or cache")
-        raise(Exception("Failed to fetch any cards from Scryfall or cache"))
-    return all_cards
+def fetch_batches(conn, batches):
+    output = []
+    for batch in batches:
+        print(f"Fetching {len(batch)} cards from Scryfall")
+        fetched = fetch_batch(conn, batch)
+        if fetched:
+            print(f"Saving {len(fetched)} cards to cache")
+            save_cards_to_cache(conn, fetched)
+            output.extend(fetched)
+    return output
 
-def fetch_single(conn, name):
+def fetch_single(name):
     params = {"fuzzy": name}
     for attempt in range(3):
         r = requests.get(URL_NAMED, headers=HEADERS, params=params)
         if r.status_code == 200:
             card = r.json()
-            save_card_to_cache(conn,card)
             return card
-        if r.status_code in (429, 503):
-            time.sleep(0.5 * (attempt + 1))
-            continue
+        time.sleep(0.5 * (attempt + 1))
     print(f"Failed to fetch card {name} from Scryfall after 3 attempts")
     return None
 
-def fetch_cards(conn, meta_list):
-    output = []
+def batch(items, size=SCRYFALL_BATCH_SIZE_LIMIT):
+    # Scryfall API limits requests to 75 cards per request
+    return [items[i:i+size] for i in range(0, len(items), size)]
+
+def classify_cards(conn, meta_list):
+    fresh = []
+    outdated = []
     missing = []
 
     for entry in meta_list:
-        card_name = entry["name"]
-        cached = get_card_from_cache(conn, card_name, refresh_if_stale=True)
+        name = entry["name"]
+        cached = get_card_from_cache(conn, name)
+
         if cached:
-            output.append(cached)
+            if cached["age"] > SCRYFALL_REFRESH_RATE:
+                outdated.append(cached)
+            else:
+                fresh.append(cached)
         else:
-            missing.append(card_name)
-    
-    # Scryfall API limits requests to 75 cards per request
-    for i in range(0, len(missing), 75):
-        batch = missing[i:i+75]
-        print(f"Fetching {len(batch)} cards from Scryfall")
+            missing.append(name)
 
-        for name in batch:
-            print(f"Fetching card {name} from Scryfall")
-        fetched = fetch_batch(conn, batch)
-        for card in fetched:
-            save_card_to_cache(conn, card)
-        output.extend(fetched)
+    return fresh, outdated, missing
 
+def refresh_outdated(conn, outdated):
+    names = [card["name"] for card in outdated]
+    refreshed = fetch_batches(conn, batch(names))
+    refreshed_names = {card["name"] for card in refreshed}
+
+    not_refreshed = [card for card in outdated if card["name"] not in refreshed_names]
+    return refreshed, not_refreshed
+
+def fetch_cards(conn, meta_list):
+    output = []
+
+    fresh, outdated, missing = classify_cards(conn, meta_list)
+    output.extend(fresh)
+
+    if missing:
+        print("Trying to fetch missing names...")
+        output.extend(fetch_batches(conn, batch(missing)))
+
+    if outdated:
+        print("Trying to fetch outdated names...")
+        refreshed, not_refreshed = refresh_outdated(conn, outdated)
+
+        print(f"{len(refreshed)} outdated cards were refreshed succesfully")
+        output.extend(refreshed)
+        
+        if not_refreshed:
+            print(f"{len(not_refreshed)} outdated cards were not refreshed")
+            output.extend(not_refreshed)
+
+    if not output:
+        raise Exception("No cards have been fetched either from Scryfall or from cache")
     return output
+
+def process_request(conn, r):
+    cards = []
+
+    data = r.json()
+        
+    if data.get("object") == "error":
+        print(f"Scryfall error: {data.get('details')}")
+
+    not_found = data.get("not_found", [])
+    if not_found:
+        not_found_names = [item["name"] for item in not_found]
+        cards.extend(fetch_one_by_one(conn, not_found_names))
+
+    cards.extend(data["data"])
+    return cards

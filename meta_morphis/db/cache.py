@@ -4,9 +4,8 @@ import json
 from .utils import normalize_name
 
 META_REFRESH_RATE = 24 * 60 * 60 # 24 hours
-SCRYFALL_REFRESH_RATE = 24 * 60 * 60 * 30 # 30 days
 
-def get_card_from_cache(conn, name, refresh_if_stale=False):
+def get_card_from_cache(conn, name):
     c = conn.cursor()
 
     key = normalize_name(name)
@@ -17,39 +16,30 @@ def get_card_from_cache(conn, name, refresh_if_stale=False):
         return None
 
     json_blob, updated_at = row
-    age = time.time() - updated_at
-
-    if age > SCRYFALL_REFRESH_RATE and refresh_if_stale:
-        return None  # stale
 
     try:
-        return json.loads(json_blob)
+        card = json.loads(json_blob)
+        card["age"] = time.time() - updated_at
+        return card
     except json.JSONDecodeError:
         return None
 
-def is_card_in_cache(conn, name):
+def save_cards_to_cache(conn, cards):
     c = conn.cursor()
-    key = normalize_name(name)
-    c.execute("SELECT id FROM cards WHERE name LIKE ?", (f"%{key}%",))
-    row = c.fetchone()
-    return row is not None
-
-def save_card_to_cache(conn, card):
-    c = conn.cursor()
-
-    key = normalize_name(card["name"])
-    c.execute("""
-        INSERT INTO cards (id, name, json, updated_at)
-        VALUES (?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET
-            json = excluded.json,
-            updated_at = excluded.updated_at
-    """, (
-        card["id"],
-        key, 
-        json.dumps(card),
-        int(time.time())
-    ))
+    for card in cards:
+        key = normalize_name(card["name"])
+        c.execute("""
+            INSERT INTO cards (id, name, json, updated_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                json = excluded.json,
+                updated_at = excluded.updated_at
+        """, (
+            card["id"],
+            key, 
+            json.dumps(card),
+            int(time.time())
+        ))
     conn.commit()
 
 def should_refresh_meta(conn, format):
