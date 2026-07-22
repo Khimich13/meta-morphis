@@ -51,8 +51,12 @@ def scrape_meta_cards(url):
             cols = row.find_all("td")
             if not cols:
                 continue
+            name = cols[1].text.strip()
+            if "//" in name:
+                print(f"{name} - this is a double name that Scryfall doesn't like, so we use just the first part of a double name")
+                name = name.split("//")[0].strip()
             meta_list.append({
-                "name": cols[1].text.strip().rstrip("/").strip(),
+                "name": name,
                 "rank": int(cols[0].text.strip()),
                 "percent": float(cols[3].text.strip().replace("%", "")),
                 "deck_count": float(cols[4].text.strip()),

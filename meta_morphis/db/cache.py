@@ -9,7 +9,17 @@ def get_card_from_cache(conn, name):
     c = conn.cursor()
 
     key = normalize_name(name)
-    c.execute("SELECT json, updated_at FROM cards WHERE name LIKE ?", (f"%{key}%",))
+
+    c.execute(
+        """
+        SELECT json, updated_at
+        FROM cards
+        WHERE name = ?
+            OR LOWER(json_extract(json, '$.card_faces[0].name')) = ?
+        """,
+        (key, key)
+    )
+
     row = c.fetchone()
 
     if not row:

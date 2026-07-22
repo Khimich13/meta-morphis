@@ -53,3 +53,7 @@ if __name__ == "__main__":
 
 # TODO: Refactor the code to make it more readable and maintainable
 # TODO: Test fetching cards from Scryfall fallback prevent logic
+# TODO: Try to remove conn argument passing everywhere
+# TODO: Refactor generate_meta
+# TODO: Refactor cache
+# TODO: Clean debugging print messages
