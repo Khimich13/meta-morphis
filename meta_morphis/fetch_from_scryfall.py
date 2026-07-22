@@ -124,7 +124,7 @@ def fetch_cards(conn, meta_list):
         print("Trying to fetch outdated names...")
         refreshed, not_refreshed = refresh_outdated(conn, outdated)
 
-        print(f"{len(refreshed)} outdated cards were refreshed succesfully")
+        print(f"{len(refreshed)} outdated cards were refreshed successfully")
         output.extend(refreshed)
         
         if not_refreshed:
