@@ -25,6 +25,7 @@ def fetch_one_by_one(conn, names):
             cards.append(cached_card)
             continue
         
+        time.sleep(0.1)
         fetched_card = fetch_single(name)
         if fetched_card:
             print(f"Found card {name} in Scryfall")
