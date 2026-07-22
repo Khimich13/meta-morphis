@@ -135,17 +135,16 @@ def fetch_cards(conn, meta_list):
     return output
 
 def process_request(conn, r):
-    cards = []
-
     data = r.json()
-        
-    if data.get("object") == "error":
-        print(f"Scryfall error: {data.get('details')}")
+
+    cards = data.get("data", [])
+    if not cards:
+        print(f"Scryfall error: no data has been received")
+        return cards
 
     not_found = data.get("not_found", [])
     if not_found:
         not_found_names = [item["name"] for item in not_found]
         cards.extend(fetch_one_by_one(conn, not_found_names))
 
-    cards.extend(data["data"])
     return cards
