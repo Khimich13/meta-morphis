@@ -42,7 +42,7 @@ def main():
             mana_value = card["mana_cost"]
         # covers double-faced and other differently structured cards
         elif "card_faces" in card:
-            mana_value = card["card_faces"][0]["mana_cost"]
+            mana_value = card["card_faces"][0].get("mana_cost", "")
             
         print(name, mana_value, type_line)
 
