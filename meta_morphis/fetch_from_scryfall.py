@@ -42,7 +42,7 @@ def fetch_batch(conn, names):
     # Retry loop for robustness
     for attempt in range(3):
         print(f"Fetching cards from Scryfall, attempt {attempt + 1} of 3")
-        r = requests.post(URL_COLLECTION, json={"identifiers": identifiers}, headers=HEADERS)
+        r = requests.post(URL_COLLECTION, json={"identifiers": identifiers}, headers=HEADERS, timeout=10)
 
         if r.status_code == 200:
             all_cards = process_request(conn, r)
@@ -70,7 +70,7 @@ def fetch_batches(conn, batches):
 def fetch_single(name):
     params = {"fuzzy": name}
     for attempt in range(3):
-        r = requests.get(URL_NAMED, headers=HEADERS, params=params)
+        r = requests.get(URL_NAMED, headers=HEADERS, params=params, timeout=10)
         if r.status_code == 200:
             card = r.json()
             return card
