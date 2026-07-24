@@ -2,6 +2,7 @@ import time
 import json
 
 from .utils import normalize_name
+from meta_morphis.models.meta import MetaEntry
 
 META_REFRESH_RATE = 24 * 60 * 60 # 24 hours
 
@@ -77,49 +78,42 @@ def load_cached_meta(conn, format):
     c = conn.cursor()
     rows = c.execute("""
         SELECT name, rank, percent, deck_count
-        FROM meta_cards
+        FROM meta
         WHERE format = ?
         ORDER BY rank ASC
     """, (format,)).fetchall()
 
     meta = []
     for name, rank, percent, deck_count in rows:
-        meta.append({
-            "name": name,
-            "rank": rank,
-            "percent": percent,
-            "deck_count": deck_count
-        })
+        meta.append(MetaEntry(
+            name= name,
+            rank= rank,
+            percent= percent,
+            deck_count= deck_count
+            )
+        )
 
     return meta
 
-def save_meta_to_cache(conn, meta_list, format):
-    """
-    Save the scraped Goldfish meta list into the meta_cards table.
-    meta_list should be a list of dicts like:
-    [
-        {"name": "lightning bolt", "rank": 1, "percent": 23.4, "deck_count": 120},
-        ...
-    ]
-    """
+def save_meta_to_cache(conn, meta, format):
     c = conn.cursor()
 
     # Clear old format meta before inserting new one
     c.execute("""
-        DELETE FROM meta_cards
+        DELETE FROM meta
         WHERE format = ?
         """, (format,))
 
-    for entry in meta_list:
+    for entry in meta:
         c.execute("""
-            INSERT INTO meta_cards (name, format, rank, percent, deck_count)
+            INSERT INTO meta (name, format, rank, percent, deck_count)
             VALUES (?, ?, ?, ?, ?)
         """, (
-            entry["name"],
+            entry.name,
             format,
-            entry.get("rank"),
-            entry.get("percent"),
-            entry.get("deck_count"),
+            entry.rank,
+            entry.percent,
+            entry.deck_count,
         ))
 
     conn.commit()

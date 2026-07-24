@@ -83,13 +83,13 @@ def batch(items, size=SCRYFALL_BATCH_SIZE_LIMIT):
     # Scryfall API limits requests to 75 cards per request
     return [items[i:i+size] for i in range(0, len(items), size)]
 
-def classify_cards(conn, meta_list):
+def classify_cards(conn, meta):
     fresh = []
     outdated = []
     missing = []
 
-    for entry in meta_list:
-        name = entry["name"]
+    for entry in meta:
+        name = entry.name
         cached = get_card_from_cache(conn, name)
 
         if cached:
@@ -110,10 +110,10 @@ def refresh_outdated(conn, outdated):
     not_refreshed = [card for card in outdated if card["name"] not in refreshed_names]
     return refreshed, not_refreshed
 
-def fetch_cards(conn, meta_list):
+def fetch_cards(conn, meta):
     output = []
 
-    fresh, outdated, missing = classify_cards(conn, meta_list)
+    fresh, outdated, missing = classify_cards(conn, meta)
     output.extend(fresh)
 
     if missing:

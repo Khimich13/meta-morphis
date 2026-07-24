@@ -21,7 +21,7 @@ def init_db(conn):
 
     # Create Goldfish meta card list table
     c.execute("""
-        CREATE TABLE IF NOT EXISTS meta_cards (
+        CREATE TABLE IF NOT EXISTS meta (
             name TEXT NOT NULL,
             format TEXT NOT NULL,
             rank INTEGER,
