@@ -1,9 +1,9 @@
 import requests
 import time
+import config
 from bs4 import BeautifulSoup
 
 from meta_morphis.db.cache import should_refresh_meta, load_cached_meta, save_meta_to_cache, update_meta_timestamp
-from meta_morphis.formats import FORMATS
 from meta_morphis.models.meta import MetaEntry
 
 def get_meta_cards(conn, format) -> list[dict]:
@@ -13,7 +13,7 @@ def get_meta_cards(conn, format) -> list[dict]:
 
     print("Refreshing meta data from MTGGoldfish...\n")
     
-    url = FORMATS[format]
+    url = config.FORMATS[format]
     meta = scrape_meta_cards(url)
 
     if not meta:

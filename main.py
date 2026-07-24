@@ -1,21 +1,21 @@
 import sqlite3
 import time
+import config
 
 from meta_morphis.db.schema import init_db
 from meta_morphis.fetch_from_scryfall import fetch_cards
 from meta_morphis.generate_meta import get_meta_cards
-from meta_morphis.formats import FORMATS
 
 def choose_format() -> str:
     while True:
         print("Print the name of the format:\n")
-        for format, _ in FORMATS.items():
+        for format, _ in config.FORMATS.items():
             print(f"{format}")
         print()
 
         response = input().strip().lower()
 
-        if response in FORMATS:
+        if response in config.FORMATS:
             return response
 
         print("Invalid choice!")

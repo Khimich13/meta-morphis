@@ -1,19 +1,8 @@
 import requests
 import time
+import config
 
 from meta_morphis.db.cache import get_card_from_cache, save_cards_to_cache
-from meta_morphis.models.card import CachedCard
-
-URL_COLLECTION = "https://api.scryfall.com/cards/collection"
-URL_NAMED = "https://api.scryfall.com/cards/named"
-
-SCRYFALL_REFRESH_RATE = 24 * 60 * 60 * 30 # 30 days
-SCRYFALL_BATCH_SIZE_LIMIT = 75
-# Required by Scryfall
-HEADERS = {
-        "User-Agent": "meta-morphis",
-        "Accept": "application/json"
-    }
 
 def fetch_one_by_one(conn, names):
     cards = []
@@ -44,7 +33,7 @@ def fetch_batch(conn, names):
     # Retry loop for robustness
     for attempt in range(3):
         print(f"Fetching cards from Scryfall, attempt {attempt + 1} of 3")
-        r = requests.post(URL_COLLECTION, json={"identifiers": identifiers}, headers=HEADERS, timeout=10)
+        r = requests.post(config.URL_COLLECTION, json={"identifiers": identifiers}, headers=config.HEADERS, timeout=10)
 
         if r.status_code == 200:
             all_cards = process_request(conn, r)
@@ -72,7 +61,7 @@ def fetch_batches(conn, batches):
 def fetch_single(name):
     params = {"fuzzy": name}
     for attempt in range(3):
-        r = requests.get(URL_NAMED, headers=HEADERS, params=params, timeout=10)
+        r = requests.get(config.URL_NAMED, headers=config.HEADERS, params=params, timeout=10)
         if r.status_code == 200:
             card = r.json()
             return card
@@ -80,7 +69,7 @@ def fetch_single(name):
     print(f"Failed to fetch card {name} from Scryfall after 3 attempts")
     return None
 
-def batch(items, size=SCRYFALL_BATCH_SIZE_LIMIT):
+def batch(items, size=config.SCRYFALL_BATCH_SIZE_LIMIT):
     # Scryfall API limits requests to 75 cards per request
     return [items[i:i+size] for i in range(0, len(items), size)]
 
@@ -94,7 +83,7 @@ def classify_cards(conn, meta):
         cached = get_card_from_cache(conn, name)
 
         if cached:
-            if cached.age > SCRYFALL_REFRESH_RATE:
+            if cached.age > config.SCRYFALL_REFRESH_RATE:
                 outdated.append(cached)
             else:
                 fresh.append(cached)
