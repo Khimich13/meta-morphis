@@ -9,7 +9,7 @@ class CardFace:
 
     def __str__(self):
         return (
-            f"Face Name: {self.name}\n" +
+            f"Face Name: {self.name}\n"
             f"Type Line: {self.type_line}\n"
             f"Mana Cost: {self.mana_cost}\n"
         )
