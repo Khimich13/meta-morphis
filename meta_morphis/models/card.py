@@ -16,15 +16,9 @@ class CachedCard:
         output = (
             f"Name: {self.name}\n" +
             f"Type Line: {self.type_line}\n"
-            f"Mana Cost: "
+            f"Mana Cost: {self.mana_cost}\n"
         )
-        if self.faces:
-            front_face = self.faces[0]
-            back_face = self.faces[1]
-            output += f"{front_face.get("mana_cost")}\n"
-            output += f"Front Face: {front_face["name"]} ({front_face.get("mana_cost")}) - {front_face["type_line"]}\n"
-            output += f"Back Face: {back_face["name"]} ({back_face.get("mana_cost")}) - {back_face["type_line"]}\n"
-        else:
-            output += f"{self.mana_cost}\n"
+        for face in self.faces:
+            output += f"{face}"
 
         return output

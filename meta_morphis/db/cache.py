@@ -4,6 +4,7 @@ import json
 from .utils import normalize_name
 from meta_morphis.models.card import CachedCard
 from meta_morphis.models.meta import MetaEntry
+from meta_morphis.models.card_face import CardFace
 
 META_REFRESH_RATE = 24 * 60 * 60 # 24 hours
 
@@ -30,15 +31,9 @@ def get_card_from_cache(conn, name):
     json_blob, updated_at = row
 
     try:
-        blob = json.loads(json_blob)
-        return CachedCard(
-            id= blob["id"],
-            name= blob["name"],
-            age= time.time() - updated_at,
-            mana_cost= blob.get("mana_cost"),
-            type_line= blob["type_line"],
-            faces= blob.get("card_faces")
-        )
+        raw = json.loads(json_blob)
+        age = time.time() - updated_at
+        return build_cached_card(raw, age)
     except json.JSONDecodeError:
         return None
 
@@ -132,3 +127,30 @@ def save_meta_to_cache(conn, meta_list, format):
         ))
 
     conn.commit()
+
+def build_cached_card(raw: dict, age: float) -> CachedCard:
+    faces = []
+
+    # Build CardFace objects if present
+    if "card_faces" in raw:
+        for face in raw["card_faces"]:
+            faces.append(CardFace(
+                name=face["name"],
+                mana_cost=face.get("mana_cost") or None,
+                type_line=face["type_line"]
+            ))
+
+    # Determine mana_cost
+    if faces:
+        mana_cost = faces[0].mana_cost
+    else:
+        mana_cost = raw.get("mana_cost")
+
+    return CachedCard(
+        id=raw["id"],
+        name=raw["name"],
+        age=age,
+        mana_cost=mana_cost,
+        type_line=raw.get("type_line", ""),
+        faces=faces
+    )
