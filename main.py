@@ -32,18 +32,8 @@ def main():
 
         meta = get_meta_cards(conn, format)
         cards = fetch_cards(conn, meta)
-        for card in cards:
-            name = card["name"]
-            type_line = card["type_line"]
-            mana_value = ""
-
-            if "mana_cost" in card:
-                mana_value = card["mana_cost"]
-            # covers double-faced and other differently structured cards
-            elif "card_faces" in card:
-                mana_value = card["card_faces"][0].get("mana_cost", "")
-                
-            print(name, mana_value, type_line)
+        for card in cards:         
+            print(card)
 
 if __name__ == "__main__":
     main()

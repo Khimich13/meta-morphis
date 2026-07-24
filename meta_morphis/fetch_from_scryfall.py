@@ -2,6 +2,7 @@ import requests
 import time
 
 from meta_morphis.db.cache import get_card_from_cache, save_cards_to_cache
+from meta_morphis.models.card import CachedCard
 
 URL_COLLECTION = "https://api.scryfall.com/cards/collection"
 URL_NAMED = "https://api.scryfall.com/cards/named"
@@ -93,7 +94,7 @@ def classify_cards(conn, meta):
         cached = get_card_from_cache(conn, name)
 
         if cached:
-            if cached["age"] > SCRYFALL_REFRESH_RATE:
+            if cached.age > SCRYFALL_REFRESH_RATE:
                 outdated.append(cached)
             else:
                 fresh.append(cached)

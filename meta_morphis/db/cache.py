@@ -2,6 +2,7 @@ import time
 import json
 
 from .utils import normalize_name
+from meta_morphis.models.card import CachedCard
 from meta_morphis.models.meta import MetaEntry
 
 META_REFRESH_RATE = 24 * 60 * 60 # 24 hours
@@ -29,9 +30,15 @@ def get_card_from_cache(conn, name):
     json_blob, updated_at = row
 
     try:
-        card = json.loads(json_blob)
-        card["age"] = time.time() - updated_at
-        return card
+        blob = json.loads(json_blob)
+        return CachedCard(
+            id= blob["id"],
+            name= blob["name"],
+            age= time.time() - updated_at,
+            mana_cost= blob.get("mana_cost"),
+            type_line= blob["type_line"],
+            faces= blob.get("card_faces")
+        )
     except json.JSONDecodeError:
         return None
 
@@ -78,7 +85,7 @@ def load_cached_meta(conn, format):
     c = conn.cursor()
     rows = c.execute("""
         SELECT name, rank, percent, deck_count
-        FROM meta
+        FROM meta_cards
         WHERE format = ?
         ORDER BY rank ASC
     """, (format,)).fetchall()
@@ -90,30 +97,38 @@ def load_cached_meta(conn, format):
             rank= rank,
             percent= percent,
             deck_count= deck_count
-            )
         )
+    )
 
     return meta
 
-def save_meta_to_cache(conn, meta, format):
+def save_meta_to_cache(conn, meta_list, format):
+    """
+    Save the scraped Goldfish meta list into the meta_cards table.
+    meta_list should be a list of dicts like:
+    [
+        {"name": "lightning bolt", "rank": 1, "percent": 23.4, "deck_count": 120},
+        ...
+    ]
+    """
     c = conn.cursor()
 
     # Clear old format meta before inserting new one
     c.execute("""
-        DELETE FROM meta
+        DELETE FROM meta_cards
         WHERE format = ?
         """, (format,))
 
-    for entry in meta:
+    for entry in meta_list:
         c.execute("""
-            INSERT INTO meta (name, format, rank, percent, deck_count)
+            INSERT INTO meta_cards (name, format, rank, percent, deck_count)
             VALUES (?, ?, ?, ?, ?)
         """, (
-            entry.name,
+            entry["name"],
             format,
-            entry.rank,
-            entry.percent,
-            entry.deck_count,
+            entry.get("rank"),
+            entry.get("percent"),
+            entry.get("deck_count"),
         ))
 
     conn.commit()
