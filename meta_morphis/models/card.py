@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 from meta_morphis.models.card_face import CardFace 
 
 
@@ -8,7 +7,7 @@ class CachedCard:
     id: str
     name: str
     age: float
-    mana_cost: Optional[str]
+    mana_cost: str | None
     type_line: str
     faces: list[CardFace]
 
