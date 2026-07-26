@@ -2,7 +2,7 @@ import requests
 import time
 import config
 
-from meta_morphis.db.cache import get_card_from_cache, save_cards_to_cache
+from meta_morphis.db.cache import build_cached_card, get_card_from_cache, save_cards_to_cache
 
 def fetch_one_by_one(conn, names):
     cards = []
@@ -36,7 +36,7 @@ def fetch_batch(conn, names):
         r = requests.post(config.URL_COLLECTION, json={"identifiers": identifiers}, headers=config.HEADERS, timeout=10)
 
         if r.status_code == 200:
-            all_cards = process_request(conn, r)
+            all_cards = process_batch_request(conn, r)
             if all_cards:
                 return all_cards
         else:
@@ -50,12 +50,13 @@ def fetch_batch(conn, names):
 def fetch_batches(conn, batches):
     output = []
     for batch in batches:
-        print(f"Fetching {len(batch)} cards from Scryfall")
+        print(f"Fetching {len(batch)} card(s) from Scryfall")
         fetched = fetch_batch(conn, batch)
         if fetched:
-            print(f"Saving {len(fetched)} cards to cache")
+            print(f"Saving {len(fetched)} card(s) to cache\n")
             save_cards_to_cache(conn, fetched)
-            output.extend(fetched)
+            for raw_card in fetched:
+                output.append(build_cached_card(raw_card, 0))
     return output
 
 def fetch_single(name):
@@ -63,8 +64,8 @@ def fetch_single(name):
     for attempt in range(3):
         r = requests.get(config.URL_NAMED, headers=config.HEADERS, params=params, timeout=10)
         if r.status_code == 200:
-            card = r.json()
-            return card
+            raw_card = r.json()
+            return raw_card
         time.sleep(0.5 * (attempt + 1))
     print(f"Failed to fetch card {name} from Scryfall after 3 attempts")
     return None
@@ -125,14 +126,12 @@ def fetch_cards(conn, meta):
         raise Exception("No cards have been fetched either from Scryfall or from cache")
     return output
 
-def process_request(conn, r):
+def process_batch_request(conn, r):
     data = r.json()
-
     cards = data.get("data", [])
     if not cards:
         print(f"Scryfall error: no data has been received")
         return cards
-
     not_found = data.get("not_found", [])
     if not_found:
         not_found_names = [item["name"] for item in not_found]

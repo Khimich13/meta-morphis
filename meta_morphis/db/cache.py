@@ -36,9 +36,9 @@ def get_card_from_cache(conn, name):
     except json.JSONDecodeError:
         return None
 
-def save_cards_to_cache(conn, cards):
+def save_cards_to_cache(conn, raw_cards):
     c = conn.cursor()
-    for card in cards:
+    for card in raw_cards:
         key = normalize_name(card["name"])
         c.execute("""
             INSERT INTO cards (id, name, json, updated_at)
@@ -79,7 +79,7 @@ def load_cached_meta(conn, format):
     c = conn.cursor()
     rows = c.execute("""
         SELECT name, rank, percent, deck_count
-        FROM meta_cards
+        FROM meta
         WHERE format = ?
         ORDER BY rank ASC
     """, (format,)).fetchall()
