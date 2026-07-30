@@ -1,8 +1,8 @@
-import sqlite3
 import time
 import config
 
 from meta_morphis.db.schema import init_db
+from meta_morphis.db.connection import get_connection
 from meta_morphis.fetch_from_scryfall import fetch_cards
 from meta_morphis.generate_meta import get_meta_cards
 
@@ -22,9 +22,8 @@ def choose_format() -> str:
         print("Please, choose between the provided options\n")
         time.sleep(2)
 
-
 def main():
-    with sqlite3.connect("cards.db") as conn:
+    with get_connection() as conn:
         init_db(conn)
 
         format = choose_format()
@@ -40,7 +39,5 @@ if __name__ == "__main__":
 
 # TODO: Refactor the code to make it more readable and maintainable
 # TODO: Test fetching cards from Scryfall fallback prevent logic
-# TODO: Try to remove conn argument passing everywhere
 # TODO: Refactor generate_meta
-# TODO: Refactor cache
 # TODO: Clean debugging print messages

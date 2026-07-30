@@ -16,3 +16,5 @@ HEADERS = {
         "User-Agent": "meta-morphis",
         "Accept": "application/json"
     }
+#DB
+DB_PATH = "cards.db"

@@ -1,10 +1,8 @@
 import time
 import json
-import config
 
 from .utils import normalize_name
 from meta_morphis.models.card import CachedCard
-from meta_morphis.models.meta import MetaEntry
 from meta_morphis.models.card_face import CardFace
 
 def get_card_from_cache(conn, name):
@@ -52,71 +50,6 @@ def save_cards_to_cache(conn, raw_cards):
             json.dumps(card),
             int(time.time())
         ))
-    conn.commit()
-
-def should_refresh_meta(conn, format):
-    c = conn.cursor()
-    row = c.execute(
-        "SELECT last_updated FROM meta_refresh WHERE format = ?", (format,)
-    ).fetchone()
-
-    if row is None:
-        return True # never scraped before
-
-    last_updated = row[0]
-    return (time.time() - last_updated) > config.META_REFRESH_RATE
-
-def update_meta_timestamp(conn, format):
-    c = conn.cursor()
-    c.execute("""
-        INSERT INTO meta_refresh (format, last_updated)
-        VALUES (?, ?)
-        ON CONFLICT(format) DO UPDATE SET last_updated = excluded.last_updated
-    """, (format, int(time.time()),))
-    conn.commit()
-
-def load_cached_meta(conn, format):
-    c = conn.cursor()
-    rows = c.execute("""
-        SELECT name, rank, percent, deck_count
-        FROM meta
-        WHERE format = ?
-        ORDER BY rank ASC
-    """, (format,)).fetchall()
-
-    meta = []
-    for name, rank, percent, deck_count in rows:
-        meta.append(MetaEntry(
-            name= name,
-            rank= rank,
-            percent= percent,
-            deck_count= deck_count
-        )
-    )
-
-    return meta
-
-def save_meta_to_cache(conn, meta, format):
-    c = conn.cursor()
-
-    # Clear old format meta before inserting new one
-    c.execute("""
-        DELETE FROM meta
-        WHERE format = ?
-        """, (format,))
-
-    for entry in meta:
-        c.execute("""
-            INSERT INTO meta (name, format, rank, percent, deck_count)
-            VALUES (?, ?, ?, ?, ?)
-        """, (
-            entry.name,
-            format,
-            entry.rank,
-            entry.percent,
-            entry.deck_count,
-        ))
-
     conn.commit()
 
 def build_cached_card(raw: dict, age: float) -> CachedCard:

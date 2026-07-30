@@ -2,7 +2,11 @@ import requests
 import time
 import config
 
-from meta_morphis.db.cache import build_cached_card, get_card_from_cache, save_cards_to_cache
+from meta_morphis.db.cards_repo import (
+    build_cached_card, 
+    get_card_from_cache, 
+    save_cards_to_cache
+)
 
 def fetch_one_by_one(conn, names):
     cards = []
