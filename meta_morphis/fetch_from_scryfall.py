@@ -123,7 +123,7 @@ def fetch_cards(conn, meta):
             output.extend(not_refreshed)
 
     if not output:
-        raise Exception("No cards have been fetched either from Scryfall or from cache")
+        raise RuntimeError("No cards have been fetched either from Scryfall or from cache")
     return output
 
 def process_batch_request(conn, r):

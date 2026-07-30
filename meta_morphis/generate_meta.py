@@ -23,7 +23,7 @@ def get_meta_cards(conn, format) -> list[dict]:
         if len(cached_meta) > 0:
             return cached_meta
         print("Error: there was no cached meta data!\n")
-        raise(Exception("Program has failed to find meta info!"))
+        raise(RuntimeError("Program has failed to find meta info!"))
 
     save_meta_to_cache(conn, meta, format)
 
@@ -67,4 +67,4 @@ def scrape_meta_cards(url):
 
         return meta 
     # Failed to scrape
-    return None
+    return []
