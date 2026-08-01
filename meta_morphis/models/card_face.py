@@ -6,7 +6,7 @@ class CardFace:
     mana_cost: str | None
     type_line: str
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"Face Name: {self.name}\n"
             f"Type Line: {self.type_line}\n"

@@ -1,11 +1,13 @@
+import sqlite3
 import time
 import json
 
+from typing import Any
 from .utils import normalize_name
 from meta_morphis.models.card import CachedCard
 from meta_morphis.models.card_face import CardFace
 
-def get_card_from_cache(conn, name):
+def get_card_from_cache(conn: sqlite3.Connection, name: str) -> CachedCard | None:
     c = conn.cursor()
 
     key = normalize_name(name)
@@ -34,7 +36,7 @@ def get_card_from_cache(conn, name):
     except json.JSONDecodeError:
         return None
 
-def save_cards_to_cache(conn, raw_cards):
+def save_cards_to_cache(conn: sqlite3.Connection, raw_cards: list[dict[str, Any]]) -> None:
     c = conn.cursor()
     for card in raw_cards:
         key = normalize_name(card["name"])
@@ -52,7 +54,7 @@ def save_cards_to_cache(conn, raw_cards):
         ))
     conn.commit()
 
-def build_cached_card(raw: dict, age: float) -> CachedCard:
+def build_cached_card(raw: dict[str, Any], age: float) -> CachedCard:
     faces = []
 
     # Build CardFace objects if present
@@ -76,5 +78,6 @@ def build_cached_card(raw: dict, age: float) -> CachedCard:
         age=age,
         mana_cost=mana_cost,
         type_line=raw.get("type_line", ""),
-        faces=faces
+        faces=faces,
+        raw=raw
     )

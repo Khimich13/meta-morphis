@@ -1,4 +1,6 @@
-def init_db(conn):
+import sqlite3
+
+def init_db(conn: sqlite3.Connection) -> None:
     c = conn.cursor()
 
     # Create Scryfall card cache table

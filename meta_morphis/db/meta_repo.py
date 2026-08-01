@@ -1,11 +1,12 @@
+import sqlite3
 import time
 import config
 
 from meta_morphis.models.meta import MetaEntry
 
-def should_refresh_meta(conn, format):
+def should_refresh_meta(conn: sqlite3.Connection, format: str) -> bool:
     c = conn.cursor()
-    row = c.execute(
+    row: tuple[int] | None = c.execute(
         "SELECT last_updated FROM meta_refresh WHERE format = ?", (format,)
     ).fetchone()
 
@@ -15,7 +16,7 @@ def should_refresh_meta(conn, format):
     last_updated = row[0]
     return (time.time() - last_updated) > config.META_REFRESH_RATE
 
-def update_meta_timestamp(conn, format):
+def update_meta_timestamp(conn: sqlite3.Connection, format: str) -> None:
     c = conn.cursor()
     c.execute("""
         INSERT INTO meta_refresh (format, last_updated)
@@ -24,7 +25,7 @@ def update_meta_timestamp(conn, format):
     """, (format, int(time.time()),))
     conn.commit()
 
-def load_cached_meta(conn, format):
+def load_cached_meta(conn: sqlite3.Connection, format: str) -> list[MetaEntry]:
     c = conn.cursor()
     rows = c.execute("""
         SELECT name, rank, percent, deck_count
@@ -45,7 +46,7 @@ def load_cached_meta(conn, format):
 
     return meta
 
-def save_meta_to_cache(conn, meta, format):
+def save_meta_to_cache(conn: sqlite3.Connection, meta: list[MetaEntry], format: str) -> None:
     c = conn.cursor()
 
     # Clear old format meta before inserting new one

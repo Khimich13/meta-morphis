@@ -3,6 +3,7 @@ import config
 
 from meta_morphis.db.schema import init_db
 from meta_morphis.db.connection import get_connection
+from meta_morphis.db.cards_repo import build_cached_card
 from meta_morphis.fetch_from_scryfall import fetch_cards
 from meta_morphis.generate_meta import get_meta_cards
 
@@ -32,7 +33,7 @@ def main():
         meta = get_meta_cards(conn, format)
         cards = fetch_cards(conn, meta)
         for card in cards:         
-            print(card)
+            print(build_cached_card(card, 0))
 
 if __name__ == "__main__":
     main()

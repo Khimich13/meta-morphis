@@ -1,14 +1,16 @@
+import sqlite3
 import requests
 import time
 import config
 
 from meta_morphis.db.cards_repo import (
-    build_cached_card, 
     get_card_from_cache, 
     save_cards_to_cache
 )
+from meta_morphis.models.meta import MetaEntry
+from typing_extensions import Any
 
-def fetch_one_by_one(conn, names):
+def fetch_one_by_one(conn: sqlite3.Connection, names: list[str]) -> list[dict[str, Any]]:
     cards = []
     print(f"Failed to find {len(names)} card(s) in Scryfall in batch request")
     print(f"This/these card(s) will be fetched from either Scryfall or cache one by one")
@@ -16,7 +18,7 @@ def fetch_one_by_one(conn, names):
         cached_card = get_card_from_cache(conn, name)
         if cached_card:
             print(f"Card {name} found in cache")
-            cards.append(cached_card)
+            cards.append(cached_card.raw)
             continue
         
         time.sleep(0.1)
@@ -29,7 +31,7 @@ def fetch_one_by_one(conn, names):
         print("Not found:", name)
     return cards
 
-def fetch_batch(conn, names):
+def fetch_batch(conn: sqlite3.Connection, names: list[str]) -> list[dict[str, Any]]:
     all_cards = []
     
     identifiers = [{"name": n} for n in names]
@@ -51,7 +53,7 @@ def fetch_batch(conn, names):
     print(f"Failed to fetch cards from Scryfall")
     return []
 
-def fetch_batches(conn, batches):
+def fetch_batches(conn: sqlite3.Connection, batches: list[list[str]]) -> list[dict[str, Any]]:
     output = []
     for batch in batches:
         print(f"Fetching {len(batch)} card(s) from Scryfall")
@@ -60,25 +62,24 @@ def fetch_batches(conn, batches):
             print(f"Saving {len(fetched)} card(s) to cache\n")
             save_cards_to_cache(conn, fetched)
             for raw_card in fetched:
-                output.append(build_cached_card(raw_card, 0))
+                output.append(raw_card)
     return output
 
-def fetch_single(name):
+def fetch_single(name: str) -> dict[str, Any] | None:
     params = {"fuzzy": name}
     for attempt in range(3):
         r = requests.get(config.URL_NAMED, headers=config.HEADERS, params=params, timeout=10)
         if r.status_code == 200:
-            raw_card = r.json()
+            raw_card: dict[str, Any] = r.json()
             return raw_card
         time.sleep(0.5 * (attempt + 1))
     print(f"Failed to fetch card {name} from Scryfall after 3 attempts")
     return None
 
-def batch(items, size=config.SCRYFALL_BATCH_SIZE_LIMIT):
-    # Scryfall API limits requests to 75 cards per request
-    return [items[i:i+size] for i in range(0, len(items), size)]
+def batch(names: list[str], size: int=config.SCRYFALL_BATCH_SIZE_LIMIT) -> list[list[str]]:
+    return [names[i:i+size] for i in range(0, len(names), size)]
 
-def classify_cards(conn, meta):
+def classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[str]]:
     fresh = []
     outdated = []
     missing = []
@@ -89,15 +90,15 @@ def classify_cards(conn, meta):
 
         if cached:
             if cached.age > config.SCRYFALL_REFRESH_RATE:
-                outdated.append(cached)
+                outdated.append(cached.raw)
             else:
-                fresh.append(cached)
+                fresh.append(cached.raw)
         else:
             missing.append(name)
 
     return fresh, outdated, missing
 
-def refresh_outdated(conn, outdated):
+def refresh_outdated(conn: sqlite3.Connection, outdated: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     names = [card["name"] for card in outdated]
     refreshed = fetch_batches(conn, batch(names))
     refreshed_names = {card["name"] for card in refreshed}
@@ -105,7 +106,7 @@ def refresh_outdated(conn, outdated):
     not_refreshed = [card for card in outdated if card["name"] not in refreshed_names]
     return refreshed, not_refreshed
 
-def fetch_cards(conn, meta):
+def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[dict[str, Any]]:
     output = []
 
     fresh, outdated, missing = classify_cards(conn, meta)
@@ -130,13 +131,13 @@ def fetch_cards(conn, meta):
         raise RuntimeError("No cards have been fetched either from Scryfall or from cache")
     return output
 
-def process_batch_request(conn, r):
+def process_batch_request(conn: sqlite3.Connection, r: requests.Response) -> list[dict[str, Any]]:
     data = r.json()
-    cards = data.get("data", [])
+    cards: list[dict[str, Any]] = data.get("data", [])
     if not cards:
         print(f"Scryfall error: no data has been received")
         return cards
-    not_found = data.get("not_found", [])
+    not_found: list[dict[str, Any]] = data.get("not_found", [])
     if not_found:
         not_found_names = [item["name"] for item in not_found]
         cards.extend(fetch_one_by_one(conn, not_found_names))

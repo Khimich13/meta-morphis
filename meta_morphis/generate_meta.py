@@ -1,3 +1,4 @@
+import sqlite3
 import requests
 import time
 import config
@@ -11,7 +12,7 @@ from meta_morphis.db.meta_repo import (
 )
 from meta_morphis.models.meta import MetaEntry
 
-def get_meta_cards(conn, format) -> list[dict]:
+def get_meta_cards(conn: sqlite3.Connection, format: str) -> list[MetaEntry]:
     if not should_refresh_meta(conn, format):
         print("Using cached meta data\n")
         return load_cached_meta(conn, format)
@@ -35,8 +36,7 @@ def get_meta_cards(conn, format) -> list[dict]:
     update_meta_timestamp(conn, format)
     return meta
     
-
-def scrape_meta_cards(url):
+def scrape_meta_cards(url: str) -> list[MetaEntry]:
     for attempt in range(3):
         r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
 
