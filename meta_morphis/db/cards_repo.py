@@ -4,17 +4,15 @@ import json
 
 from typing import Any
 from .utils import normalize_name
-from meta_morphis.models.card import CachedCard
-from meta_morphis.models.card_face import CardFace
 
-def get_card_from_cache(conn: sqlite3.Connection, name: str) -> CachedCard | None:
+def get_card_from_cache(conn: sqlite3.Connection, name: str) -> dict[str, Any] | None:
     c = conn.cursor()
 
     key = normalize_name(name)
 
     c.execute(
         """
-        SELECT json, updated_at
+        SELECT json
         FROM cards
         WHERE name = ?
             OR LOWER(json_extract(json, '$.card_faces[0].name')) = ?
@@ -23,18 +21,37 @@ def get_card_from_cache(conn: sqlite3.Connection, name: str) -> CachedCard | Non
     )
 
     row = c.fetchone()
+    if not row:
+        return None
+    json_blob = row[0]
+
+    try:
+        raw: dict[str, Any] = json.loads(json_blob)
+        return raw
+    except json.JSONDecodeError:
+        return None
+
+def get_card_age(conn: sqlite3.Connection, name: str) -> int | None:
+    c = conn.cursor()
+
+    key = normalize_name(name)
+
+    c.execute(
+        """
+        SELECT updated_at
+        FROM cards
+        WHERE name = ?
+            OR LOWER(json_extract(json, '$.card_faces[0].name')) = ?
+        """,
+        (key, key)
+    )
+
+    row: int = c.fetchone()[0]
 
     if not row:
         return None
 
-    json_blob, updated_at = row
-
-    try:
-        raw = json.loads(json_blob)
-        age = time.time() - updated_at
-        return build_cached_card(raw, age)
-    except json.JSONDecodeError:
-        return None
+    return int(time.time()) - row
 
 def save_cards_to_cache(conn: sqlite3.Connection, raw_cards: list[dict[str, Any]]) -> None:
     c = conn.cursor()
@@ -53,31 +70,3 @@ def save_cards_to_cache(conn: sqlite3.Connection, raw_cards: list[dict[str, Any]
             int(time.time())
         ))
     conn.commit()
-
-def build_cached_card(raw: dict[str, Any], age: float) -> CachedCard:
-    faces = []
-
-    # Build CardFace objects if present
-    if "card_faces" in raw:
-        for face in raw["card_faces"]:
-            faces.append(CardFace(
-                name=face["name"],
-                mana_cost=face.get("mana_cost") or None,
-                type_line=face["type_line"]
-            ))
-
-    # Determine mana_cost
-    if faces:
-        mana_cost = faces[0].mana_cost
-    else:
-        mana_cost = raw.get("mana_cost")
-
-    return CachedCard(
-        id=raw["id"],
-        name=raw["name"],
-        age=age,
-        mana_cost=mana_cost,
-        type_line=raw.get("type_line", ""),
-        faces=faces,
-        raw=raw
-    )

@@ -4,7 +4,8 @@ import time
 import config
 
 from meta_morphis.db.cards_repo import (
-    get_card_from_cache, 
+    get_card_from_cache,
+    get_card_age,
     save_cards_to_cache
 )
 from meta_morphis.models.meta import MetaEntry
@@ -18,7 +19,7 @@ def fetch_one_by_one(conn: sqlite3.Connection, names: list[str]) -> list[dict[st
         cached_card = get_card_from_cache(conn, name)
         if cached_card:
             print(f"Card {name} found in cache")
-            cards.append(cached_card.raw)
+            cards.append(cached_card)
             continue
         
         time.sleep(0.1)
@@ -89,10 +90,11 @@ def classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[lis
         cached = get_card_from_cache(conn, name)
 
         if cached:
-            if cached.age > config.SCRYFALL_REFRESH_RATE:
-                outdated.append(cached.raw)
+            age = get_card_age(conn, name)
+            if age and age > config.SCRYFALL_REFRESH_RATE:
+                outdated.append(cached)
             else:
-                fresh.append(cached.raw)
+                fresh.append(cached)
         else:
             missing.append(name)
 
