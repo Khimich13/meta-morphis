@@ -22,54 +22,55 @@ def get_meta_cards(conn: sqlite3.Connection, format: str) -> list[MetaEntry]:
     url = config.FORMATS[format]
     meta = scrape_meta_cards(url)
 
-    if not meta:
+    if meta is None:
         print("Failed fetching data from MTGGoldfish...\n")
-        print("Using cached meta data instead\n")
-        cached_meta = load_cached_meta(conn, format)
-        if len(cached_meta) > 0:
-            return cached_meta
-        print("Error: there was no cached meta data!\n")
+        cached = load_cached_meta(conn, format)
+        if cached:
+            print("Using cached meta data instead\n")
+            return cached
         raise(RuntimeError("Program has failed to find meta info!"))
 
     save_meta_to_cache(conn, meta, format)
-
     update_meta_timestamp(conn, format)
     return meta
     
-def scrape_meta_cards(url: str) -> list[MetaEntry]:
+def scrape_meta_cards(url: str) -> list[MetaEntry] | None:
     for attempt in range(3):
         r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
 
         if r.status_code != 200:
-            # Retry on transient errors
             time.sleep(0.5 * (attempt + 1))
             continue
 
-        soup = BeautifulSoup(r.text, "html.parser")
-        table = soup.select_one("table.table-staples")
-
-        if not table:
-            time.sleep(0.5 * (attempt + 1))
-            continue
+        meta = parse_meta_table(r.text)
+        if meta:
+            return meta
         
-        meta = []
-        for row in table.select("tr"):
-            cols = row.find_all("td")
-            if not cols:
-                continue
-            name = cols[1].text.strip()
-            if "//" in name:
-                print(f"{name} - this is a double name that Scryfall doesn't like, so we use just the first part of a double name")
-                name = name.split("//")[0].strip()
-            meta.append(
-                MetaEntry(
-                    name= name,
-                    rank= int(cols[0].text.strip()),
-                    percent= float(cols[3].text.strip().replace("%", "")),
-                    deck_count= float(cols[4].text.strip())
-                )
-            )
-
-        return meta 
     # Failed to scrape
-    return []
+    return None
+
+def parse_meta_table(html: str) -> list[MetaEntry] | None:
+    soup = BeautifulSoup(html, "html.parser")
+    table = soup.select_one("table.table-staples")
+
+    if not table:
+        return None
+    
+    meta: list[MetaEntry] = []
+    for row in table.select("tr"):
+        cols = row.find_all("td")
+        if not cols:
+            continue
+        name = cols[1].text.strip()
+        if "//" in name:
+            name = name.split("//")[0].strip()
+
+        meta.append(
+            MetaEntry(
+                name= name,
+                rank= int(cols[0].text.strip()),
+                percent= float(cols[3].text.strip().replace("%", "")),
+                deck_count= float(cols[4].text.strip())
+            )
+        )
+    return meta

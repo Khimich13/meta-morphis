@@ -38,7 +38,7 @@ def main():
 if __name__ == "__main__":
     main()
 
-# TODO: Refactor the code to make it more readable and maintainable
 # TODO: Test fetching cards from Scryfall fallback prevent logic
-# TODO: Refactor generate_meta
 # TODO: Clean debugging print messages
+# TODO: Change the names of generate_meta and fetch_from_scryfall and move them into specific folder???
+# TODO: Should I create CLI???
