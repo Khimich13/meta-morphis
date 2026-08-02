@@ -46,12 +46,14 @@ def get_card_age(conn: sqlite3.Connection, name: str) -> int | None:
         (key, key)
     )
 
-    row: int = c.fetchone()[0]
+    row = c.fetchone()
 
-    if not row:
+    if row is None:
         return None
 
-    return int(time.time()) - row
+    updated_at: int = row[0]
+
+    return int(time.time()) - updated_at
 
 def save_cards_to_cache(conn: sqlite3.Connection, raw_cards: list[dict[str, Any]]) -> None:
     c = conn.cursor()
