@@ -4,7 +4,7 @@ import time
 import config
 from bs4 import BeautifulSoup
 
-from meta_morphis.db.meta_repo import (
+from .repo import (
     should_refresh_meta, 
     load_cached_meta, 
     save_meta_to_cache, 

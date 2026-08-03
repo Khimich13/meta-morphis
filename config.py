@@ -17,4 +17,4 @@ HEADERS = {
         "Accept": "application/json"
     }
 #DB
-DB_PATH = "cards.db"
+DB_PATH = "data/cards.db"

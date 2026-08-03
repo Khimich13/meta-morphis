@@ -3,13 +3,14 @@ import requests
 import time
 import config
 
-from meta_morphis.db.cards_repo import (
+from typing_extensions import Any
+
+from .repo import (
     get_card_from_cache,
     get_card_age,
     save_cards_to_cache
 )
 from meta_morphis.models.meta import MetaEntry
-from typing_extensions import Any
 
 def fetch_one_by_one(conn: sqlite3.Connection, names: list[str]) -> list[dict[str, Any]]:
     cards = []

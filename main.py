@@ -1,10 +1,10 @@
 import time
 import config
 
-from meta_morphis.db.schema import init_db
+from meta_morphis.db.init_db import init_db
 from meta_morphis.db.connection import get_connection
-from meta_morphis.fetch_from_scryfall import fetch_cards
-from meta_morphis.generate_meta import get_meta_cards
+from meta_morphis.scryfall.client import fetch_cards
+from meta_morphis.meta.scraper import get_meta_cards
 from meta_morphis.models.card import Card
 
 def choose_format() -> str:
@@ -40,5 +40,4 @@ if __name__ == "__main__":
 
 # TODO: Test fetching cards from Scryfall fallback prevent logic
 # TODO: Clean debugging print messages
-# TODO: Change the names of generate_meta and fetch_from_scryfall and move them into specific folder???
 # TODO: Should I create CLI???

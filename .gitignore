@@ -1,6 +1,17 @@
-cards.db
+# Runtime database
+data/
+
 # Ignore compiled binaries
-meta-morphis
 *.exe
 *.bin
 *.out
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Mypy cache
+.mypy_cache/
+
+# Pytest cache
+.pytest_cache/
