@@ -60,8 +60,9 @@ def classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[lis
 def refresh_outdated(conn: sqlite3.Connection, outdated: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     names = [card["name"] for card in outdated]
     refreshed = []
+    
     for batch_names in batch(names):
-        raw = fetch_batch(conn, batch_names)
+        raw = fetch_batch(batch_names)
         if raw:
             cards = process_batch_request(conn, raw)
             refreshed.extend(cards)
@@ -79,7 +80,7 @@ def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[dict[st
     if missing:
         print("Trying to fetch missing names...")
         for batch_names in batch(missing):
-            raw = fetch_batch(conn, batch_names)
+            raw = fetch_batch(batch_names)
             if raw:
                 cards = process_batch_request(conn, raw)
                 save_cards_to_cache(conn, cards)

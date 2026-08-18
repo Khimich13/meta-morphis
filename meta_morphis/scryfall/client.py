@@ -1,11 +1,10 @@
-import sqlite3
 import requests
 import time
 import config
 
 from typing_extensions import Any
 
-def fetch_batch(conn: sqlite3.Connection, names: list[str]) -> dict[str, Any] | None:
+def fetch_batch(names: list[str]) -> dict[str, Any] | None:
     identifiers = [{"name": n} for n in names]
     # Retry loop for robustness
     for attempt in range(3):

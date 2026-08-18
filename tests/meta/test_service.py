@@ -106,4 +106,3 @@ def test_get_meta_cards_scraper_fail_and_no_cache(monkeypatch):
 
     with pytest.raises(RuntimeError):
         get_meta_cards(conn, "pauper")
-
