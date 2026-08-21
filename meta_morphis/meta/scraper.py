@@ -31,7 +31,7 @@ def parse_meta_table(html: str) -> list[MetaEntry] | None:
         cols = row.find_all("td")
         if not cols:
             continue
-        name = cols[1].text.strip()
+        name = cols[1].select_one("a").text.strip()
         if "//" in name:
             name = name.split("//")[0].strip()
 
