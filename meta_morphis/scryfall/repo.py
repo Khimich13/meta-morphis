@@ -17,8 +17,9 @@ def get_card_from_cache(conn: sqlite3.Connection, name: str) -> dict[str, Any] |
         FROM cards
         WHERE name = ?
             OR LOWER(json_extract(json, '$.card_faces[0].name')) = ?
+            OR LOWER(json_extract(json, '$.card_faces[1].name')) = ?
         """,
-        (key, key)
+        (key, key, key)
     )
 
     row = c.fetchone()
@@ -43,8 +44,9 @@ def get_card_age(conn: sqlite3.Connection, name: str) -> int | None:
         FROM cards
         WHERE name = ?
             OR LOWER(json_extract(json, '$.card_faces[0].name')) = ?
+            OR LOWER(json_extract(json, '$.card_faces[1].name')) = ?
         """,
-        (key, key)
+        (key, key, key)
     )
 
     row = c.fetchone()
