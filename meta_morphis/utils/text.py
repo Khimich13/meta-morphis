@@ -1,7 +1,9 @@
 import unicodedata
 
 def normalize_name(name: str) -> str:
-    # Remove accents, lowercase, strip whitespace
+
+    name = name.lower().replace("æ", "ae")
+    # decompose accents (á → a)
     nfkd = unicodedata.normalize("NFKD", name)
     ascii_only = "".join(c for c in nfkd if not unicodedata.combining(c))
-    return ascii_only.lower().strip()
+    return ascii_only.strip()
