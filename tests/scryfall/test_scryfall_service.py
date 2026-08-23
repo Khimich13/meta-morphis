@@ -175,9 +175,9 @@ def test_fetch_cards(monkeypatch):
 
     assert result == [
         {"name": fresh.name}, 
-        {"name": missing.name},
         {"name": outdated_refreshed.name},
-        {"name": outdated_not_refreshed.name}
+        {"name": outdated_not_refreshed.name},
+        {"name": missing.name}
     ]
 
 def test_fetch_cards_raises():
