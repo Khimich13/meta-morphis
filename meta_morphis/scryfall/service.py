@@ -43,7 +43,8 @@ def classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[lis
     missing = []
 
     for entry in meta:
-        name = entry.name
+        name = entry.lookup_name or entry.name
+        
         cached = get_card_from_cache(conn, name)
 
         if cached:

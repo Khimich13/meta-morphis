@@ -36,15 +36,16 @@ def parse_meta_table(html: str) -> list[MetaEntry] | None:
             name = anchor.text.strip()
         else:
             name = cols[1].text.strip()
-        if "//" in name:
-            name = name.split("//")[0].strip()
 
-        meta.append(
-            MetaEntry(
-                name= name,
-                rank= int(cols[0].text.strip()),
-                percent= float(cols[3].text.strip().replace("%", "")),
-                deck_count= float(cols[4].text.strip())
-            )
+        meta_entry = MetaEntry(
+            name= name,
+            rank= int(cols[0].text.strip()),
+            percent= float(cols[3].text.strip().replace("%", "")),
+            deck_count= float(cols[4].text.strip()),
         )
+        if "//" in name:
+            meta_entry.lookup_name = name.split("//")[0].strip()
+        
+        meta.append(meta_entry)
+        
     return meta

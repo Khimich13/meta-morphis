@@ -38,5 +38,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-# TODO: Test fetching cards from Scryfall fallback prevent logic
 # TODO: Clean debugging print messages

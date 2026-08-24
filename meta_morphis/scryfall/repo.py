@@ -16,10 +16,13 @@ def get_card_from_cache(conn: sqlite3.Connection, name: str) -> dict[str, Any] |
         SELECT json
         FROM cards
         WHERE name = ?
-            OR LOWER(json_extract(json, '$.card_faces[0].name')) = ?
-            OR LOWER(json_extract(json, '$.card_faces[1].name')) = ?
+            OR EXISTS (
+                SELECT 1
+                FROM json_each(cards.json, '$.card_faces')
+                WHERE LOWER(json_each.value ->> '$.name') = ?
+            )
         """,
-        (key, key, key)
+        (key, key)
     )
 
     row = c.fetchone()

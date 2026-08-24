@@ -40,7 +40,8 @@ def test_parse_meta_table_double_name():
     </table>
     """
     entry = parse_meta_table(html)[0]
-    assert entry.name == "Fire"
+    assert entry.name == "Fire // Ice"
+    assert entry.lookup_name == "Fire"
 
 def test_parse_meta_table_empty_rows():
     html = """
