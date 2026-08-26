@@ -1,6 +1,9 @@
+from typing import Any
+
 from meta_morphis.models.card import Card
 
-def test_single_face_card():
+
+def test_single_face_card() -> None:
     raw = {
         "id": "123",
         "name": "Test Card",
@@ -11,8 +14,8 @@ def test_single_face_card():
     assert card.mana_cost == "{1}{G}"
     assert card.faces == []
 
-def test_dual_face_card():
-    raw = {
+def test_dual_face_card() -> None:
+    raw: dict[str, Any] = {
         "id": "123",
         "name": "Split Card",
         "card_faces": [
@@ -24,7 +27,7 @@ def test_dual_face_card():
     assert len(card.faces) == 2
     assert card.mana_cost == raw["card_faces"][0]["mana_cost"]
 
-def test_missing_mana_cost():
+def test_missing_mana_cost() -> None:
     raw = {
         "id": "123",
         "name": "Test",

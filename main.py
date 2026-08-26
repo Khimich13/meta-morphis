@@ -1,11 +1,12 @@
 import time
-import config
 
-from meta_morphis.db.init_db import init_db
+import config
 from meta_morphis.db.connection import get_connection
-from meta_morphis.scryfall.service import fetch_cards
+from meta_morphis.db.init_db import init_db
 from meta_morphis.meta.service import get_meta_cards
 from meta_morphis.models.card import Card
+from meta_morphis.scryfall.service import fetch_cards
+
 
 def choose_format() -> str:
     while True:
@@ -23,7 +24,7 @@ def choose_format() -> str:
         print("Please, choose between the provided options\n")
         time.sleep(2)
 
-def main():
+def main() -> None:
     with get_connection() as conn:
         init_db(conn)
 

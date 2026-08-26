@@ -1,22 +1,25 @@
+import sqlite3
+from typing import Any
+
 import pytest
+from pytest import CaptureFixture, MonkeyPatch
 
 import config
-
+from meta_morphis.models.meta import MetaEntry
 from meta_morphis.scryfall.service import (
+    classify_cards,
     fetch_cards,
     fetch_one_by_one,
-    classify_cards,
+    process_batch_request,
     refresh_outdated,
-    process_batch_request
 )
 
-from meta_morphis.models.meta import MetaEntry
 
-def test_fetch_one_by_one(capsys, monkeypatch):
-    conn = object()
+def test_fetch_one_by_one(capsys: CaptureFixture[str], monkeypatch: MonkeyPatch) -> None:
+    conn = sqlite3.connect(":memory:")
 
-    cache = "Lightning Bolt"
-    fetch = "Shock"
+    cache = {"name": "Lightning Bolt"}
+    fetch = {"name": "Shock"}
 
     names = ["Lightning Bolt", "Shock", "Unknown"]
 
@@ -37,10 +40,10 @@ def test_fetch_one_by_one(capsys, monkeypatch):
     captured = capsys.readouterr()
 
     assert "Not found: Unknown" in captured.out
-    assert result == ["Lightning Bolt", "Shock"]
+    assert result == [cache, fetch]
 
-def test_classify_cards(monkeypatch):
-    conn = object()
+def test_classify_cards(monkeypatch: MonkeyPatch) -> None:
+    conn = sqlite3.connect(":memory:")
 
     fresh_meta = MetaEntry(
         name= "Duress",
@@ -81,8 +84,8 @@ def test_classify_cards(monkeypatch):
     assert outdated_result == [{"Counterspell": []}]
     assert missing_result == ["Llanowar Elf"]
 
-def test_refresh_outdated(monkeypatch):
-    conn = object()
+def test_refresh_outdated(monkeypatch: MonkeyPatch) -> None:
+    conn = sqlite3.connect(":memory:")
 
     outdated = [
         {"name": "Counterspell"}, 
@@ -117,8 +120,8 @@ def test_refresh_outdated(monkeypatch):
     assert refreshed == [{"name": "Counterspell"}, {"name": "Duress"}, {"name": "Cancel"}]
     assert not_refreshed == [{"name": "Unknown"}]
 
-def test_fetch_cards(monkeypatch):
-    conn = object()
+def test_fetch_cards(monkeypatch: MonkeyPatch) -> None:
+    conn = sqlite3.connect(":memory:")
 
     fresh = MetaEntry(
         name= "Duress",
@@ -180,16 +183,16 @@ def test_fetch_cards(monkeypatch):
         {"name": missing.name}
     ]
 
-def test_fetch_cards_raises():
-    conn = object()
+def test_fetch_cards_raises() -> None:
+    conn = sqlite3.connect(":memory:")
 
     with pytest.raises(RuntimeError):
         fetch_cards(conn, [])
 
-def test_process_batch_request(monkeypatch, capsys):
-    conn = object()
+def test_process_batch_request(monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]) -> None:
+    conn = sqlite3.connect(":memory:")
 
-    raw = {"object": []}
+    raw: dict[str, Any] = {"object": []}
     assert process_batch_request(conn, raw) == []
     captured = capsys.readouterr()
     assert "Scryfall error: no data received" in captured.out

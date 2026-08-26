@@ -1,20 +1,13 @@
 import sqlite3
 import time
+from typing import Any
+
 import config
-
-from typing_extensions import Any
-
-from .repo import (
-    get_card_from_cache,
-    get_card_age,
-    save_cards_to_cache
-)
-from .client import (
-    fetch_single,
-    fetch_batch,
-    batch
-)
 from meta_morphis.models.meta import MetaEntry
+
+from .client import batch, fetch_batch, fetch_single
+from .repo import get_card_age, get_card_from_cache, save_cards_to_cache
+
 
 def fetch_one_by_one(conn: sqlite3.Connection, names: list[str]) -> list[dict[str, Any]]:
     cards = []

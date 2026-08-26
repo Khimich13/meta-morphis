@@ -1,6 +1,7 @@
 from dataclasses import dataclass
-from meta_morphis.models.card_face import CardFace 
-from typing_extensions import Any
+from typing import Any
+
+from meta_morphis.models.card_face import CardFace
 
 
 @dataclass

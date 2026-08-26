@@ -1,14 +1,16 @@
 import sqlite3
-import config
 
+import config
 from meta_morphis.models.meta import MetaEntry
+
 from .repo import (
-    should_refresh_meta, 
-    load_cached_meta, 
-    save_meta_to_cache, 
-    update_meta_timestamp
+    load_cached_meta,
+    save_meta_to_cache,
+    should_refresh_meta,
+    update_meta_timestamp,
 )
 from .scraper import scrape_meta_cards
+
 
 def get_meta_cards(conn: sqlite3.Connection, format: str) -> list[MetaEntry]:
     if not should_refresh_meta(conn, format):

@@ -1,18 +1,19 @@
+import json
 import sqlite3
 import time
+
 import pytest
-import json
 
 from meta_morphis.scryfall.repo import (
-    get_card_from_cache,
     get_card_age,
-    save_cards_to_cache
+    get_card_from_cache,
+    save_cards_to_cache,
 )
-
 from meta_morphis.utils.text import normalize_name
 
+
 @pytest.fixture
-def conn():
+def conn() -> sqlite3.Connection:
     conn = sqlite3.connect(":memory:")
     conn.execute("""
         CREATE TABLE cards (
@@ -38,7 +39,7 @@ def conn():
 
     return conn
 
-def test_get_card_from_cache(conn):
+def test_get_card_from_cache(conn: sqlite3.Connection) -> None:
     
     assert get_card_from_cache(conn, "Sai, Master Thopterist") == {
         "id": 1,
@@ -49,13 +50,13 @@ def test_get_card_from_cache(conn):
 
     assert get_card_from_cache(conn, "Unknown") == None
 
-def test_get_card_age(conn):
+def test_get_card_age(conn: sqlite3.Connection) -> None:
 
     assert get_card_age(conn, "Sai, Master Thopterist") == int(time.time()) - 0.25
 
     assert get_card_age(conn, "Unknown") == None
     
-def test_save_cards_to_cache(conn):
+def test_save_cards_to_cache(conn: sqlite3.Connection) -> None:
     new_card_1 = {
         "id": 2,
         "name": "Shock",

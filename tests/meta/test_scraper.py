@@ -1,9 +1,11 @@
-from meta_morphis.meta.scraper import (
-    parse_meta_table,
-    scrape_meta_cards
-)
+from typing import Any
 
-def test_parse_meta_table_valid():
+from pytest import MonkeyPatch
+
+from meta_morphis.meta.scraper import parse_meta_table, scrape_meta_cards
+
+
+def test_parse_meta_table_valid() -> None:
     html = """
     <table class="table-staples">
         <tr>
@@ -16,6 +18,7 @@ def test_parse_meta_table_valid():
     </table>
     """
     result = parse_meta_table(html)
+    assert result != None
     assert len(result) == 1
     entry = result[0]
     assert entry.name == "Lightning Bolt"
@@ -23,11 +26,11 @@ def test_parse_meta_table_valid():
     assert entry.percent == 25.0
     assert entry.deck_count == 3.5
 
-def test_parse_meta_table_no_table():
+def test_parse_meta_table_no_table() -> None:
     html = "<html><body>No table here</body></html>"
     assert parse_meta_table(html) is None
 
-def test_parse_meta_table_double_name():
+def test_parse_meta_table_double_name() -> None:
     html = """
     <table class="table-staples">
         <tr>
@@ -39,11 +42,16 @@ def test_parse_meta_table_double_name():
         </tr>
     </table>
     """
-    entry = parse_meta_table(html)[0]
+    result = parse_meta_table(html)
+
+    assert result != None
+
+    entry = result[0]
+
     assert entry.name == "Fire // Ice"
     assert entry.lookup_name == "Fire"
 
-def test_parse_meta_table_empty_rows():
+def test_parse_meta_table_empty_rows() -> None:
     html = """
     <table class="table-staples">
         <tr></tr>
@@ -57,9 +65,11 @@ def test_parse_meta_table_empty_rows():
     </table>
     """
     result = parse_meta_table(html)
+
+    assert result != None
     assert len(result) == 1
 
-def test_scrape_meta_cards_success(monkeypatch):
+def test_scrape_meta_cards_success(monkeypatch: MonkeyPatch) -> None:
     class FakeResponse:
         status_code = 200
         text = """
@@ -77,10 +87,11 @@ def test_scrape_meta_cards_success(monkeypatch):
     monkeypatch.setattr("requests.get", lambda *args, **kwargs: FakeResponse())
 
     result = scrape_meta_cards("http://fake-url")
+    assert result != None
     assert len(result) == 1
     assert result[0].name == "Test Card"
 
-def test_scrape_meta_cards_retry(monkeypatch):
+def test_scrape_meta_cards_retry(monkeypatch: MonkeyPatch) -> None:
     responses = [
         type("R", (), {"status_code": 500}),
         type("R", (), {"status_code": 500}),
@@ -97,16 +108,18 @@ def test_scrape_meta_cards_retry(monkeypatch):
             """})
     ]
 
-    def fake_get(*args, **kwargs):
+    def fake_get(*args: Any, **kwargs: Any) -> Any:
         return responses.pop(0)
 
     monkeypatch.setattr("requests.get", fake_get)
     monkeypatch.setattr("time.sleep", lambda x: None)
 
     result = scrape_meta_cards("http://fake-url")
+
+    assert result is not None
     assert len(result) == 1
 
-def test_scrape_meta_cards_all_fail(monkeypatch):
+def test_scrape_meta_cards_all_fail(monkeypatch: MonkeyPatch) -> None:
     class FakeResponse:
         status_code = 500
 

@@ -1,8 +1,10 @@
-import requests
 import time
+
+import requests
 from bs4 import BeautifulSoup
 
 from meta_morphis.models.meta import MetaEntry
+
 
 def scrape_meta_cards(url: str) -> list[MetaEntry] | None:
     for attempt in range(3):

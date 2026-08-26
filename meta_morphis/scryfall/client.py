@@ -1,8 +1,10 @@
-import requests
 import time
+from typing import Any
+
+import requests
+
 import config
 
-from typing_extensions import Any
 
 def fetch_batch(names: list[str]) -> dict[str, Any] | None:
     identifiers = [{"name": n} for n in names]

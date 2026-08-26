@@ -1,8 +1,9 @@
 import sqlite3
 import time
-import config
 
+import config
 from meta_morphis.models.meta import MetaEntry
+
 
 def should_refresh_meta(conn: sqlite3.Connection, format: str) -> bool:
     c = conn.cursor()

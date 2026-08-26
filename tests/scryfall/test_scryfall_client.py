@@ -1,20 +1,20 @@
-from meta_morphis.scryfall.client import (
-    fetch_batch,
-    fetch_single,
-    batch
-)
+from typing import Any
+
+from pytest import MonkeyPatch
 
 import config
+from meta_morphis.scryfall.client import batch, fetch_batch, fetch_single
+
 
 class FakeResponse:
-    def __init__(self, status_code, payload):
+    def __init__(self, status_code: int, payload: dict[str, Any]) -> None:
         self.status_code = status_code
         self._payload = payload
-    def json(self):
+    def json(self) -> dict[str, Any]:
         return self._payload
 
-def test_fetch_batch_success(monkeypatch):
-    def fake_post(url, json, headers, timeout):
+def test_fetch_batch_success(monkeypatch: MonkeyPatch) -> None:
+    def fake_post(url: str, json: Any, headers: Any, timeout: int) -> FakeResponse:
         assert url == config.URL_COLLECTION
         assert json == {"identifiers": [{"name": "Lightning Bolt"}]}
         return FakeResponse(200, {"data": "ok"})
@@ -24,9 +24,9 @@ def test_fetch_batch_success(monkeypatch):
     result = fetch_batch(["Lightning Bolt"])
     assert result == {"data": "ok"}
 
-def test_fetch_batch_failure(monkeypatch):
-    def fake_post(url, json, headers, timeout):
-        return FakeResponse(500, None)
+def test_fetch_batch_failure(monkeypatch: MonkeyPatch) -> None:
+    def fake_post(url: str, json: Any, headers: Any, timeout: int) -> FakeResponse:
+        return FakeResponse(500, {"something_happened": []})
 
     monkeypatch.setattr("requests.post", fake_post)
 
@@ -36,8 +36,8 @@ def test_fetch_batch_failure(monkeypatch):
     result = fetch_batch(["Bolt"])
     assert result is None
 
-def test_fetch_single_success(monkeypatch):
-    def fake_get(url, headers, params, timeout):
+def test_fetch_single_success(monkeypatch: MonkeyPatch) -> None:
+    def fake_get(url: str, headers: Any, params: Any, timeout: int) -> FakeResponse:
         assert params == {"fuzzy": "Lightning Bolt"}
         return FakeResponse(200, {"name": "Lightning Bolt"})
 
@@ -46,9 +46,9 @@ def test_fetch_single_success(monkeypatch):
     result = fetch_single("Lightning Bolt")
     assert result == {"name": "Lightning Bolt"}
 
-def test_fetch_single_failure(monkeypatch):
-    def fake_get(url, headers, params, timeout):
-        return FakeResponse(404, None)
+def test_fetch_single_failure(monkeypatch: MonkeyPatch) -> None:
+    def fake_get(url: str, headers: Any, params: Any, timeout: int) -> FakeResponse:
+        return FakeResponse(404, {"error": []})
 
     monkeypatch.setattr("requests.get", fake_get)
 
@@ -57,7 +57,7 @@ def test_fetch_single_failure(monkeypatch):
     result = fetch_single("Unknown Card")
     assert result is None
 
-def test_batch():
+def test_batch() -> None:
     names = ["a", "b", "c", "d", "e"]
     result = batch(names, size=2)
     assert result == [["a", "b"], ["c", "d"], ["e"]]

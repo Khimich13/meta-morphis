@@ -1,5 +1,6 @@
 import unicodedata
 
+
 def normalize_name(name: str) -> str:
 
     name = name.lower().replace("æ", "ae")

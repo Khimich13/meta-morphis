@@ -1,10 +1,10 @@
+import json
 import sqlite3
 import time
-import json
-
 from typing import Any
 
 from meta_morphis.utils.text import normalize_name
+
 
 def get_card_from_cache(conn: sqlite3.Connection, name: str) -> dict[str, Any] | None:
     c = conn.cursor()
