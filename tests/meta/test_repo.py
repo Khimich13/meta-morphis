@@ -28,7 +28,8 @@ def conn() -> sqlite3.Connection:
             format TEXT,
             rank INTEGER,
             percent REAL,
-            deck_count REAL
+            deck_count REAL,
+            lookup_name TEXT NULL
         )
     """)
     return conn
@@ -84,7 +85,7 @@ def test_update_meta_timestamp_update(conn: sqlite3.Connection) -> None:
 
 def test_load_cached_meta(conn: sqlite3.Connection) -> None:
     conn.execute("""
-        INSERT INTO meta VALUES ('Bolt', 'pauper', 1, 25.0, 1)
+        INSERT INTO meta VALUES ('Bolt', 'pauper', 1, 25.0, 1, NULL)
     """)
 
     result = load_cached_meta(conn, "pauper")
@@ -96,7 +97,7 @@ def test_load_cached_meta(conn: sqlite3.Connection) -> None:
 def test_save_meta_to_cache(conn: sqlite3.Connection) -> None:
     # old data
     conn.execute("""
-        INSERT INTO meta VALUES ('OldCard', 'pauper', 99, 1.0, 1)
+        INSERT INTO meta VALUES ('OldCard', 'pauper', 99, 1.0, 1, NULL)
     """)
 
     meta = [

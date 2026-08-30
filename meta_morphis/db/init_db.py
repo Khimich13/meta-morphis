@@ -30,6 +30,7 @@ def init_db(conn: sqlite3.Connection) -> None:
             rank INTEGER,
             percent REAL,
             deck_count FLOAT,
+            lookup_name TEXT,
             PRIMARY KEY (name, format)
         )
     """)
