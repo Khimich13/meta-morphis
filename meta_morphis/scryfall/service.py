@@ -98,13 +98,13 @@ def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[dict[st
 
 def process_batch_request(conn: sqlite3.Connection, raw: dict[str, Any]) -> list[dict[str, Any]]:
     cards: list[dict[str, Any]] = raw.get("data", [])
-    if not cards:
-        print(f"Scryfall error: no data received")
-        return cards
 
     not_found = raw.get("not_found", [])
     if not_found:
         missing_names = [item["name"] for item in not_found]
         cards.extend(fetch_one_by_one(conn, missing_names))
+
+    if not cards:
+        print(f"Scryfall error: no data received")
 
     return cards
