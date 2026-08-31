@@ -46,15 +46,18 @@ def get_card_age(conn: sqlite3.Connection, name: str) -> int | None:
         SELECT updated_at
         FROM cards
         WHERE name = ?
-            OR LOWER(json_extract(json, '$.card_faces[0].name')) = ?
-            OR LOWER(json_extract(json, '$.card_faces[1].name')) = ?
+            OR EXISTS (
+                SELECT 1
+                FROM json_each(cards.json, '$.card_faces')
+                WHERE LOWER(json_each.value ->> '$.name') = ?
+            )
         """,
-        (key, key, key)
+        (key, key)
     )
 
     row = c.fetchone()
 
-    if row is None:
+    if not row:
         return None
 
     updated_at: int = row[0]
