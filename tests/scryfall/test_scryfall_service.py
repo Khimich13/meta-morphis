@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from typing import Any
 
@@ -13,7 +14,8 @@ from meta_morphis.scryfall.service import (
     process_batch_request,
     refresh_outdated,
 )
-
+from meta_morphis.utils.text import normalize_name
+    
 
 def test_fetch_one_by_one(capsys: CaptureFixture[str], monkeypatch: MonkeyPatch) -> None:
     conn = sqlite3.connect(":memory:")
@@ -85,27 +87,42 @@ def test_classify_cards(monkeypatch: MonkeyPatch) -> None:
     assert missing_result == ["Llanowar Elf"]
 
 def test_refresh_outdated(monkeypatch: MonkeyPatch) -> None:
+    old_age = config.SCRYFALL_REFRESH_RATE
     conn = sqlite3.connect(":memory:")
+    conn.execute("""
+        CREATE TABLE cards (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            json TEXT NOT NULL,
+            updated_at INTEGER NOT NULL
+        )
+    """)
+    conn.execute(
+        "INSERT INTO cards VALUES (?, ?, ?, ?)", (
+            1,
+            normalize_name("Cancel"),
+            json.dumps({
+                "id": 1,
+                "name": "Cancel",
+                "mana_cost": "1UU",
+                "type_line": "Instant"
+            }),
+            old_age
+        )
+    )
 
     outdated = [
-        {"name": "Counterspell"}, 
-        {"name": "Duress"}, 
         {"name": "Unknown"}, 
         {"name": "Cancel"}]
 
     fetch_batch_response = {
-        "data": [{"name": "Counterspell"}, {"name": "Duress"}],
-        "not_found": [{"name": "Unknown"}, {"name": "Cancel"}]
+        "data": [{"name": "Cancel"}],
+        "not_found": [{"name": "Unknown"}]
     }
 
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.fetch_batch",
         lambda names: fetch_batch_response
-    )
-
-    monkeypatch.setattr(
-        "meta_morphis.scryfall.service.get_card_from_cache", 
-        lambda conn, name: {"name": "Cancel"} if name == "Cancel" else None
     )
 
     monkeypatch.setattr(
@@ -117,8 +134,18 @@ def test_refresh_outdated(monkeypatch: MonkeyPatch) -> None:
 
     refreshed, not_refreshed = result
 
-    assert refreshed == [{"name": "Counterspell"}, {"name": "Duress"}, {"name": "Cancel"}]
+    assert refreshed == [{"name": "Cancel"}]
     assert not_refreshed == [{"name": "Unknown"}]
+
+    row = conn.execute(
+        "SELECT updated_at FROM cards WHERE name = ?", (normalize_name("Cancel"),)
+    ).fetchone()
+    
+    assert row != None
+
+    current_age = row[0]
+
+    assert current_age > old_age
 
 def test_fetch_cards(monkeypatch: MonkeyPatch) -> None:
     conn = sqlite3.connect(":memory:")
