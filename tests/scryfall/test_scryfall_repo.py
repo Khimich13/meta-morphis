@@ -85,3 +85,21 @@ def test_save_cards_to_cache(conn: sqlite3.Connection) -> None:
         "mana_cost": "UU",
         "type_line": "Instant"
     }
+
+def test_save_cards_to_cache_duplicates(conn: sqlite3.Connection) -> None:
+    new_version_card = {
+        "id": 2,
+        "name": "Sai, Master Thopterist",
+        "mana_cost": "2U",
+        "type_line": "Legendary Creature — Human Artificer"
+    }
+    save_cards_to_cache(conn, [new_version_card])
+
+    cards_with_same_name = conn.execute(
+        "SELECT * FROM cards WHERE name = ?", (normalize_name("Sai, Master Thopterist"),)
+    ).fetchall()
+    
+    assert len(cards_with_same_name) == 1
+    updated_cached_card = cards_with_same_name[0]
+    # check if the new card updated the old one by its id
+    assert updated_cached_card[0] == 2
