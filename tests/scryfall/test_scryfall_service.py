@@ -6,6 +6,7 @@ import pytest
 from pytest import CaptureFixture, MonkeyPatch
 
 import config
+from meta_morphis.models.card import Card
 from meta_morphis.models.meta import MetaEntry
 from meta_morphis.scryfall.service import (
     classify_cards,
@@ -15,12 +16,19 @@ from meta_morphis.scryfall.service import (
     refresh_outdated,
 )
 from meta_morphis.utils.text import normalize_name
-    
+
 
 def test_fetch_one_by_one(capsys: CaptureFixture[str], monkeypatch: MonkeyPatch) -> None:
     conn = sqlite3.connect(":memory:")
 
-    cache = {"name": "Lightning Bolt"}
+    cache = Card(
+        id="1",
+        name="Lightning Bolt",
+        mana_cost="R",
+        type_line="Instant",
+        faces=[],
+        age=0
+    )
     fetch = {"name": "Shock"}
 
     names = ["Lightning Bolt", "Shock", "Unknown"]
@@ -42,7 +50,7 @@ def test_fetch_one_by_one(capsys: CaptureFixture[str], monkeypatch: MonkeyPatch)
     captured = capsys.readouterr()
 
     assert "Not found: Unknown" in captured.out
-    assert result == [cache, fetch]
+    assert result == [cache.to_raw(), fetch]
 
 def test_classify_cards(monkeypatch: MonkeyPatch) -> None:
     conn = sqlite3.connect(":memory:")
@@ -70,20 +78,35 @@ def test_classify_cards(monkeypatch: MonkeyPatch) -> None:
 
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.get_card_from_cache",
-        lambda conn, name: {f"{name}": []} if name != "Llanowar Elf" else None
-    )
-
-    monkeypatch.setattr(
-        "meta_morphis.scryfall.service.get_card_age",
-        lambda conn, name: 0 if name == "Duress" else config.SCRYFALL_REFRESH_RATE + 1
+        lambda conn, name: (
+            Card(
+                id="test",
+                name=name,
+                mana_cost=None,
+                type_line="",
+                faces=[],
+                age=config.SCRYFALL_REFRESH_RATE + 1
+            )
+            if name == "Counterspell"
+            else Card(
+                id="test",
+                name=name,
+                mana_cost=None,
+                type_line="",
+                faces=[],
+                age=0
+            )
+            if name != "Llanowar Elf"
+            else None
+        )
     )
 
     result = classify_cards(conn, meta)
 
     fresh_result, outdated_result, missing_result = result
 
-    assert fresh_result == [{"Duress": []}]
-    assert outdated_result == [{"Counterspell": []}]
+    assert fresh_result[0]["name"] == "Duress"
+    assert outdated_result[0]["name"] == "Counterspell"
     assert missing_result == ["Llanowar Elf"]
 
 def test_refresh_outdated(monkeypatch: MonkeyPatch) -> None:

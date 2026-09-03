@@ -11,6 +11,7 @@ class Card:
     mana_cost: str | None
     type_line: str
     faces: list[CardFace]
+    age: int
 
     @classmethod
     def from_raw(cls, raw: dict[str, Any]) -> "Card":
@@ -36,8 +37,30 @@ class Card:
             name=raw["name"],
             mana_cost=mana_cost,
             type_line=raw.get("type_line", ""),
-            faces=faces
+            faces=faces,
+            age=0
         )
+
+    def to_raw(self) -> dict[str, Any]:
+        raw_faces = []
+        for face in self.faces:
+            raw_faces.append({
+                "name": face.name,
+                "mana_cost": face.mana_cost,
+                "type_line": face.type_line,
+            })
+
+        raw: dict[str, Any] = {
+            "id": self.id,
+            "name": self.name,
+            "mana_cost": self.mana_cost,
+            "type_line": self.type_line,
+        }
+
+        if raw_faces:
+            raw["card_faces"] = raw_faces
+
+        return raw
 
     def __str__(self) -> str:
         output = (

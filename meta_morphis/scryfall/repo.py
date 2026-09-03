@@ -3,17 +3,18 @@ import sqlite3
 import time
 from typing import Any
 
+from meta_morphis.models.card import Card
 from meta_morphis.utils.text import normalize_name
 
 
-def get_card_from_cache(conn: sqlite3.Connection, name: str) -> dict[str, Any] | None:
+def get_card_from_cache(conn: sqlite3.Connection, name: str) -> Card | None:
     c = conn.cursor()
 
     key = normalize_name(name)
 
     c.execute(
         """
-        SELECT json
+        SELECT json, updated_at
         FROM cards
         WHERE name = ?
             OR EXISTS (
@@ -28,41 +29,17 @@ def get_card_from_cache(conn: sqlite3.Connection, name: str) -> dict[str, Any] |
     row = c.fetchone()
     if not row:
         return None
-    json_blob = row[0]
+
+    json_blob, updated_at = row
 
     try:
         raw: dict[str, Any] = json.loads(json_blob)
-        return raw
     except json.JSONDecodeError:
         return None
 
-def get_card_age(conn: sqlite3.Connection, name: str) -> int | None:
-    c = conn.cursor()
-
-    key = normalize_name(name)
-
-    c.execute(
-        """
-        SELECT updated_at
-        FROM cards
-        WHERE name = ?
-            OR EXISTS (
-                SELECT 1
-                FROM json_each(cards.json, '$.card_faces')
-                WHERE LOWER(json_each.value ->> '$.name') = ?
-            )
-        """,
-        (key, key)
-    )
-
-    row = c.fetchone()
-
-    if not row:
-        return None
-
-    updated_at: int = row[0]
-
-    return int(time.time()) - updated_at
+    card = Card.from_raw(raw)
+    card.age = int(time.time()) - updated_at
+    return card
 
 def save_cards_to_cache(conn: sqlite3.Connection, raw_cards: list[dict[str, Any]]) -> None:
     c = conn.cursor()
