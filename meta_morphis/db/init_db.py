@@ -7,8 +7,8 @@ def init_db(conn: sqlite3.Connection) -> None:
     # Create Scryfall card cache table
     c.execute("""
         CREATE TABLE IF NOT EXISTS cards (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
+            id TEXT,
+            name TEXT UNIQUE NOT NULL,
             json TEXT NOT NULL,
             updated_at INTEGER NOT NULL
         )

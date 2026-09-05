@@ -12,8 +12,8 @@ def conn() -> sqlite3.Connection:
     conn = sqlite3.connect(":memory:")
     conn.execute("""
         CREATE TABLE cards (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
+            id TEXT,
+            name TEXT UNIQUE NOT NULL,
             json TEXT NOT NULL,
             updated_at INTEGER NOT NULL
         )

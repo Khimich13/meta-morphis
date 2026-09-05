@@ -48,7 +48,7 @@ def save_cards_to_cache(conn: sqlite3.Connection, raw_cards: list[dict[str, Any]
         c.execute("""
             INSERT INTO cards (id, name, json, updated_at)
             VALUES (?, ?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
+            ON CONFLICT(name) DO UPDATE SET
                 json = excluded.json,
                 updated_at = excluded.updated_at
         """, (
