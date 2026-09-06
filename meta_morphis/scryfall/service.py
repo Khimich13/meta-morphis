@@ -9,27 +9,6 @@ from .client import batch, fetch_batch, fetch_single
 from .repo import get_card_from_cache, save_cards_to_cache
 
 
-def fetch_one_by_one(conn: sqlite3.Connection, names: list[str]) -> list[dict[str, Any]]:
-    cards = []
-    print(f"Failed to find {len(names)} card(s) in Scryfall in batch request")
-    print(f"This/these card(s) will be fetched from either Scryfall or cache one by one")
-    for name in names:
-        cached = get_card_from_cache(conn, name)
-        if cached:
-            print(f"Card {name} found in cache")
-            cards.append(cached.to_raw())
-            continue
-        
-        time.sleep(0.1)
-        fetched = fetch_single(name)
-        if fetched:
-            print(f"Found card {name} in Scryfall")
-            cards.append(fetched)
-            continue
-
-        print("Not found:", name)
-    return cards
-
 def classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[str]]:
     fresh = []
     outdated = []
@@ -57,7 +36,7 @@ def refresh_outdated(conn: sqlite3.Connection, outdated: list[dict[str, Any]]) -
     for batch_names in batch(names):
         raw = fetch_batch(batch_names)
         if raw:
-            cards = process_batch_request(conn, raw)
+            cards = process_batch_request(raw)
             refreshed.extend(cards)
 
     refreshed_names = {card["name"] for card in refreshed}
@@ -87,7 +66,7 @@ def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[dict[st
         for batch_names in batch(missing):
             raw = fetch_batch(batch_names)
             if raw:
-                cards = process_batch_request(conn, raw)
+                cards = process_batch_request(raw)
                 save_cards_to_cache(conn, cards)
                 output.extend(cards)
 
@@ -95,13 +74,16 @@ def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[dict[st
         raise RuntimeError("No cards have been fetched either from Scryfall or from cache")
     return output
 
-def process_batch_request(conn: sqlite3.Connection, raw: dict[str, Any]) -> list[dict[str, Any]]:
+def process_batch_request(raw: dict[str, Any]) -> list[dict[str, Any]]:
     cards: list[dict[str, Any]] = raw.get("data", [])
 
     not_found = raw.get("not_found", [])
     if not_found:
         missing_names = [item["name"] for item in not_found]
-        cards.extend(fetch_one_by_one(conn, missing_names))
+        for name in missing_names:
+            fetched = fetch_single(name)
+            if fetched:
+                cards.append(fetched)
 
     if not cards:
         print(f"Scryfall error: no data received")

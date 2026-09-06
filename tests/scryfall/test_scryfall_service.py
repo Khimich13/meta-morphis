@@ -11,46 +11,11 @@ from meta_morphis.models.meta import MetaEntry
 from meta_morphis.scryfall.service import (
     classify_cards,
     fetch_cards,
-    fetch_one_by_one,
     process_batch_request,
     refresh_outdated,
 )
 from meta_morphis.utils.text import normalize_name
 
-
-def test_fetch_one_by_one(capsys: CaptureFixture[str], monkeypatch: MonkeyPatch) -> None:
-    conn = sqlite3.connect(":memory:")
-
-    cache = Card(
-        id="1",
-        name="Lightning Bolt",
-        mana_cost="R",
-        type_line="Instant",
-        faces=[],
-        age=0
-    )
-    fetch = {"name": "Shock"}
-
-    names = ["Lightning Bolt", "Shock", "Unknown"]
-
-    monkeypatch.setattr(
-        "meta_morphis.scryfall.service.get_card_from_cache",
-        lambda conn, name: cache if name == "Lightning Bolt" else None
-    )
-
-    monkeypatch.setattr("time.sleep", lambda x: None)
-
-    monkeypatch.setattr(
-        "meta_morphis.scryfall.service.fetch_single",
-        lambda name: fetch if name == "Shock" else None
-    )
-
-    result = fetch_one_by_one(conn, names)
-
-    captured = capsys.readouterr()
-
-    assert "Not found: Unknown" in captured.out
-    assert result == [cache.to_raw(), fetch]
 
 def test_classify_cards(monkeypatch: MonkeyPatch) -> None:
     conn = sqlite3.connect(":memory:")
@@ -213,7 +178,7 @@ def test_fetch_cards(monkeypatch: MonkeyPatch) -> None:
     )
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.process_batch_request", 
-        lambda conn, raw: raw["data"]
+        lambda raw: raw["data"]
     )
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.save_cards_to_cache", 
@@ -240,15 +205,13 @@ def test_fetch_cards_raises() -> None:
         fetch_cards(conn, [])
 
 def test_process_batch_request(monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]) -> None:
-    conn = sqlite3.connect(":memory:")
-
     raw: dict[str, Any] = {"object": []}
-    assert process_batch_request(conn, raw) == []
+    assert process_batch_request(raw) == []
     captured = capsys.readouterr()
     assert "Scryfall error: no data received" in captured.out
 
     raw = {"data": []}
-    assert process_batch_request(conn, raw) == []
+    assert process_batch_request(raw) == []
     captured = capsys.readouterr()
     assert "Scryfall error: no data received" in captured.out
 
@@ -258,11 +221,11 @@ def test_process_batch_request(monkeypatch: MonkeyPatch, capsys: CaptureFixture[
     }
 
     monkeypatch.setattr(
-        "meta_morphis.scryfall.service.fetch_one_by_one", 
-        lambda conn, names: ([{"name": "Cancel"}])
+        "meta_morphis.scryfall.service.fetch_single", 
+        lambda name: {"name": name} if name != "Unknown" else None
     )
     
-    assert process_batch_request(conn, raw) == [
+    assert process_batch_request(raw) == [
         {"name": "Counterspell"}, 
         {"name": "Duress"}, 
         {"name": "Cancel"}
