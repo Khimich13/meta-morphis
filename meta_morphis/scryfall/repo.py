@@ -12,19 +12,12 @@ def get_card_from_cache(conn: sqlite3.Connection, name: str) -> Card | None:
 
     key = normalize_name(name)
 
-    c.execute(
-        """
-        SELECT json, updated_at
-        FROM cards
-        WHERE name = ?
-            OR EXISTS (
-                SELECT 1
-                FROM json_each(cards.json, '$.card_faces')
-                WHERE LOWER(json_each.value ->> '$.name') = ?
-            )
-        """,
-        (key, key)
-    )
+    c.execute("""
+        SELECT cards.json, cards.updated_at
+        FROM card_names
+        JOIN cards ON card_names.card_id = cards.id
+        WHERE card_names.name = ?
+    """, (key,))
 
     row = c.fetchone()
     if not row:
@@ -43,8 +36,11 @@ def get_card_from_cache(conn: sqlite3.Connection, name: str) -> Card | None:
 
 def save_cards_to_cache(conn: sqlite3.Connection, raw_cards: list[dict[str, Any]]) -> None:
     c = conn.cursor()
-    for card in raw_cards:
-        key = normalize_name(card["name"])
+    for raw in raw_cards:
+        card = Card.from_raw(raw)
+        key = normalize_name(card.name)
+
+        # Insert/update main card row
         c.execute("""
             INSERT INTO cards (id, name, json, updated_at)
             VALUES (?, ?, ?, ?)
@@ -52,9 +48,24 @@ def save_cards_to_cache(conn: sqlite3.Connection, raw_cards: list[dict[str, Any]
                 json = excluded.json,
                 updated_at = excluded.updated_at
         """, (
-            card["id"],
+            card.id,
             key, 
-            json.dumps(card),
+            json.dumps(raw),
             int(time.time())
         ))
+
+        # Insert main name -> id
+        c.execute("""
+            INSERT OR REPLACE INTO card_names (name, card_id)
+            VALUES (?, ?)
+        """, (key, card.id))
+
+        # Insert face names -> id
+        for face in card.faces:
+            face_key = normalize_name(face.name)
+            c.execute("""
+                INSERT OR REPLACE INTO card_names (name, card_id)
+                VALUES (?, ?)
+            """, (face_key, card.id))
+
     conn.commit()
