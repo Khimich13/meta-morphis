@@ -12,6 +12,7 @@ URL_COLLECTION = "https://api.scryfall.com/cards/collection"
 URL_NAMED = "https://api.scryfall.com/cards/named"
 SCRYFALL_REFRESH_RATE = 24 * 60 * 60 * 30 # 30 days
 SCRYFALL_BATCH_SIZE_LIMIT = 75
+SCRYFALL_BAD_NAMES_LOOKUP_COOLDOWN = 24 * 60 * 60 * 7 # 7 days
 HEADERS = {
         "User-Agent": "meta-morphis",
         "Accept": "application/json"

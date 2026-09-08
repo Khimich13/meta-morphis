@@ -22,6 +22,13 @@ def init_db(conn: sqlite3.Connection) -> None:
         )
     """)
 
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS card_lookup_failures (
+            name TEXT PRIMARY KEY,
+            last_attempt INTEGER
+        )
+    """)
+
     # Create Goldfish meta refresh timestamp table
     c.execute("""
         CREATE TABLE IF NOT EXISTS meta_refresh (

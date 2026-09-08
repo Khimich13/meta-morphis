@@ -40,3 +40,4 @@ if __name__ == "__main__":
     main()
 
 # TODO: Clean debugging print messages
+# TODO: Add tests for should_skip_lookup and record_bad_name_attempt

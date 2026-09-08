@@ -42,6 +42,11 @@ def test_classify_cards(monkeypatch: MonkeyPatch) -> None:
     meta = [fresh_meta, outdated_meta, missing_meta]
 
     monkeypatch.setattr(
+        "meta_morphis.scryfall.service.should_skip_lookup",
+        lambda conn, name: None
+    )
+
+    monkeypatch.setattr(
         "meta_morphis.scryfall.service.get_card_from_cache",
         lambda conn, name: (
             Card(
@@ -83,6 +88,12 @@ def test_refresh_outdated(monkeypatch: MonkeyPatch) -> None:
             name TEXT UNIQUE NOT NULL,
             json TEXT NOT NULL,
             updated_at INTEGER NOT NULL
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE card_lookup_failures (
+            name TEXT PRIMARY KEY,
+            last_attempt INTEGER
         )
     """)
     conn.execute(
@@ -178,7 +189,7 @@ def test_fetch_cards(monkeypatch: MonkeyPatch) -> None:
     )
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.process_batch_request", 
-        lambda raw: raw["data"]
+        lambda conn, raw: raw["data"]
     )
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.save_cards_to_cache", 
@@ -205,13 +216,21 @@ def test_fetch_cards_raises() -> None:
         fetch_cards(conn, [])
 
 def test_process_batch_request(monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]) -> None:
+    conn = sqlite3.connect(":memory:")
+
     raw: dict[str, Any] = {"object": []}
-    assert process_batch_request(raw) == []
+
+    monkeypatch.setattr(
+        "meta_morphis.scryfall.service.record_bad_name_attempt",
+        lambda conn, name: None
+    )
+
+    assert process_batch_request(conn, raw) == []
     captured = capsys.readouterr()
     assert "Scryfall error: no data received" in captured.out
 
     raw = {"data": []}
-    assert process_batch_request(raw) == []
+    assert process_batch_request(conn, raw) == []
     captured = capsys.readouterr()
     assert "Scryfall error: no data received" in captured.out
 
@@ -225,7 +244,7 @@ def test_process_batch_request(monkeypatch: MonkeyPatch, capsys: CaptureFixture[
         lambda name: {"name": name} if name != "Unknown" else None
     )
     
-    assert process_batch_request(raw) == [
+    assert process_batch_request(conn, raw) == [
         {"name": "Counterspell"}, 
         {"name": "Duress"}, 
         {"name": "Cancel"}

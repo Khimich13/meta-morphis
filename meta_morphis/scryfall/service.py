@@ -1,12 +1,16 @@
 import sqlite3
-import time
 from typing import Any
 
 import config
 from meta_morphis.models.meta import MetaEntry
 
 from .client import batch, fetch_batch, fetch_single
-from .repo import get_card_from_cache, save_cards_to_cache
+from .repo import (
+    get_card_from_cache,
+    record_bad_name_attempt,
+    save_cards_to_cache,
+    should_skip_lookup,
+)
 
 
 def classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[str]]:
@@ -17,6 +21,9 @@ def classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[lis
     for entry in meta:
         name = entry.lookup_name or entry.name
         
+        if should_skip_lookup(conn, name):
+            continue
+
         cached = get_card_from_cache(conn, name)
 
         if cached:
@@ -36,7 +43,7 @@ def refresh_outdated(conn: sqlite3.Connection, outdated: list[dict[str, Any]]) -
     for batch_names in batch(names):
         raw = fetch_batch(batch_names)
         if raw:
-            cards = process_batch_request(raw)
+            cards = process_batch_request(conn, raw)
             refreshed.extend(cards)
 
     refreshed_names = {card["name"] for card in refreshed}
@@ -66,7 +73,7 @@ def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[dict[st
         for batch_names in batch(missing):
             raw = fetch_batch(batch_names)
             if raw:
-                cards = process_batch_request(raw)
+                cards = process_batch_request(conn, raw)
                 save_cards_to_cache(conn, cards)
                 output.extend(cards)
 
@@ -74,7 +81,7 @@ def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[dict[st
         raise RuntimeError("No cards have been fetched either from Scryfall or from cache")
     return output
 
-def process_batch_request(raw: dict[str, Any]) -> list[dict[str, Any]]:
+def process_batch_request(conn: sqlite3.Connection, raw: dict[str, Any]) -> list[dict[str, Any]]:
     cards: list[dict[str, Any]] = raw.get("data", [])
 
     not_found = raw.get("not_found", [])
@@ -84,8 +91,11 @@ def process_batch_request(raw: dict[str, Any]) -> list[dict[str, Any]]:
             fetched = fetch_single(name)
             if fetched:
                 cards.append(fetched)
+            else:
+                print(f"Bad name - {name} saved to card_lookup_failures")
+                record_bad_name_attempt(conn, name)
 
     if not cards:
-        print(f"Scryfall error: no data received")
+        print("Scryfall error: no data received")
 
     return cards

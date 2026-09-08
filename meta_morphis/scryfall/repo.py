@@ -3,6 +3,7 @@ import sqlite3
 import time
 from typing import Any
 
+import config
 from meta_morphis.models.card import Card
 from meta_morphis.utils.text import normalize_name
 
@@ -69,3 +70,37 @@ def save_cards_to_cache(conn: sqlite3.Connection, raw_cards: list[dict[str, Any]
             """, (face_key, card.id))
 
     conn.commit()
+
+def record_bad_name_attempt(conn: sqlite3.Connection, name: str) -> None:
+    key = normalize_name(name)
+
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO card_lookup_failures (name, last_attempt)
+        VALUES (?, ?)
+        ON CONFLICT(name) DO UPDATE SET
+            last_attempt = excluded.last_attempt
+    """, (
+        key,
+        int(time.time())
+    ))
+
+    conn.commit()
+
+def should_skip_lookup(conn: sqlite3.Connection, name: str, cooldown: int = config.SCRYFALL_BAD_NAMES_LOOKUP_COOLDOWN) -> bool:
+    key = normalize_name(name)
+    cutoff = int(time.time()) - cooldown
+
+    c = conn.cursor()
+    c.execute("""
+        SELECT last_attempt
+        FROM card_lookup_failures
+        WHERE name = ?
+    """, (key,))
+    row = c.fetchone()
+
+    if not row:
+        return False
+
+    last_attempt = int(row[0])
+    return last_attempt > cutoff
