@@ -24,19 +24,19 @@ def test_classify_cards(monkeypatch: MonkeyPatch) -> None:
         name= "Duress",
         rank= 10,
         percent= 15,
-        deck_count= 2
+        avg_copies= 2
     )
     outdated_meta = MetaEntry(
         name= "Counterspell",
         rank= 5,
         percent= 10,
-        deck_count= 3.2
+        avg_copies= 3.2
     )
     missing_meta = MetaEntry(
         name= "Llanowar Elf",
         rank= 1,
         percent= 25,
-        deck_count= 3.9
+        avg_copies= 3.9
     )
 
     meta = [fresh_meta, outdated_meta, missing_meta]
@@ -153,25 +153,25 @@ def test_fetch_cards(monkeypatch: MonkeyPatch) -> None:
         name= "Duress",
         rank= 10,
         percent= 15,
-        deck_count= 2
+        avg_copies= 2
     )
     outdated_refreshed = MetaEntry(
         name= "Counterspell",
         rank= 5,
         percent= 10,
-        deck_count= 3.2
+        avg_copies= 3.2
     )
     outdated_not_refreshed = MetaEntry(
         name= "Fling",
         rank= 20,
         percent= 4,
-        deck_count= 1.1
+        avg_copies= 1.1
     )
     missing = MetaEntry(
         name= "Llanowar Elf",
         rank= 1,
         percent= 25,
-        deck_count= 3.9
+        avg_copies= 3.9
     )
 
     meta = [fresh, outdated_refreshed, outdated_not_refreshed, missing]

@@ -43,7 +43,7 @@ def parse_meta_table(html: str) -> list[MetaEntry] | None:
             name= name,
             rank= int(cols[0].text.strip()),
             percent= float(cols[3].text.strip().replace("%", "")),
-            deck_count= float(cols[4].text.strip()),
+            avg_copies= float(cols[4].text.strip()),
         )
         if "//" in name:
             meta_entry.lookup_name = name.split("//")[0].strip()

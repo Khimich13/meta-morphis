@@ -7,5 +7,5 @@ class MetaEntry:
     name: str
     rank: int
     percent: float
-    deck_count: float
+    avg_copies: float
     lookup_name: Optional[str] = None

@@ -24,7 +24,7 @@ def test_parse_meta_table_valid() -> None:
     assert entry.name == "Lightning Bolt"
     assert entry.rank == 1
     assert entry.percent == 25.0
-    assert entry.deck_count == 3.5
+    assert entry.avg_copies == 3.5
 
 def test_parse_meta_table_no_table() -> None:
     html = "<html><body>No table here</body></html>"

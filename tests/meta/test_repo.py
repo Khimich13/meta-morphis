@@ -28,7 +28,7 @@ def conn() -> sqlite3.Connection:
             format TEXT,
             rank INTEGER,
             percent REAL,
-            deck_count REAL,
+            avg_copies REAL,
             lookup_name TEXT NULL
         )
     """)
