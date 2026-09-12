@@ -1,24 +1,19 @@
-import time
-
-import requests
 from bs4 import BeautifulSoup
 
 from meta_morphis.models.meta import MetaEntry
+from meta_morphis.utils.http import request_with_retries
 
 
 def scrape_meta_cards(url: str) -> list[MetaEntry] | None:
-    for attempt in range(3):
-        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+    raw = request_with_retries(
+        "GET",
+        url=url,
+        headers={"User-Agent": "Mozilla/5.0"}
+    )
 
-        if r.status_code != 200:
-            time.sleep(0.5 * (attempt + 1))
-            continue
-
-        meta = parse_meta_table(r.text)
-        if meta:
-            return meta
-        
-    # Failed to scrape
+    if raw:
+        return parse_meta_table(raw)
+    
     return None
 
 def parse_meta_table(html: str) -> list[MetaEntry] | None:

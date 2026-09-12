@@ -71,20 +71,25 @@ def test_parse_meta_table_empty_rows() -> None:
 
 def test_scrape_meta_cards_success(monkeypatch: MonkeyPatch) -> None:
     class FakeResponse:
-        status_code = 200
-        text = """
-        <table class="table-staples">
-            <tr>
-                <td>1</td>
-                <td>Test Card</td>
-                <td></td>
-                <td>5%</td>
-                <td>1</td>
-            </tr>
-        </table>
-        """
+        def __init__(self) -> None:
+            self.status_code = 200
+            self.headers: dict[str, str] = {}
+            self.text = """
+            <table class="table-staples">
+                <tr>
+                    <td>1</td>
+                    <td>Test Card</td>
+                    <td></td>
+                    <td>5%</td>
+                    <td>1</td>
+                </tr>
+            </table>
+            """
 
-    monkeypatch.setattr("requests.get", lambda *args, **kwargs: FakeResponse())
+        def json(self) -> None:
+            raise ValueError("Not JSON")
+
+    monkeypatch.setattr("requests.request", lambda *args, **kwargs: FakeResponse())
 
     result = scrape_meta_cards("http://fake-url")
     assert result != None
@@ -111,7 +116,7 @@ def test_scrape_meta_cards_retry(monkeypatch: MonkeyPatch) -> None:
     def fake_get(*args: Any, **kwargs: Any) -> Any:
         return responses.pop(0)
 
-    monkeypatch.setattr("requests.get", fake_get)
+    monkeypatch.setattr("requests.request", fake_get)
     monkeypatch.setattr("time.sleep", lambda x: None)
 
     result = scrape_meta_cards("http://fake-url")
@@ -123,7 +128,7 @@ def test_scrape_meta_cards_all_fail(monkeypatch: MonkeyPatch) -> None:
     class FakeResponse:
         status_code = 500
 
-    monkeypatch.setattr("requests.get", lambda *args, **kwargs: FakeResponse())
+    monkeypatch.setattr("requests.request", lambda *args, **kwargs: FakeResponse())
     monkeypatch.setattr("time.sleep", lambda x: None)
 
     assert scrape_meta_cards("http://fake-url") is None
