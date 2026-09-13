@@ -17,12 +17,16 @@ def request_with_retries(
 ) ->  str | None:
 
     last_attempt_time = 0.0
+    used_retry_after = False
 
     for attempt in range(max_retries):
-        now = time.time()
-        since_last = now - last_attempt_time
-        if since_last < min_delay:
-            time.sleep(min_delay - since_last)
+        if used_retry_after:
+            used_retry_after = False
+        else:
+            now = time.time()
+            since_last = now - last_attempt_time
+            if since_last < min_delay:
+                time.sleep(min_delay - since_last)
 
         last_attempt_time = time.time()
 
@@ -63,6 +67,7 @@ def request_with_retries(
                 return None
 
             time.sleep(delay)
+            used_retry_after = True
             continue
 
         # Server errors (5xx)
