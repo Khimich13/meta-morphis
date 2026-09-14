@@ -24,7 +24,7 @@ def fetch_single(name: str) -> dict[str, Any] | None:
         "GET",
         url=config.URL_NAMED,
         headers=config.HEADERS,
-        params={"fuzzy": name}
+        params={"exact": name}
     )
     if raw is None:
         return None

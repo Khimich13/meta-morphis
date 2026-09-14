@@ -40,4 +40,3 @@ if __name__ == "__main__":
     main()
 
 # TODO: Clean debugging print messages
-# TODO: Create/or do I need to create a test for request_with_tries

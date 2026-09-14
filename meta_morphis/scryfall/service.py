@@ -3,6 +3,7 @@ from typing import Any
 
 import config
 from meta_morphis.models.meta import MetaEntry
+from meta_morphis.utils.text import normalize_name
 
 from .client import batch, fetch_batch, fetch_single
 from .repo import (
@@ -89,7 +90,7 @@ def process_batch_request(conn: sqlite3.Connection, raw: dict[str, Any]) -> list
         missing_names = [item["name"] for item in not_found]
         for name in missing_names:
             fetched = fetch_single(name)
-            if fetched:
+            if fetched and normalize_name(fetched.get("name", "")) == normalize_name(name):
                 cards.append(fetched)
             else:
                 print(f"Bad name - {name} saved to card_lookup_failures")

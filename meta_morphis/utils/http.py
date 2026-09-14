@@ -30,6 +30,11 @@ def request_with_retries(
 
         last_attempt_time = time.time()
 
+        if attempt > 0 and params is not None and "exact" in params:
+            params = params.copy()
+            params["fuzzy"] = params["exact"]
+            del params["exact"]
+
         try:
             response = requests.request(
                 method,
