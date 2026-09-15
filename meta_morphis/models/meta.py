@@ -1,11 +1,10 @@
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
 class MetaEntry:
     name: str
-    rank: int
-    percent: float
-    avg_copies: float
-    lookup_name: Optional[str] = None
+    rank: int | None = None
+    percent: float | None = None
+    avg_copies: float | None = None
+    lookup_name: str | None = None

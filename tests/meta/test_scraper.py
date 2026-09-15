@@ -19,8 +19,10 @@ def test_parse_meta_table_valid() -> None:
     """
     result = parse_meta_table(html)
     assert result != None
-    assert len(result) == 1
-    entry = result[0]
+    entries, skipped_count = result
+    assert skipped_count == 0
+    assert len(entries) == 1
+    entry = entries[0]
     assert entry.name == "Lightning Bolt"
     assert entry.rank == 1
     assert entry.percent == 25.0
@@ -43,10 +45,11 @@ def test_parse_meta_table_double_name() -> None:
     </table>
     """
     result = parse_meta_table(html)
-
     assert result != None
+    entries, skipped_count = result
 
-    entry = result[0]
+    assert skipped_count == 0
+    entry = entries[0]
 
     assert entry.name == "Fire // Ice"
     assert entry.lookup_name == "Fire"
@@ -65,9 +68,11 @@ def test_parse_meta_table_empty_rows() -> None:
     </table>
     """
     result = parse_meta_table(html)
-
     assert result != None
-    assert len(result) == 1
+    entries, skipped_count = result
+
+    assert skipped_count == 1
+    assert len(entries) == 1
 
 def test_scrape_meta_cards_success(monkeypatch: MonkeyPatch) -> None:
     class FakeResponse:
