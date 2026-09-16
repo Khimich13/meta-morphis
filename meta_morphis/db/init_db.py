@@ -4,6 +4,9 @@ import sqlite3
 def init_db(conn: sqlite3.Connection) -> None:
     c = conn.cursor()
 
+    # Enable WAL mode for better concurrency and safer writes
+    c.execute("PRAGMA journal_mode=WAL;")
+    
     # Create Scryfall card cache table
     c.execute("""
         CREATE TABLE IF NOT EXISTS cards (
