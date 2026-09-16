@@ -3,6 +3,8 @@ from typing import Callable, TypeVar
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 
+import config
+
 T = TypeVar("T")
 
 from meta_morphis.models.meta import MetaEntry
@@ -24,7 +26,7 @@ def scrape_meta_cards(url: str) -> list[MetaEntry] | None:
 
     meta, skipped_count = result
 
-    if skipped_count > 25: # 25 cards is a lot of cards to skip
+    if skipped_count > config.BED_ROWS_LIMIT:
         return None
         
     return meta

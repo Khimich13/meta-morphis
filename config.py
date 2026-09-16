@@ -7,6 +7,7 @@ FORMATS = {
     "standard": "https://www.mtggoldfish.com/format-staples/standard/full/all",
     "modern": "https://www.mtggoldfish.com/format-staples/modern/full/all"
 }
+BED_ROWS_LIMIT = 10
 #ScryFall API configs
 URL_COLLECTION = "https://api.scryfall.com/cards/collection"
 URL_NAMED = "https://api.scryfall.com/cards/named"
