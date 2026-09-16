@@ -30,6 +30,7 @@ def get_meta_cards(conn: sqlite3.Connection, format: str) -> list[MetaEntry]:
             return cached
         raise(RuntimeError("Program has failed to find meta info!"))
 
-    save_meta_to_cache(conn, meta, format)
-    update_meta_timestamp(conn, format)
+    with conn:
+        save_meta_to_cache(conn, meta, format)
+        update_meta_timestamp(conn, format)
     return meta

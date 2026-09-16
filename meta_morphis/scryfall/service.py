@@ -62,7 +62,8 @@ def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[dict[st
         refreshed, not_refreshed = refresh_outdated(conn, outdated)
 
         print(f"{len(refreshed)} outdated cards were refreshed successfully")
-        save_cards_to_cache(conn, refreshed)
+        with conn:
+            save_cards_to_cache(conn, refreshed)
         output.extend(refreshed)
         
         if not_refreshed:
@@ -75,7 +76,8 @@ def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[dict[st
             raw = fetch_batch(batch_names)
             if raw:
                 cards = process_batch_request(conn, raw)
-                save_cards_to_cache(conn, cards)
+                with conn:
+                    save_cards_to_cache(conn, cards)
                 output.extend(cards)
 
     if not output:
@@ -94,7 +96,8 @@ def process_batch_request(conn: sqlite3.Connection, raw: dict[str, Any]) -> list
                 cards.append(fetched)
             else:
                 print(f"Bad name - {name} saved to card_lookup_failures")
-                record_bad_name_attempt(conn, name)
+                with conn:
+                    record_bad_name_attempt(conn, name)
 
     if not cards:
         print("Scryfall error: no data received")

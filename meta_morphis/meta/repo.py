@@ -24,7 +24,6 @@ def update_meta_timestamp(conn: sqlite3.Connection, format: str) -> None:
         VALUES (?, ?)
         ON CONFLICT(format) DO UPDATE SET last_updated = excluded.last_updated
     """, (format, int(time.time()),))
-    conn.commit()
 
 def load_cached_meta(conn: sqlite3.Connection, format: str) -> list[MetaEntry]:
     c = conn.cursor()
@@ -69,5 +68,3 @@ def save_meta_to_cache(conn: sqlite3.Connection, meta: list[MetaEntry], format: 
             entry.avg_copies,
             entry.lookup_name
         ))
-
-    conn.commit()

@@ -69,8 +69,6 @@ def save_cards_to_cache(conn: sqlite3.Connection, raw_cards: list[dict[str, Any]
                 VALUES (?, ?)
             """, (face_key, card.id))
 
-    conn.commit()
-
 def record_bad_name_attempt(conn: sqlite3.Connection, name: str) -> None:
     key = normalize_name(name)
 
@@ -84,8 +82,6 @@ def record_bad_name_attempt(conn: sqlite3.Connection, name: str) -> None:
         key,
         int(time.time())
     ))
-
-    conn.commit()
 
 def should_skip_lookup(conn: sqlite3.Connection, name: str, cooldown: int = config.SCRYFALL_BAD_NAMES_LOOKUP_COOLDOWN) -> bool:
     key = normalize_name(name)
