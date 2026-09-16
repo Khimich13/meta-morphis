@@ -40,7 +40,8 @@ def conn() -> sqlite3.Connection:
                 "mana_cost": "2U",
                 "type_line": "Legendary Creature — Human Artificer"
             }),
-            0.25
+            # make it old
+            int(time.time()) - 999999
         )
     )
 
@@ -123,6 +124,23 @@ def test_save_cards_to_cache_duplicates(conn: sqlite3.Connection) -> None:
     updated_cached_card = cards_with_same_name[0]
     # check if the new card updated the old one by its id
     assert updated_cached_card[0] == "2"
+
+def test_save_cards_to_cache_updated_at(conn: sqlite3.Connection) -> None:
+    old_card = get_card_from_cache(conn, "Sai, Master Thopterist")
+    assert old_card is not None
+    old_card_age = old_card.age
+    new_version_card = {
+        "id": "2",
+        "name": "Sai, Master Thopterist",
+        "mana_cost": "2U",
+        "type_line": "Legendary Creature — Human Artificer"
+    }
+    save_cards_to_cache(conn, [new_version_card])
+    new_card = get_card_from_cache(conn, "Sai, Master Thopterist")
+    assert new_card is not None
+    new_card_age = new_card.age
+
+    assert new_card_age < old_card_age
 
 def test_record_bad_name_attempt_inserts(conn: sqlite3.Connection) -> None:
     record_bad_name_attempt(conn, "BadName")

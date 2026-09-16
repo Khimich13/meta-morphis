@@ -1,4 +1,3 @@
-import json
 import sqlite3
 from typing import Any
 
@@ -11,10 +10,9 @@ from meta_morphis.models.meta import MetaEntry
 from meta_morphis.scryfall.service import (
     classify_cards,
     fetch_cards,
+    fetch_updates_for_outdated,
     process_batch_request,
-    refresh_outdated,
 )
-from meta_morphis.utils.text import normalize_name
 
 
 def test_classify_cards(monkeypatch: MonkeyPatch) -> None:
@@ -79,36 +77,8 @@ def test_classify_cards(monkeypatch: MonkeyPatch) -> None:
     assert outdated_result[0]["name"] == "Counterspell"
     assert missing_result == ["Llanowar Elf"]
 
-def test_refresh_outdated(monkeypatch: MonkeyPatch) -> None:
-    old_age = config.SCRYFALL_REFRESH_RATE
+def test_fetch_updates_for_outdated(monkeypatch: MonkeyPatch) -> None:
     conn = sqlite3.connect(":memory:")
-    conn.execute("""
-        CREATE TABLE cards (
-            id TEXT,
-            name TEXT UNIQUE NOT NULL,
-            json TEXT NOT NULL,
-            updated_at INTEGER NOT NULL
-        )
-    """)
-    conn.execute("""
-        CREATE TABLE card_lookup_failures (
-            name TEXT PRIMARY KEY,
-            last_attempt INTEGER
-        )
-    """)
-    conn.execute(
-        "INSERT INTO cards VALUES (?, ?, ?, ?)", (
-            1,
-            normalize_name("Cancel"),
-            json.dumps({
-                "id": 1,
-                "name": "Cancel",
-                "mana_cost": "1UU",
-                "type_line": "Instant"
-            }),
-            old_age
-        )
-    )
 
     outdated = [
         {"name": "Unknown"}, 
@@ -125,26 +95,16 @@ def test_refresh_outdated(monkeypatch: MonkeyPatch) -> None:
     )
 
     monkeypatch.setattr(
-        "meta_morphis.scryfall.service.fetch_single", 
-        lambda name: None
+        "meta_morphis.scryfall.service.process_batch_request",
+        lambda conn, raw: raw["data"]
     )
 
-    result = refresh_outdated(conn, outdated)
+    result = fetch_updates_for_outdated(conn, outdated)
 
-    refreshed, not_refreshed = result
+    updates, unrecognized = result
 
-    assert refreshed == [{"name": "Cancel"}]
-    assert not_refreshed == [{"name": "Unknown"}]
-
-    row = conn.execute(
-        "SELECT updated_at FROM cards WHERE name = ?", (normalize_name("Cancel"),)
-    ).fetchone()
-    
-    assert row != None
-
-    current_age = row[0]
-
-    assert current_age > old_age
+    assert updates == [{"name": "Cancel"}]
+    assert unrecognized == [{"name": "Unknown"}]
 
 def test_fetch_cards(monkeypatch: MonkeyPatch) -> None:
     conn = sqlite3.connect(":memory:")
@@ -196,7 +156,7 @@ def test_fetch_cards(monkeypatch: MonkeyPatch) -> None:
         lambda conn, cards: None
     )
     monkeypatch.setattr(
-        "meta_morphis.scryfall.service.refresh_outdated", 
+        "meta_morphis.scryfall.service.fetch_updates_for_outdated", 
         lambda conn, outdated: ([{"name": outdated_refreshed.name}], [{"name": outdated_not_refreshed.name}])
     )
 

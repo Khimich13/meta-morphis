@@ -37,19 +37,19 @@ def classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[lis
 
     return fresh, outdated, missing
 
-def refresh_outdated(conn: sqlite3.Connection, outdated: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def fetch_updates_for_outdated(conn: sqlite3.Connection, outdated: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     names = [card["name"] for card in outdated]
-    refreshed = []
+    updates = []
     
     for batch_names in batch(names):
         raw = fetch_batch(batch_names)
         if raw:
             cards = process_batch_request(conn, raw)
-            refreshed.extend(cards)
+            updates.extend(cards)
 
-    refreshed_names = {card["name"] for card in refreshed}
-    not_refreshed = [card for card in outdated if card["name"] not in refreshed_names]
-    return refreshed, not_refreshed
+    updates_names = {card["name"] for card in updates}
+    unregognized = [card for card in outdated if card["name"] not in updates_names]
+    return updates, unregognized
 
 def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[dict[str, Any]]:
     output = []
@@ -59,16 +59,16 @@ def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[dict[st
 
     if outdated:
         print("Trying to fetch outdated names...")
-        refreshed, not_refreshed = refresh_outdated(conn, outdated)
+        updates, unregognized = fetch_updates_for_outdated(conn, outdated)
 
-        print(f"{len(refreshed)} outdated cards were refreshed successfully")
         with conn:
-            save_cards_to_cache(conn, refreshed)
-        output.extend(refreshed)
+            save_cards_to_cache(conn, updates)
+        print(f"{len(updates)} outdated cards were refreshed successfully")
+        output.extend(updates)
         
-        if not_refreshed:
-            print(f"{len(not_refreshed)} outdated cards were not refreshed")
-            output.extend(not_refreshed)
+        if unregognized:
+            print(f"{len(unregognized)} outdated cards were not found in Scryfall and was not refreshed")
+            output.extend(unregognized)
 
     if missing:
         print("Trying to fetch missing names...")
