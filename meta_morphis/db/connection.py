@@ -1,10 +1,18 @@
 import sqlite3
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Generator
 
 import config
 
 
-def get_connection() -> sqlite3.Connection:
+@contextmanager
+def get_connection() -> Generator[sqlite3.Connection, None, None]:
     db_path = Path(config.DB_PATH)
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    return sqlite3.connect(config.DB_PATH)
+
+    conn = sqlite3.connect(str(db_path))
+    try:
+        yield conn
+    finally:
+        conn.close()
