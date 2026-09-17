@@ -55,9 +55,6 @@ def _classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[li
     for entry in meta:
         name = entry.lookup_name or entry.name
         
-        if should_skip_lookup(conn, name):
-            continue
-
         cached = get_card_from_cache(conn, name)
 
         if cached:
@@ -65,7 +62,7 @@ def _classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[li
                 outdated.append(cached.raw)
             else:
                 fresh.append(cached.raw)
-        else:
+        elif not should_skip_lookup(conn, name):
             missing.append(name)
 
     return fresh, outdated, missing

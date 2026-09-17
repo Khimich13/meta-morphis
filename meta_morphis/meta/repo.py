@@ -50,7 +50,7 @@ def load_cached_meta(conn: sqlite3.Connection, format_name: str) -> list[MetaEnt
 def save_meta_to_cache(conn: sqlite3.Connection, meta: list[MetaEntry], format_name: str) -> None:
     c = conn.cursor()
 
-    # Clear old format_name meta before inserting new one
+    # Clear old format meta before inserting new one
     c.execute("""
         DELETE FROM meta
         WHERE format = ?
