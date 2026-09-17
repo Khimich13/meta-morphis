@@ -15,6 +15,11 @@ from meta_morphis.scryfall.service import (
 )
 
 
+def _card(name: str, age: int = 0, card_id: str = "test") -> Card:
+    card = Card.from_raw({"id": card_id, "name": name})
+    card.age = age
+    return card
+
 def test_classify_cards(monkeypatch: MonkeyPatch) -> None:
     conn = sqlite3.connect(":memory:")
 
@@ -47,27 +52,9 @@ def test_classify_cards(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.get_card_from_cache",
         lambda conn, name: (
-            Card(
-                id="test",
-                name=name,
-                mana_cost=None,
-                type_line="",
-                faces=[],
-                age=config.SCRYFALL_REFRESH_RATE + 1,
-                raw={"name": name}
-            )
+            _card(name, age=config.SCRYFALL_REFRESH_RATE + 1)
             if name == "Counterspell"
-            else Card(
-                id="test",
-                name=name,
-                mana_cost=None,
-                type_line="",
-                faces=[],
-                age=0,
-                raw={"name": name}
-            )
-            if name != "Llanowar Elf"
-            else None
+            else _card(name) if name != "Llanowar Elf" else None
         )
     )
 
@@ -75,16 +62,14 @@ def test_classify_cards(monkeypatch: MonkeyPatch) -> None:
 
     fresh_result, outdated_result, missing_result = result
 
-    assert fresh_result[0]["name"] == "Duress"
-    assert outdated_result[0]["name"] == "Counterspell"
+    assert fresh_result[0].name == "Duress"
+    assert outdated_result[0].name == "Counterspell"
     assert missing_result == ["Llanowar Elf"]
 
 def test_fetch_updates_for_outdated(monkeypatch: MonkeyPatch) -> None:
     conn = sqlite3.connect(":memory:")
 
-    outdated = [
-        {"name": "Unknown"}, 
-        {"name": "Cancel"}]
+    outdated = [_card("Unknown"), _card("Cancel")]
 
     fetch_batch_response = {
         "data": [{"name": "Cancel"}],
@@ -98,15 +83,15 @@ def test_fetch_updates_for_outdated(monkeypatch: MonkeyPatch) -> None:
 
     monkeypatch.setattr(
         "meta_morphis.scryfall.service._process_batch_request",
-        lambda conn, raw: raw["data"]
+        lambda conn, raw: [_card(c["name"]) for c in raw["data"]]
     )
 
     result = _fetch_updates_for_outdated(conn, outdated)
 
     updates, unrecognized = result
 
-    assert updates == [{"name": "Cancel"}]
-    assert unrecognized == [{"name": "Unknown"}]
+    assert updates == [_card("Cancel")]
+    assert unrecognized == [_card("Unknown")]
 
 def test_fetch_cards(monkeypatch: MonkeyPatch) -> None:
     conn = sqlite3.connect(":memory:")
@@ -140,8 +125,8 @@ def test_fetch_cards(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(
         "meta_morphis.scryfall.service._classify_cards", 
         lambda conn, meta: (
-            [{"name": fresh.name}], 
-            [{"name": outdated_refreshed.name}, {"name": outdated_not_refreshed.name}], 
+            [_card(fresh.name)], 
+            [_card(outdated_refreshed.name), _card(outdated_not_refreshed.name)], 
             [missing.name]
         )
     )
@@ -151,7 +136,7 @@ def test_fetch_cards(monkeypatch: MonkeyPatch) -> None:
     )
     monkeypatch.setattr(
         "meta_morphis.scryfall.service._process_batch_request", 
-        lambda conn, raw: raw["data"]
+        lambda conn, raw: [_card(c["name"]) for c in raw["data"]]
     )
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.save_cards_to_cache", 
@@ -159,16 +144,16 @@ def test_fetch_cards(monkeypatch: MonkeyPatch) -> None:
     )
     monkeypatch.setattr(
         "meta_morphis.scryfall.service._fetch_updates_for_outdated", 
-        lambda conn, outdated: ([{"name": outdated_refreshed.name}], [{"name": outdated_not_refreshed.name}])
+        lambda conn, outdated: ([_card(outdated_refreshed.name)], [_card(outdated_not_refreshed.name)])
     )
 
     result = fetch_cards(conn, meta)
 
     assert result == [
-        {"name": fresh.name}, 
-        {"name": outdated_refreshed.name},
-        {"name": outdated_not_refreshed.name},
-        {"name": missing.name}
+        _card(fresh.name), 
+        _card(outdated_refreshed.name),
+        _card(outdated_not_refreshed.name),
+        _card(missing.name),
     ]
 
 def test_fetch_cards_raises() -> None:
@@ -197,17 +182,20 @@ def test_process_batch_request(monkeypatch: MonkeyPatch, capsys: CaptureFixture[
     assert "Scryfall error: no data received" in captured.out
 
     raw = {
-        "data": [{"name": "Counterspell"}, {"name": "Duress"}],
+        "data": [
+            {"id": "1", "name": "Counterspell"}, 
+            {"id": "2", "name": "Duress"}
+        ],
         "not_found": [{"name": "Unknown"}, {"name": "Cancel"}]
     }
 
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.fetch_single", 
-        lambda name: {"name": name} if name != "Unknown" else None
+        lambda name: {"id": "3", "name": name} if name != "Unknown" else None
     )
     
     assert _process_batch_request(conn, raw) == [
-        {"name": "Counterspell"}, 
-        {"name": "Duress"}, 
-        {"name": "Cancel"}
+        _card("Counterspell", card_id="1"), 
+        _card("Duress", card_id="2"), 
+        _card("Cancel", card_id="3"),
     ]

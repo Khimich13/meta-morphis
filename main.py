@@ -4,7 +4,6 @@ from meta_morphis import config
 from meta_morphis.db.connection import get_connection
 from meta_morphis.db.init_db import init_db
 from meta_morphis.meta.service import get_meta_cards
-from meta_morphis.models.card import Card
 from meta_morphis.scryfall.service import fetch_cards
 
 
@@ -32,9 +31,9 @@ def main() -> None:
         print(f"You chose: {format_name}\n")
 
         meta = get_meta_cards(conn, format_name)
-        raw_cards = fetch_cards(conn, meta)
-        for raw in raw_cards:
-            print(Card.from_raw(raw))
+        cards = fetch_cards(conn, meta)
+        for card in cards:
+            print(card)
 
 if __name__ == "__main__":
     main()

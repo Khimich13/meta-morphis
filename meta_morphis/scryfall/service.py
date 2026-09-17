@@ -2,6 +2,7 @@ import sqlite3
 from typing import Any
 
 from meta_morphis import config
+from meta_morphis.models.card import Card
 from meta_morphis.models.meta import MetaEntry
 from meta_morphis.utils.text import normalize_name
 
@@ -14,8 +15,8 @@ from .repo import (
 )
 
 
-def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[dict[str, Any]]:
-    output = []
+def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[Card]:
+    output: list[Card] = []
 
     fresh, outdated, missing = _classify_cards(conn, meta)
     output.extend(fresh)
@@ -47,7 +48,7 @@ def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[dict[st
         raise RuntimeError("No cards have been fetched either from Scryfall or from cache")
     return output
 
-def _classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[str]]:
+def _classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[list[Card], list[Card], list[str]]:
     fresh = []
     outdated = []
     missing = []
@@ -59,17 +60,17 @@ def _classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[li
 
         if cached:
             if cached.age > config.SCRYFALL_REFRESH_RATE:
-                outdated.append(cached.raw)
+                outdated.append(cached)
             else:
-                fresh.append(cached.raw)
+                fresh.append(cached)
         elif not should_skip_lookup(conn, name):
             missing.append(name)
 
     return fresh, outdated, missing
 
-def _fetch_updates_for_outdated(conn: sqlite3.Connection, outdated: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    names = [card["name"] for card in outdated]
-    updates = []
+def _fetch_updates_for_outdated(conn: sqlite3.Connection, outdated: list[Card]) -> tuple[list[Card], list[Card]]:
+    names = [card.name for card in outdated]
+    updates: list[Card] = []
     
     for batch_names in batch(names):
         raw = fetch_batch(batch_names)
@@ -77,20 +78,33 @@ def _fetch_updates_for_outdated(conn: sqlite3.Connection, outdated: list[dict[st
             cards = _process_batch_request(conn, raw)
             updates.extend(cards)
 
-    updates_names = {card["name"] for card in updates}
-    unregognized = [card for card in outdated if card["name"] not in updates_names]
+    updates_names = {card.name for card in updates}
+    unregognized = [card for card in outdated if card.name not in updates_names]
     return updates, unregognized
 
-def _process_batch_request(conn: sqlite3.Connection, raw: dict[str, Any]) -> list[dict[str, Any]]:
-    cards: list[dict[str, Any]] = raw.get("data", [])
+def _to_card(raw: dict[str, Any]) -> Card | None:
+    try:
+        return Card.from_raw(raw)
+    except KeyError as e:
+        print(f"Skipping malformed card from Scryfall, missing field {e}")
+        return None
+
+def _process_batch_request(conn: sqlite3.Connection, raw: dict[str, Any]) -> list[Card]:
+    cards: list[Card] = []
+
+    for entry in raw.get("data", []):
+        card = _to_card(entry)
+        if card:
+            cards.append(card)
 
     not_found = raw.get("not_found", [])
     if not_found:
         missing_names = [item["name"] for item in not_found]
         for name in missing_names:
             fetched = fetch_single(name)
-            if fetched and normalize_name(fetched.get("name", "")) == normalize_name(name):
-                cards.append(fetched)
+            card = _to_card(fetched) if fetched else None
+            if card and normalize_name(card.name) == normalize_name(name):
+                cards.append(card)
             else:
                 print(f"Bad name - {name} saved to card_lookup_failures")
                 with conn:

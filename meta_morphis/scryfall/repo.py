@@ -35,10 +35,9 @@ def get_card_from_cache(conn: sqlite3.Connection, name: str) -> Card | None:
     card.age = int(time.time()) - updated_at
     return card
 
-def save_cards_to_cache(conn: sqlite3.Connection, raw_cards: list[dict[str, Any]]) -> None:
+def save_cards_to_cache(conn: sqlite3.Connection, cards: list[Card]) -> None:
     c = conn.cursor()
-    for raw in raw_cards:
-        card = Card.from_raw(raw)
+    for card in cards:
         key = normalize_name(card.name)
 
         # Insert/update main card row
@@ -51,7 +50,7 @@ def save_cards_to_cache(conn: sqlite3.Connection, raw_cards: list[dict[str, Any]
         """, (
             card.id,
             key, 
-            json.dumps(raw),
+            json.dumps(card.raw),
             int(time.time())
         ))
 

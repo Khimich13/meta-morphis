@@ -4,6 +4,7 @@ import time
 
 import pytest
 
+from meta_morphis.models.card import Card
 from meta_morphis.scryfall.repo import (
     get_card_from_cache,
     record_bad_name_attempt,
@@ -87,7 +88,7 @@ def test_save_cards_to_cache(conn: sqlite3.Connection) -> None:
         "mana_cost": "UU",
         "type_line": "Instant"
     }
-    save_cards_to_cache(conn, [new_card_1, new_card_2])
+    save_cards_to_cache(conn, [Card.from_raw(new_card_1), Card.from_raw(new_card_2)])
 
     card = get_card_from_cache(conn, "Shock")
     assert card != None
@@ -114,7 +115,7 @@ def test_save_cards_to_cache_duplicates(conn: sqlite3.Connection) -> None:
         "mana_cost": "2U",
         "type_line": "Legendary Creature — Human Artificer"
     }
-    save_cards_to_cache(conn, [new_version_card])
+    save_cards_to_cache(conn, [Card.from_raw(new_version_card)])
 
     cards_with_same_name = conn.execute(
         "SELECT * FROM cards WHERE name = ?", (normalize_name("Sai, Master Thopterist"),)
@@ -135,7 +136,7 @@ def test_save_cards_to_cache_updated_at(conn: sqlite3.Connection) -> None:
         "mana_cost": "2U",
         "type_line": "Legendary Creature — Human Artificer"
     }
-    save_cards_to_cache(conn, [new_version_card])
+    save_cards_to_cache(conn, [Card.from_raw(new_version_card)])
     new_card = get_card_from_cache(conn, "Sai, Master Thopterist")
     assert new_card is not None
     new_card_age = new_card.age
