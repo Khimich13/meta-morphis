@@ -15,7 +15,7 @@ def scrape_meta_cards(url: str) -> list[MetaEntry] | None:
     raw = request_with_retries(
         "GET",
         url=url,
-        headers={"User-Agent": "Mozilla/5.0"}
+        headers=config.GOLDFISH_HEADERS
     )
     if not raw:
         return None

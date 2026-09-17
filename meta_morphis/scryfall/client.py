@@ -11,7 +11,7 @@ def fetch_batch(names: list[str]) -> dict[str, Any] | None:
     raw = request_with_retries(
         "POST",
         config.URL_COLLECTION,
-        headers=config.HEADERS,
+        headers=config.SCRYFALL_HEADERS,
         json={"identifiers": identifiers},
     )
     if raw is None:
@@ -23,7 +23,7 @@ def fetch_single(name: str) -> dict[str, Any] | None:
     raw = request_with_retries(
         "GET",
         url=config.URL_NAMED,
-        headers=config.HEADERS,
+        headers=config.SCRYFALL_HEADERS,
         params={"exact": name}
     )
     if raw is None:

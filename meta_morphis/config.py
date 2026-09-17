@@ -11,13 +11,16 @@ FORMATS = {
     "modern": "https://www.mtggoldfish.com/format-staples/modern/full/all"
 }
 BED_ROWS_LIMIT = 10
+GOLDFISH_HEADERS = {
+    "User-Agent": "meta-morphis (https://github.com/Khimich13/meta-morphis)",
+}
 #ScryFall API configs
 URL_COLLECTION = "https://api.scryfall.com/cards/collection"
 URL_NAMED = "https://api.scryfall.com/cards/named"
 SCRYFALL_REFRESH_RATE = 24 * 60 * 60 * 30 # 30 days
 SCRYFALL_BATCH_SIZE_LIMIT = 75
 SCRYFALL_BAD_NAMES_LOOKUP_COOLDOWN = 24 * 60 * 60 * 7 # 7 days
-HEADERS = {
+SCRYFALL_HEADERS = {
         "User-Agent": "meta-morphis",
         "Accept": "application/json"
     }
