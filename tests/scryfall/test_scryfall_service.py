@@ -4,7 +4,7 @@ from typing import Any
 import pytest
 from pytest import CaptureFixture, MonkeyPatch
 
-import config
+from meta_morphis import config
 from meta_morphis.models.card import Card
 from meta_morphis.models.meta import MetaEntry
 from meta_morphis.scryfall.service import (

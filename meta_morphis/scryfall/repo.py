@@ -3,7 +3,7 @@ import sqlite3
 import time
 from typing import Any
 
-import config
+from meta_morphis import config
 from meta_morphis.models.card import Card
 from meta_morphis.utils.text import normalize_name
 

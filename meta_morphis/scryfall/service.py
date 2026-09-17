@@ -1,7 +1,7 @@
 import sqlite3
 from typing import Any
 
-import config
+from meta_morphis import config
 from meta_morphis.models.meta import MetaEntry
 from meta_morphis.utils.text import normalize_name
 

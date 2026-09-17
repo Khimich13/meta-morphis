@@ -3,7 +3,7 @@ from typing import Any
 
 from pytest import MonkeyPatch
 
-import config
+from meta_morphis import config
 from meta_morphis.scryfall.client import batch, fetch_batch, fetch_single
 
 

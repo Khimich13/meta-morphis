@@ -1,6 +1,6 @@
 import sqlite3
 
-import config
+from meta_morphis import config
 from meta_morphis.models.meta import MetaEntry
 
 from .repo import (

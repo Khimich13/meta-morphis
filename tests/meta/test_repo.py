@@ -3,7 +3,7 @@ import time
 
 import pytest
 
-import config
+from meta_morphis import config
 from meta_morphis.meta.repo import (
     load_cached_meta,
     save_meta_to_cache,

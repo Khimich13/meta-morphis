@@ -1,7 +1,7 @@
 import json
 from typing import Any
 
-import config
+from meta_morphis import config
 from meta_morphis.utils.http import request_with_retries
 
 

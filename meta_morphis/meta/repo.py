@@ -1,7 +1,7 @@
 import sqlite3
 import time
 
-import config
+from meta_morphis import config
 from meta_morphis.models.meta import MetaEntry
 
 

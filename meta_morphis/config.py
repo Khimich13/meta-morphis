@@ -1,3 +1,6 @@
+import os
+from pathlib import Path
+
 #MTGGoldfish configs
 META_REFRESH_RATE = 24 * 60 * 60 # 24 hours
 FORMATS = {
@@ -19,4 +22,5 @@ HEADERS = {
         "Accept": "application/json"
     }
 #DB
-DB_PATH = "data/cards.db"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DB_PATH = Path(os.environ.get("META_MORPHIS_DB") or PROJECT_ROOT/"data"/"cards.db")
