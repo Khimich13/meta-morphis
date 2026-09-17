@@ -2,7 +2,7 @@ from typing import Any
 
 from pytest import MonkeyPatch
 
-from meta_morphis.meta.scraper import parse_meta_table, scrape_meta_cards
+from meta_morphis.meta.scraper import _parse_meta_table, scrape_meta_cards
 
 
 def test_parse_meta_table_valid() -> None:
@@ -17,7 +17,7 @@ def test_parse_meta_table_valid() -> None:
         </tr>
     </table>
     """
-    result = parse_meta_table(html)
+    result = _parse_meta_table(html)
     assert result != None
     entries, skipped_count = result
     assert skipped_count == 0
@@ -30,7 +30,7 @@ def test_parse_meta_table_valid() -> None:
 
 def test_parse_meta_table_no_table() -> None:
     html = "<html><body>No table here</body></html>"
-    assert parse_meta_table(html) is None
+    assert _parse_meta_table(html) is None
 
 def test_parse_meta_table_double_name() -> None:
     html = """
@@ -44,7 +44,7 @@ def test_parse_meta_table_double_name() -> None:
         </tr>
     </table>
     """
-    result = parse_meta_table(html)
+    result = _parse_meta_table(html)
     assert result != None
     entries, skipped_count = result
 
@@ -67,7 +67,7 @@ def test_parse_meta_table_empty_rows() -> None:
         </tr>
     </table>
     """
-    result = parse_meta_table(html)
+    result = _parse_meta_table(html)
     assert result != None
     entries, skipped_count = result
 

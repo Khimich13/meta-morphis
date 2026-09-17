@@ -8,10 +8,10 @@ import config
 from meta_morphis.models.card import Card
 from meta_morphis.models.meta import MetaEntry
 from meta_morphis.scryfall.service import (
-    classify_cards,
+    _classify_cards,
+    _fetch_updates_for_outdated,
+    _process_batch_request,
     fetch_cards,
-    fetch_updates_for_outdated,
-    process_batch_request,
 )
 
 
@@ -69,7 +69,7 @@ def test_classify_cards(monkeypatch: MonkeyPatch) -> None:
         )
     )
 
-    result = classify_cards(conn, meta)
+    result = _classify_cards(conn, meta)
 
     fresh_result, outdated_result, missing_result = result
 
@@ -95,11 +95,11 @@ def test_fetch_updates_for_outdated(monkeypatch: MonkeyPatch) -> None:
     )
 
     monkeypatch.setattr(
-        "meta_morphis.scryfall.service.process_batch_request",
+        "meta_morphis.scryfall.service._process_batch_request",
         lambda conn, raw: raw["data"]
     )
 
-    result = fetch_updates_for_outdated(conn, outdated)
+    result = _fetch_updates_for_outdated(conn, outdated)
 
     updates, unrecognized = result
 
@@ -136,7 +136,7 @@ def test_fetch_cards(monkeypatch: MonkeyPatch) -> None:
 
     meta = [fresh, outdated_refreshed, outdated_not_refreshed, missing]
     monkeypatch.setattr(
-        "meta_morphis.scryfall.service.classify_cards", 
+        "meta_morphis.scryfall.service._classify_cards", 
         lambda conn, meta: (
             [{"name": fresh.name}], 
             [{"name": outdated_refreshed.name}, {"name": outdated_not_refreshed.name}], 
@@ -148,7 +148,7 @@ def test_fetch_cards(monkeypatch: MonkeyPatch) -> None:
         lambda names: {"data": [{"name": n} for n in names]}
     )
     monkeypatch.setattr(
-        "meta_morphis.scryfall.service.process_batch_request", 
+        "meta_morphis.scryfall.service._process_batch_request", 
         lambda conn, raw: raw["data"]
     )
     monkeypatch.setattr(
@@ -156,7 +156,7 @@ def test_fetch_cards(monkeypatch: MonkeyPatch) -> None:
         lambda conn, cards: None
     )
     monkeypatch.setattr(
-        "meta_morphis.scryfall.service.fetch_updates_for_outdated", 
+        "meta_morphis.scryfall.service._fetch_updates_for_outdated", 
         lambda conn, outdated: ([{"name": outdated_refreshed.name}], [{"name": outdated_not_refreshed.name}])
     )
 
@@ -185,12 +185,12 @@ def test_process_batch_request(monkeypatch: MonkeyPatch, capsys: CaptureFixture[
         lambda conn, name: None
     )
 
-    assert process_batch_request(conn, raw) == []
+    assert _process_batch_request(conn, raw) == []
     captured = capsys.readouterr()
     assert "Scryfall error: no data received" in captured.out
 
     raw = {"data": []}
-    assert process_batch_request(conn, raw) == []
+    assert _process_batch_request(conn, raw) == []
     captured = capsys.readouterr()
     assert "Scryfall error: no data received" in captured.out
 
@@ -204,7 +204,7 @@ def test_process_batch_request(monkeypatch: MonkeyPatch, capsys: CaptureFixture[
         lambda name: {"name": name} if name != "Unknown" else None
     )
     
-    assert process_batch_request(conn, raw) == [
+    assert _process_batch_request(conn, raw) == [
         {"name": "Counterspell"}, 
         {"name": "Duress"}, 
         {"name": "Cancel"}

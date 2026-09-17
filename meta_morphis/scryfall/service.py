@@ -14,7 +14,40 @@ from .repo import (
 )
 
 
-def classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[str]]:
+def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[dict[str, Any]]:
+    output = []
+
+    fresh, outdated, missing = _classify_cards(conn, meta)
+    output.extend(fresh)
+
+    if outdated:
+        print("Trying to fetch outdated names...")
+        updates, unregognized = _fetch_updates_for_outdated(conn, outdated)
+
+        with conn:
+            save_cards_to_cache(conn, updates)
+        print(f"{len(updates)} outdated cards were refreshed successfully")
+        output.extend(updates)
+        
+        if unregognized:
+            print(f"{len(unregognized)} outdated cards were not found in Scryfall and was not refreshed")
+            output.extend(unregognized)
+
+    if missing:
+        print("Trying to fetch missing names...")
+        for batch_names in batch(missing):
+            raw = fetch_batch(batch_names)
+            if raw:
+                cards = _process_batch_request(conn, raw)
+                with conn:
+                    save_cards_to_cache(conn, cards)
+                output.extend(cards)
+
+    if not output:
+        raise RuntimeError("No cards have been fetched either from Scryfall or from cache")
+    return output
+
+def _classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[str]]:
     fresh = []
     outdated = []
     missing = []
@@ -37,54 +70,21 @@ def classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[lis
 
     return fresh, outdated, missing
 
-def fetch_updates_for_outdated(conn: sqlite3.Connection, outdated: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def _fetch_updates_for_outdated(conn: sqlite3.Connection, outdated: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     names = [card["name"] for card in outdated]
     updates = []
     
     for batch_names in batch(names):
         raw = fetch_batch(batch_names)
         if raw:
-            cards = process_batch_request(conn, raw)
+            cards = _process_batch_request(conn, raw)
             updates.extend(cards)
 
     updates_names = {card["name"] for card in updates}
     unregognized = [card for card in outdated if card["name"] not in updates_names]
     return updates, unregognized
 
-def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[dict[str, Any]]:
-    output = []
-
-    fresh, outdated, missing = classify_cards(conn, meta)
-    output.extend(fresh)
-
-    if outdated:
-        print("Trying to fetch outdated names...")
-        updates, unregognized = fetch_updates_for_outdated(conn, outdated)
-
-        with conn:
-            save_cards_to_cache(conn, updates)
-        print(f"{len(updates)} outdated cards were refreshed successfully")
-        output.extend(updates)
-        
-        if unregognized:
-            print(f"{len(unregognized)} outdated cards were not found in Scryfall and was not refreshed")
-            output.extend(unregognized)
-
-    if missing:
-        print("Trying to fetch missing names...")
-        for batch_names in batch(missing):
-            raw = fetch_batch(batch_names)
-            if raw:
-                cards = process_batch_request(conn, raw)
-                with conn:
-                    save_cards_to_cache(conn, cards)
-                output.extend(cards)
-
-    if not output:
-        raise RuntimeError("No cards have been fetched either from Scryfall or from cache")
-    return output
-
-def process_batch_request(conn: sqlite3.Connection, raw: dict[str, Any]) -> list[dict[str, Any]]:
+def _process_batch_request(conn: sqlite3.Connection, raw: dict[str, Any]) -> list[dict[str, Any]]:
     cards: list[dict[str, Any]] = raw.get("data", [])
 
     not_found = raw.get("not_found", [])

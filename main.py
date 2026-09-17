@@ -40,4 +40,3 @@ if __name__ == "__main__":
     main()
 
 # TODO: Clean debugging print messages
-# TODO: Add underscores to methods in files that are for private use only

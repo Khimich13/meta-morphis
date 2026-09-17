@@ -20,7 +20,7 @@ def scrape_meta_cards(url: str) -> list[MetaEntry] | None:
     if not raw:
         return None
     
-    result = parse_meta_table(raw)
+    result = _parse_meta_table(raw)
     if result is None:
         return None
 
@@ -37,7 +37,7 @@ def _parse_cell(cell: Tag, cast: Callable[[str], T]) -> T | None:
     except Exception:
         return None
 
-def parse_meta_table(html: str) -> tuple[list[MetaEntry], int] | None:
+def _parse_meta_table(html: str) -> tuple[list[MetaEntry], int] | None:
     soup = BeautifulSoup(html, "html.parser")
     table = soup.select_one("table.table-staples")
 
