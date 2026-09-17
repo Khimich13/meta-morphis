@@ -64,7 +64,7 @@ def test_get_card_from_cache(conn: sqlite3.Connection) -> None:
 
     assert card != None
 
-    assert card.to_raw() == {
+    assert card.raw == {
         "id": "1",
         "name": "Sai, Master Thopterist",
         "mana_cost": "2U",
@@ -91,7 +91,7 @@ def test_save_cards_to_cache(conn: sqlite3.Connection) -> None:
 
     card = get_card_from_cache(conn, "Shock")
     assert card != None
-    assert card.to_raw() == {
+    assert card.raw == {
         "id": "2",
         "name": "Shock",
         "mana_cost": "R",
@@ -100,7 +100,7 @@ def test_save_cards_to_cache(conn: sqlite3.Connection) -> None:
 
     card = get_card_from_cache(conn, "Counterspell")
     assert card != None
-    assert card.to_raw() == {
+    assert card.raw == {
         "id": "3",
         "name": "Counterspell",
         "mana_cost": "UU",

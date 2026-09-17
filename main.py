@@ -11,8 +11,8 @@ from meta_morphis.scryfall.service import fetch_cards
 def choose_format() -> str:
     while True:
         print("Print the name of the format:\n")
-        for format, _ in config.FORMATS.items():
-            print(f"{format}")
+        for format_name, _ in config.FORMATS.items():
+            print(f"{format_name}")
         print()
 
         response = input().strip().lower()
@@ -28,10 +28,10 @@ def main() -> None:
     with get_connection() as conn:
         init_db(conn)
 
-        format = choose_format()
-        print(f"You chose: {format}\n")
+        format_name = choose_format()
+        print(f"You chose: {format_name}\n")
 
-        meta = get_meta_cards(conn, format)
+        meta = get_meta_cards(conn, format_name)
         raw_cards = fetch_cards(conn, meta)
         for raw in raw_cards:
             print(Card.from_raw(raw))

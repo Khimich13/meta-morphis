@@ -62,9 +62,9 @@ def _classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[li
 
         if cached:
             if cached.age > config.SCRYFALL_REFRESH_RATE:
-                outdated.append(cached.to_raw())
+                outdated.append(cached.raw)
             else:
-                fresh.append(cached.to_raw())
+                fresh.append(cached.raw)
         else:
             missing.append(name)
 

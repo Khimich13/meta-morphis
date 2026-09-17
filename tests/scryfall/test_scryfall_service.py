@@ -53,7 +53,8 @@ def test_classify_cards(monkeypatch: MonkeyPatch) -> None:
                 mana_cost=None,
                 type_line="",
                 faces=[],
-                age=config.SCRYFALL_REFRESH_RATE + 1
+                age=config.SCRYFALL_REFRESH_RATE + 1,
+                raw={"name": name}
             )
             if name == "Counterspell"
             else Card(
@@ -62,7 +63,8 @@ def test_classify_cards(monkeypatch: MonkeyPatch) -> None:
                 mana_cost=None,
                 type_line="",
                 faces=[],
-                age=0
+                age=0,
+                raw={"name": name}
             )
             if name != "Llanowar Elf"
             else None
