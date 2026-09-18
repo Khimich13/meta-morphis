@@ -15,9 +15,9 @@ def get_card_from_cache(conn: sqlite3.Connection, name: str) -> Card | None:
 
     c.execute("""
         SELECT cards.json, cards.updated_at
-        FROM card_names
-        JOIN cards ON card_names.card_id = cards.id
-        WHERE card_names.name = ?
+        FROM card_aliases
+        JOIN cards ON card_aliases.card_name = cards.name
+        WHERE card_aliases.alias = ?
     """, (key,))
 
     row = c.fetchone()
@@ -45,6 +45,7 @@ def save_cards_to_cache(conn: sqlite3.Connection, cards: list[Card]) -> None:
             INSERT INTO cards (id, name, json, updated_at)
             VALUES (?, ?, ?, ?)
             ON CONFLICT(name) DO UPDATE SET
+                id = excluded.id,
                 json = excluded.json,
                 updated_at = excluded.updated_at
         """, (
@@ -56,17 +57,17 @@ def save_cards_to_cache(conn: sqlite3.Connection, cards: list[Card]) -> None:
 
         # Insert main name -> id
         c.execute("""
-            INSERT OR REPLACE INTO card_names (name, card_id)
+            INSERT OR REPLACE INTO card_aliases (alias, card_name)
             VALUES (?, ?)
-        """, (key, card.id))
+        """, (key, key))
 
         # Insert face names -> id
         for face in card.faces:
             face_key = normalize_name(face.name)
             c.execute("""
-                INSERT OR REPLACE INTO card_names (name, card_id)
+                INSERT OR REPLACE INTO card_aliases (alias, card_name)
                 VALUES (?, ?)
-            """, (face_key, card.id))
+            """, (face_key, key))
 
 def record_bad_name_attempt(conn: sqlite3.Connection, name: str) -> None:
     key = normalize_name(name)

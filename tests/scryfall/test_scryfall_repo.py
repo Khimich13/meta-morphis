@@ -26,15 +26,15 @@ def conn() -> sqlite3.Connection:
         )
     """)
     conn.execute("""
-        CREATE TABLE card_names (
-            name TEXT PRIMARY KEY,
-            card_id TEXT NOT NULL REFERENCES cards(id)
+        CREATE TABLE card_aliases (
+            alias TEXT PRIMARY KEY,
+            card_name TEXT NOT NULL REFERENCES cards(name)
         )
     """)
     conn.execute(
         "INSERT INTO cards VALUES (?, ?, ?, ?)", (
             "1",
-            "Sai, Master Thopterist",
+            normalize_name("Sai, Master Thopterist"),
             json.dumps({
                 "id": "1",
                 "name": "Sai, Master Thopterist",
@@ -47,9 +47,9 @@ def conn() -> sqlite3.Connection:
     )
 
     conn.execute("""
-        INSERT INTO card_names (name, card_id)
+        INSERT INTO card_aliases (alias, card_name)
         VALUES (?, ?)
-    """, (normalize_name("Sai, Master Thopterist"), 1))
+    """, (normalize_name("Sai, Master Thopterist"), normalize_name("Sai, Master Thopterist")))
 
     conn.execute("""
         CREATE TABLE card_lookup_failures (

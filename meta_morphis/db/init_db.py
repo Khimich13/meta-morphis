@@ -19,9 +19,9 @@ def init_db(conn: sqlite3.Connection) -> None:
 
     # Create cards lookup table
     c.execute("""
-        CREATE TABLE IF NOT EXISTS card_names (
-            name TEXT PRIMARY KEY,
-            card_id TEXT NOT NULL REFERENCES cards(id)
+        CREATE TABLE IF NOT EXISTS card_aliases (
+            alias TEXT PRIMARY KEY,
+            card_name TEXT NOT NULL REFERENCES cards(name)
         )
     """)
 
