@@ -108,23 +108,29 @@ def test_save_cards_to_cache(conn: sqlite3.Connection) -> None:
         "type_line": "Instant"
     }
 
-def test_save_cards_to_cache_duplicates(conn: sqlite3.Connection) -> None:
-    new_version_card = {
+def test_save_cards_to_cache_reprint(conn: sqlite3.Connection) -> None:
+    reprint = {
         "id": "2",
         "name": "Sai, Master Thopterist",
         "mana_cost": "2U",
         "type_line": "Legendary Creature — Human Artificer"
     }
-    save_cards_to_cache(conn, [Card.from_raw(new_version_card)])
+    save_cards_to_cache(conn, [Card.from_raw(reprint)])
 
     cards_with_same_name = conn.execute(
         "SELECT * FROM cards WHERE name = ?", (normalize_name("Sai, Master Thopterist"),)
     ).fetchall()
     
     assert len(cards_with_same_name) == 1
-    updated_cached_card = cards_with_same_name[0]
-    # check if the new card updated the old one by its id
-    assert updated_cached_card[0] == "2"
+
+    # id column itself was updated, not just the json blob
+    assert cards_with_same_name[0][0] == "2"  
+
+    card = get_card_from_cache(conn, "Sai, Master Thopterist")
+
+    assert card is not None
+    assert card.id == "2"
+    assert card.raw["id"] == "2"
 
 def test_save_cards_to_cache_updated_at(conn: sqlite3.Connection) -> None:
     old_card = get_card_from_cache(conn, "Sai, Master Thopterist")
