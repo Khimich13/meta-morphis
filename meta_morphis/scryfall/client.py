@@ -27,6 +27,13 @@ def fetch_single(name: str) -> dict[str, Any] | None:
         params={"exact": name}
     )
     if raw is None:
+        raw = request_with_retries(
+            "GET",
+            url=config.URL_NAMED,
+            headers=config.SCRYFALL_HEADERS,
+            params={"fuzzy": name}
+        )
+    if raw is None:
         return None
     data: dict[str, Any] = json.loads(raw)
     return data

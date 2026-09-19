@@ -55,7 +55,7 @@ def test_fetch_batch_failure(monkeypatch: MonkeyPatch) -> None:
     result = fetch_batch(["Bolt"])
     assert result is None
 
-def test_fetch_single_first_attempt_success(monkeypatch: MonkeyPatch) -> None:
+def test_fetch_single_exact_success(monkeypatch: MonkeyPatch) -> None:
     def fake_get(
         method: str,
         url: str, 
@@ -73,29 +73,24 @@ def test_fetch_single_first_attempt_success(monkeypatch: MonkeyPatch) -> None:
     result = fetch_single("Lightning Bolt")
     assert result == {"name": "Lightning Bolt"}
 
-def test_fetch_single_second_attempt_success(monkeypatch: MonkeyPatch) -> None:
-    calls: list[int] = []
+def test_fetch_single_fuzzy_success(monkeypatch: MonkeyPatch) -> None:
+    calls: list[Any] = []
 
-    def fake_get(
-        method: str,
-        url: str, 
-        headers: Any, 
-        params: Any, 
-        json: Any,
-        timeout: int
-    ) -> FakeResponse:
-        calls.append(1)
-        if len(calls) == 1:
-            return FakeResponse(500, {"error": []})
-        assert method == "GET"
+    def fake_request_with_retries(method: str, url: str, headers: Any, params: Any) -> str | None:
+        calls.append(params)
+        if params == {"exact": "Lightning Bolt"}:
+            return None
         assert params == {"fuzzy": "Lightning Bolt"}
-        return FakeResponse(200, {"name": "Lightning Bolt"})
+        return json.dumps({"name": "Lightning Bolt"})
 
-    monkeypatch.setattr("requests.request", fake_get)
-    monkeypatch.setattr("time.sleep", lambda x: None)
+    monkeypatch.setattr(
+        "meta_morphis.scryfall.client.request_with_retries",
+        fake_request_with_retries
+    )
 
     result = fetch_single("Lightning Bolt")
     assert result == {"name": "Lightning Bolt"}
+    assert calls == [{"exact": "Lightning Bolt"}, {"fuzzy": "Lightning Bolt"}]
 
 def test_fetch_single_failure(monkeypatch: MonkeyPatch) -> None:
     def fake_get(
