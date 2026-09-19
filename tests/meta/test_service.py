@@ -3,6 +3,7 @@ import sqlite3
 import pytest
 from pytest import MonkeyPatch
 
+from meta_morphis.db.init_db import init_db
 from meta_morphis.meta.service import get_meta_cards
 from meta_morphis.models.meta import MetaEntry
 
@@ -58,6 +59,33 @@ def test_get_meta_cards_scraper_success(monkeypatch: MonkeyPatch) -> None:
     assert [m.name for m in result] == ["new-meta"]
     assert saved == [[MetaEntry("new-meta", 0, 0, 0)]]
     assert updated == ["pauper"]
+
+def test_get_meta_cards_saves_rows_with_unparseable_fields(monkeypatch: MonkeyPatch) -> None:
+    conn = sqlite3.connect(":memory:")
+    init_db(conn)
+
+    monkeypatch.setattr(
+        "meta_morphis.meta.service.should_refresh_meta",
+        lambda conn, fmt: True
+    )
+    monkeypatch.setattr(
+        "meta_morphis.meta.service.config.FORMATS",
+        {"pauper": "http://fake-url"}
+    )
+    monkeypatch.setattr(
+        "meta_morphis.meta.service.scrape_meta_cards",
+        lambda url: [MetaEntry("Weird Row")]
+    )
+
+    result = get_meta_cards(conn, "pauper")
+
+    assert [m.name for m in result] == ["Weird Row"]
+
+    row = conn.execute(
+        "SELECT rank, percent, avg_copies FROM meta WHERE name = ?",
+        ("Weird Row",)
+    ).fetchone()
+    assert row == (None, None, None)
 
 def test_get_meta_cards_scraper_fail_uses_cache(monkeypatch: MonkeyPatch) -> None:
     conn = sqlite3.connect(":memory:")
