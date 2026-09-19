@@ -45,9 +45,9 @@ def init_db(conn: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS meta (
             name TEXT NOT NULL,
             format TEXT NOT NULL,
-            rank INTEGER NOT NULL,
-            percent REAL NOT NULL,
-            avg_copies FLOAT NOT NULL,
+            rank INTEGER,
+            percent REAL,
+            avg_copies FLOAT,
             lookup_name TEXT,
             PRIMARY KEY (name, format)
         )
