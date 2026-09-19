@@ -4,6 +4,7 @@ import time
 
 import pytest
 
+from meta_morphis.db.init_db import init_db
 from meta_morphis.models.card import Card
 from meta_morphis.scryfall.repo import (
     get_card_from_cache,
@@ -17,20 +18,7 @@ from meta_morphis.utils.text import normalize_name
 @pytest.fixture
 def conn() -> sqlite3.Connection:
     conn = sqlite3.connect(":memory:")
-    conn.execute("""
-        CREATE TABLE cards (
-            id TEXT,
-            name TEXT UNIQUE NOT NULL,
-            json TEXT NOT NULL,
-            updated_at INTEGER NOT NULL
-        )
-    """)
-    conn.execute("""
-        CREATE TABLE card_aliases (
-            alias TEXT PRIMARY KEY,
-            card_name TEXT NOT NULL REFERENCES cards(name)
-        )
-    """)
+    init_db(conn)
     conn.execute(
         "INSERT INTO cards VALUES (?, ?, ?, ?)", (
             "1",
@@ -50,13 +38,6 @@ def conn() -> sqlite3.Connection:
         INSERT INTO card_aliases (alias, card_name)
         VALUES (?, ?)
     """, (normalize_name("Sai, Master Thopterist"), normalize_name("Sai, Master Thopterist")))
-
-    conn.execute("""
-        CREATE TABLE card_lookup_failures (
-            name TEXT PRIMARY KEY,
-            last_attempt INTEGER NOT NULL
-        )
-    """)
 
     return conn
 

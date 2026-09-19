@@ -8,9 +8,13 @@ from meta_morphis.meta.service import get_meta_cards
 from meta_morphis.models.meta import MetaEntry
 
 
-def test_get_meta_cards_uses_cache(monkeypatch: MonkeyPatch) -> None:
+@pytest.fixture
+def conn() -> sqlite3.Connection:
     conn = sqlite3.connect(":memory:")
+    init_db(conn)
+    return conn
 
+def test_get_meta_cards_uses_cache(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(
         "meta_morphis.meta.service.should_refresh_meta",
         lambda conn, fmt: False
@@ -24,9 +28,7 @@ def test_get_meta_cards_uses_cache(monkeypatch: MonkeyPatch) -> None:
 
     assert [m.name for m in result] == ["cached"]
 
-def test_get_meta_cards_scraper_success(monkeypatch: MonkeyPatch) -> None:
-    conn = sqlite3.connect(":memory:")
-
+def test_get_meta_cards_scraper_success(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(
         "meta_morphis.meta.service.should_refresh_meta",
         lambda conn, fmt: True
@@ -60,10 +62,7 @@ def test_get_meta_cards_scraper_success(monkeypatch: MonkeyPatch) -> None:
     assert saved == [[MetaEntry("new-meta", 0, 0, 0)]]
     assert updated == ["pauper"]
 
-def test_get_meta_cards_saves_rows_with_unparseable_fields(monkeypatch: MonkeyPatch) -> None:
-    conn = sqlite3.connect(":memory:")
-    init_db(conn)
-
+def test_get_meta_cards_saves_rows_with_unparseable_fields(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(
         "meta_morphis.meta.service.should_refresh_meta",
         lambda conn, fmt: True
@@ -87,9 +86,7 @@ def test_get_meta_cards_saves_rows_with_unparseable_fields(monkeypatch: MonkeyPa
     ).fetchone()
     assert row == (None, None, None)
 
-def test_get_meta_cards_scraper_fail_uses_cache(monkeypatch: MonkeyPatch) -> None:
-    conn = sqlite3.connect(":memory:")
-
+def test_get_meta_cards_scraper_fail_uses_cache(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(
         "meta_morphis.meta.service.should_refresh_meta",
         lambda conn, fmt: True
@@ -114,9 +111,7 @@ def test_get_meta_cards_scraper_fail_uses_cache(monkeypatch: MonkeyPatch) -> Non
 
     assert [m.name for m in result] == ["cached-meta"]
 
-def test_get_meta_cards_scraper_fail_and_no_cache(monkeypatch: MonkeyPatch) -> None:
-    conn = sqlite3.connect(":memory:")
-
+def test_get_meta_cards_scraper_fail_and_no_cache(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(
         "meta_morphis.meta.service.should_refresh_meta",
         lambda conn, fmt: True

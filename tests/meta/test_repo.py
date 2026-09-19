@@ -4,6 +4,7 @@ import time
 import pytest
 
 from meta_morphis import config
+from meta_morphis.db.init_db import init_db
 from meta_morphis.meta.repo import (
     load_cached_meta,
     save_meta_to_cache,
@@ -16,22 +17,7 @@ from meta_morphis.models.meta import MetaEntry
 @pytest.fixture
 def conn() -> sqlite3.Connection:
     conn = sqlite3.connect(":memory:")
-    conn.execute("""
-        CREATE TABLE meta_refresh (
-            format TEXT PRIMARY KEY,
-            last_updated INTEGER
-        )
-    """)
-    conn.execute("""
-        CREATE TABLE meta (
-            name TEXT,
-            format TEXT,
-            rank INTEGER,
-            percent REAL,
-            avg_copies REAL,
-            lookup_name TEXT NULL
-        )
-    """)
+    init_db(conn)
     return conn
 
 def test_should_refresh_meta_no_row(conn: sqlite3.Connection) -> None:
