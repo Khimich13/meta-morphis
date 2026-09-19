@@ -92,6 +92,25 @@ def test_fetch_single_fuzzy_success(monkeypatch: MonkeyPatch) -> None:
     assert result == {"name": "Lightning Bolt"}
     assert calls == [{"exact": "Lightning Bolt"}, {"fuzzy": "Lightning Bolt"}]
 
+def test_fetch_single_exact_404_falls_back_to_fuzzy(monkeypatch: MonkeyPatch) -> None:
+    def fake_get(
+        method: str,
+        url: str,
+        headers: Any,
+        params: Any,
+        json: Any,
+        timeout: int
+    ) -> FakeResponse:
+        if params == {"exact": "Lightnig Bolt"}:
+            return FakeResponse(404, {"error": []})
+        assert params == {"fuzzy": "Lightnig Bolt"}
+        return FakeResponse(200, {"name": "Lightning Bolt"})
+
+    monkeypatch.setattr("requests.request", fake_get)
+
+    result = fetch_single("Lightnig Bolt")
+    assert result == {"name": "Lightning Bolt"}
+
 def test_fetch_single_failure(monkeypatch: MonkeyPatch) -> None:
     def fake_get(
         method: str,
