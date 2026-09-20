@@ -55,6 +55,27 @@ def test_fetch_batch_failure(monkeypatch: MonkeyPatch) -> None:
     result = fetch_batch(["Bolt"])
     assert result is None
 
+def test_fetch_batch_bad_200_response(monkeypatch: MonkeyPatch) -> None:
+    # A 200 status doesn't guarantee a JSON body - e.g. a Cloudflare
+    # interstitial or a truncated proxy response. request_with_retries
+    # treats 200 as success and returns the raw text either way.
+    def fake_post(
+        method: str,
+        url: str,
+        headers: Any,
+        params: Any,
+        json: Any,
+        timeout: int
+    ) -> FakeResponse:
+        response = FakeResponse(200, {})
+        response.text = "<html>Just a moment...</html>"
+        return response
+
+    monkeypatch.setattr("requests.request", fake_post)
+
+    result = fetch_batch(["Lightning Bolt"])
+    assert result is None
+
 def test_fetch_single_exact_success(monkeypatch: MonkeyPatch) -> None:
     def fake_get(
         method: str,
@@ -127,6 +148,24 @@ def test_fetch_single_failure(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr("time.sleep", lambda x: None)
 
     result = fetch_single("Unknown Card")
+    assert result is None
+
+def test_fetch_single_bad_200_response(monkeypatch: MonkeyPatch) -> None:
+    def fake_get(
+        method: str,
+        url: str,
+        headers: Any,
+        params: Any,
+        json: Any,
+        timeout: int
+    ) -> FakeResponse:
+        response = FakeResponse(200, {})
+        response.text = "<html>Just a moment...</html>"
+        return response
+
+    monkeypatch.setattr("requests.request", fake_get)
+
+    result = fetch_single("Lightning Bolt")
     assert result is None
 
 def test_batch() -> None:
