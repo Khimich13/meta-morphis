@@ -80,11 +80,7 @@ def request_with_retries(
 
         # --- Success path ---
         if status == 200:
-            try:
-                return response.text
-            except ValueError:
-                # JSON decoding failure
-                return None
+            return response.text
 
         # Unexpected status codes
         return None
