@@ -10,7 +10,7 @@ FORMATS = {
     "standard": "https://www.mtggoldfish.com/format-staples/standard/full/all",
     "modern": "https://www.mtggoldfish.com/format-staples/modern/full/all"
 }
-BED_ROWS_LIMIT = 10
+BAD_ROWS_LIMIT = 10
 GOLDFISH_HEADERS = {
     "User-Agent": "meta-morphis (https://github.com/Khimich13/meta-morphis)",
 }

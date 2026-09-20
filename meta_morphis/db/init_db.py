@@ -25,10 +25,11 @@ def init_db(conn: sqlite3.Connection) -> None:
         )
     """)
 
+    # Create failed cards lookup table
     c.execute("""
         CREATE TABLE IF NOT EXISTS card_lookup_failures (
             name TEXT PRIMARY KEY,
-            last_attempt INTEGER
+            last_attempt INTEGER NOT NULL
         )
     """)
 

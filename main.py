@@ -39,4 +39,3 @@ if __name__ == "__main__":
     main()
 
 # TODO: Clean debugging print messages
-# TODO: Create a test for the second bug

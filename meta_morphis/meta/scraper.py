@@ -4,11 +4,10 @@ from bs4 import BeautifulSoup
 from bs4.element import Tag
 
 from meta_morphis import config
-
-T = TypeVar("T")
-
 from meta_morphis.models.meta import MetaEntry
 from meta_morphis.utils.http import request_with_retries
+
+T = TypeVar("T")
 
 
 def scrape_meta_cards(url: str) -> list[MetaEntry] | None:
@@ -26,7 +25,7 @@ def scrape_meta_cards(url: str) -> list[MetaEntry] | None:
 
     meta, skipped_count = result
 
-    if skipped_count > config.BED_ROWS_LIMIT:
+    if skipped_count > config.BAD_ROWS_LIMIT:
         return None
         
     return meta

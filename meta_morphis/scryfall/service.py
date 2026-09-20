@@ -23,16 +23,16 @@ def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[Card]:
 
     if outdated:
         print("Trying to fetch outdated names...")
-        updates, unregognized = _fetch_updates_for_outdated(conn, outdated)
+        updates, unrecognized = _fetch_updates_for_outdated(conn, outdated)
 
         with conn:
             save_cards_to_cache(conn, updates)
         print(f"{len(updates)} outdated cards were refreshed successfully")
         output.extend(updates)
         
-        if unregognized:
-            print(f"{len(unregognized)} outdated cards were not found in Scryfall and was not refreshed")
-            output.extend(unregognized)
+        if unrecognized:
+            print(f"{len(unrecognized)} outdated cards were not found in Scryfall and was not refreshed")
+            output.extend(unrecognized)
 
     if missing:
         print("Trying to fetch missing names...")
@@ -79,8 +79,8 @@ def _fetch_updates_for_outdated(conn: sqlite3.Connection, outdated: list[Card]) 
             updates.extend(cards)
 
     updates_names = {card.name for card in updates}
-    unregognized = [card for card in outdated if card.name not in updates_names]
-    return updates, unregognized
+    unrecognized = [card for card in outdated if card.name not in updates_names]
+    return updates, unrecognized
 
 def _to_card(raw: dict[str, Any]) -> Card | None:
     try:
