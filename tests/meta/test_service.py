@@ -4,6 +4,11 @@ import pytest
 from pytest import MonkeyPatch
 
 from meta_morphis.db.init_db import init_db
+from meta_morphis.meta.repo import (
+    load_cached_meta,
+    save_meta_to_cache,
+    update_meta_timestamp,
+)
 from meta_morphis.meta.service import get_meta_cards
 from meta_morphis.models.meta import MetaEntry
 
@@ -85,6 +90,29 @@ def test_get_meta_cards_saves_rows_with_unparseable_fields(conn: sqlite3.Connect
         ("Weird Row",)
     ).fetchone()
     assert row == (None, None, None)
+
+def test_get_meta_cards_scraper_returns_empty_list_uses_cache(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
+    with conn:
+        save_meta_to_cache(conn, [MetaEntry("cached-meta", 1, 10.0, 2.0)], "pauper")
+        update_meta_timestamp(conn, "pauper")
+
+    monkeypatch.setattr(
+        "meta_morphis.meta.service.should_refresh_meta",
+        lambda conn, fmt: True
+    )
+    monkeypatch.setattr(
+        "meta_morphis.meta.service.config.FORMATS",
+        {"pauper": "http://fake-url"}
+    )
+    monkeypatch.setattr(
+        "meta_morphis.meta.service.scrape_meta_cards",
+        lambda url: []
+    )
+
+    result = get_meta_cards(conn, "pauper")
+
+    assert [m.name for m in result] == ["cached-meta"]
+    assert [m.name for m in load_cached_meta(conn, "pauper")] == ["cached-meta"]
 
 def test_get_meta_cards_scraper_fail_uses_cache(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(

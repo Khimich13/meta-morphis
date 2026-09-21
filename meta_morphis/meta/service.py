@@ -22,7 +22,7 @@ def get_meta_cards(conn: sqlite3.Connection, format_name: str) -> list[MetaEntry
     url = config.FORMATS[format_name]
     meta = scrape_meta_cards(url)
 
-    if meta is None:
+    if not meta:
         print("Failed fetching data from MTGGoldfish...\n")
         cached = load_cached_meta(conn, format_name)
         if cached:
