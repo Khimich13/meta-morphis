@@ -9,6 +9,14 @@ from meta_morphis.utils.http import request_with_retries
 
 T = TypeVar("T")
 
+# Maps each field we need to the CSS class MTGGoldfish puts on its <th>.
+_COLUMN_CLASSES = {
+    "rank": "col-rank",
+    "name": "col-card",
+    "percent": "col-decks",
+    "avg_copies": "col-played",
+}
+
 
 def scrape_meta_cards(url: str) -> list[MetaEntry] | None:
     raw = request_with_retries(
@@ -18,7 +26,7 @@ def scrape_meta_cards(url: str) -> list[MetaEntry] | None:
     )
     if not raw:
         return None
-    
+
     result = _parse_meta_table(raw)
     if result is None:
         return None
@@ -27,7 +35,7 @@ def scrape_meta_cards(url: str) -> list[MetaEntry] | None:
 
     if skipped_count > config.BAD_ROWS_LIMIT:
         return None
-        
+
     return meta
 
 def _parse_cell(cell: Tag, cast: Callable[[str], T]) -> T | None:
@@ -36,39 +44,62 @@ def _parse_cell(cell: Tag, cast: Callable[[str], T]) -> T | None:
     except Exception:
         return None
 
+def _locate_columns(table: Tag) -> dict[str, int] | None:
+    # Map each field name to its column index using <thead>'s <th> classes.
+    thead = table.find("thead")
+    if thead is None:
+        return None
+
+    class_to_index: dict[str, int] = {}
+    for i, th in enumerate(thead.find_all("th")):
+        for css_class in th.get("class") or []:
+            class_to_index[css_class] = i
+
+    columns: dict[str, int] = {}
+    for field, css_class in _COLUMN_CLASSES.items():
+        if css_class not in class_to_index:
+            return None
+        columns[field] = class_to_index[css_class]
+
+    return columns
+
 def _parse_meta_table(html: str) -> tuple[list[MetaEntry], int] | None:
     soup = BeautifulSoup(html, "html.parser")
     table = soup.select_one("table.table-staples")
 
     if not table:
         return None
-    
+
+    columns = _locate_columns(table)
+    if columns is None:
+        return None
+
+    required_cols = max(columns.values()) + 1
+
     entries: list[MetaEntry] = []
     skipped_count = 0
 
     for row in table.select("tr"):
         cols = row.find_all("td")
 
-        # Row must have at least 5 columns
-        if len(cols) < 5:
+        if not cols:
+            # Not a data row at all
+            continue
+
+        if len(cols) < required_cols:
             skipped_count += 1
             continue
-        
-        # Column 1 is the rank
-        rank = _parse_cell(cols[0], int)
-        # Column 2 is the name, which has an anchor tag next to it
-        anchor = cols[1].find("a")
-        if anchor:
-            name = _parse_cell(anchor, str)
-        else:
-            name = _parse_cell(cols[1], str)
-        # Column 3 is mana cost (not used)
-        # Column 4 is percent of total decks using the card
-        percent = _parse_cell(cols[3], lambda s: float(s.replace("%", "")))
-        # Column 5 is average copies of the card in decks using it
-        avg_copies = _parse_cell(cols[4], float)
 
-        if name is None:
+        rank = _parse_cell(cols[columns["rank"]], int)
+
+        name_cell = cols[columns["name"]]
+        anchor = name_cell.find("a")
+        name = _parse_cell(anchor, str) if anchor else _parse_cell(name_cell, str)
+
+        percent = _parse_cell(cols[columns["percent"]], lambda s: float(s.replace("%", "")))
+        avg_copies = _parse_cell(cols[columns["avg_copies"]], float)
+
+        if not name or (rank is None and percent is None and avg_copies is None):
             skipped_count += 1
             continue
 
@@ -80,7 +111,7 @@ def _parse_meta_table(html: str) -> tuple[list[MetaEntry], int] | None:
         )
         if "//" in name:
             meta_entry.lookup_name = name.split("//")[0].strip()
-        
+
         entries.append(meta_entry)
-        
+
     return entries, skipped_count

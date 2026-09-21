@@ -4,10 +4,25 @@ from pytest import MonkeyPatch
 
 from meta_morphis.meta.scraper import _parse_meta_table, scrape_meta_cards
 
+# MTGGoldfish header markup: columns are located by <th> classes
+_HEADER = """
+<thead>
+<tr>
+<th class="col-rank"></th>
+<th class="col-card">Card</th>
+<th class="responsive-column">Cost</th>
+<th class="col-decks">% of Decks</th>
+<th class="col-played"># Played</th>
+</tr>
+</thead>
+"""
+
+def _table(rows_html: str, header: str = _HEADER) -> str:
+    return f'<table class="table-staples">{header}{rows_html}</table>'
+
 
 def test_parse_meta_table_valid() -> None:
-    html = """
-    <table class="table-staples">
+    html = _table("""
         <tr>
             <td>1</td>
             <td>Lightning Bolt</td>
@@ -15,8 +30,7 @@ def test_parse_meta_table_valid() -> None:
             <td>25%</td>
             <td>3.5</td>
         </tr>
-    </table>
-    """
+    """)
     result = _parse_meta_table(html)
     assert result != None
     entries, skipped_count = result
@@ -32,9 +46,80 @@ def test_parse_meta_table_no_table() -> None:
     html = "<html><body>No table here</body></html>"
     assert _parse_meta_table(html) is None
 
-def test_parse_meta_table_double_name() -> None:
+def test_parse_meta_table_missing_thead_returns_none() -> None:
     html = """
     <table class="table-staples">
+        <tr>
+            <td>1</td>
+            <td>Lightning Bolt</td>
+            <td></td>
+            <td>25%</td>
+            <td>3.5</td>
+        </tr>
+    </table>
+    """
+    assert _parse_meta_table(html) is None
+
+def test_parse_meta_table_unrecognized_header_returns_none() -> None:
+    html = _table(
+        """
+        <tr>
+            <td>1</td>
+            <td>Lightning Bolt</td>
+            <td></td>
+            <td>25%</td>
+            <td>3.5</td>
+        </tr>
+        """,
+        header="""
+        <thead>
+        <tr>
+            <th>Rank</th>
+            <th>Card</th>
+            <th>Cost</th>
+            <th>Decks</th>
+            <th>Played</th>
+        </tr>
+        </thead>
+        """,
+    )
+    assert _parse_meta_table(html) is None
+
+def test_parse_meta_table_columns_reordered_still_parses() -> None:
+    header = """
+    <thead>
+    <tr>
+        <th class="col-played"></th>
+        <th class="col-card">Card</th>
+        <th class="col-rank"></th>
+        <th class="col-decks">% of Decks</th>
+    </tr>
+    </thead>
+    """
+    html = _table(
+        """
+        <tr>
+            <td>3.5</td>
+            <td>Lightning Bolt</td>
+            <td>1</td>
+            <td>25%</td>
+        </tr>
+        """,
+        header=header,
+    )
+    result = _parse_meta_table(html)
+    assert result != None
+    entries, skipped_count = result
+    assert skipped_count == 0
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry.name == "Lightning Bolt"
+    assert entry.rank == 1
+    assert entry.percent == 25.0
+    assert entry.avg_copies == 3.5
+
+def test_parse_meta_table_double_name() -> None:
+    html = _table("""
         <tr>
             <td>1</td>
             <td>Fire // Ice</td>
@@ -42,8 +127,7 @@ def test_parse_meta_table_double_name() -> None:
             <td>10%</td>
             <td>2</td>
         </tr>
-    </table>
-    """
+    """)
     result = _parse_meta_table(html)
     assert result != None
     entries, skipped_count = result
@@ -54,9 +138,65 @@ def test_parse_meta_table_double_name() -> None:
     assert entry.name == "Fire // Ice"
     assert entry.lookup_name == "Fire"
 
-def test_parse_meta_table_empty_rows() -> None:
-    html = """
-    <table class="table-staples">
+def test_parse_meta_table_row_with_too_few_columns_is_skipped() -> None:
+    html = _table("""
+        <tr><td>1</td><td>Lightning Bolt</td></tr>
+        <tr>
+            <td>2</td>
+            <td>Brainstorm</td>
+            <td></td>
+            <td>15%</td>
+            <td>1</td>
+        </tr>
+    """)
+    result = _parse_meta_table(html)
+    assert result != None
+    entries, skipped_count = result
+
+    assert skipped_count == 1
+    assert len(entries) == 1
+
+def test_parse_meta_table_empty_name_is_skipped() -> None:
+    html = _table("""
+        <tr>
+            <td>1</td>
+            <td></td>
+            <td></td>
+            <td>25%</td>
+            <td>3.5</td>
+        </tr>
+    """)
+    result = _parse_meta_table(html)
+    assert result != None
+    entries, skipped_count = result
+
+    assert skipped_count == 1
+    assert entries == []
+
+def test_parse_meta_table_single_bad_field_is_tolerated() -> None:
+    html = _table("""
+        <tr>
+            <td>1</td>
+            <td>Weird Percent Card</td>
+            <td></td>
+            <td>N/A</td>
+            <td>3.5</td>
+        </tr>
+    """)
+    result = _parse_meta_table(html)
+    assert result != None
+    entries, skipped_count = result
+
+    assert skipped_count == 0
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry.name == "Weird Percent Card"
+    assert entry.rank == 1
+    assert entry.percent is None
+    assert entry.avg_copies == 3.5
+
+def test_parse_meta_table_structural_empty_row_not_counted_as_skipped() -> None:
+    html = _table("""
         <tr></tr>
         <tr>
             <td>2</td>
@@ -65,13 +205,12 @@ def test_parse_meta_table_empty_rows() -> None:
             <td>15%</td>
             <td>1</td>
         </tr>
-    </table>
-    """
+    """)
     result = _parse_meta_table(html)
     assert result != None
     entries, skipped_count = result
 
-    assert skipped_count == 1
+    assert skipped_count == 0
     assert len(entries) == 1
 
 def test_scrape_meta_cards_success(monkeypatch: MonkeyPatch) -> None:
@@ -79,8 +218,7 @@ def test_scrape_meta_cards_success(monkeypatch: MonkeyPatch) -> None:
         def __init__(self) -> None:
             self.status_code = 200
             self.headers: dict[str, str] = {}
-            self.text = """
-            <table class="table-staples">
+            self.text = _table("""
                 <tr>
                     <td>1</td>
                     <td>Test Card</td>
@@ -88,8 +226,7 @@ def test_scrape_meta_cards_success(monkeypatch: MonkeyPatch) -> None:
                     <td>5%</td>
                     <td>1</td>
                 </tr>
-            </table>
-            """
+            """)
 
         def json(self) -> None:
             raise ValueError("Not JSON")
@@ -105,17 +242,15 @@ def test_scrape_meta_cards_retry(monkeypatch: MonkeyPatch) -> None:
     responses = [
         type("R", (), {"status_code": 500}),
         type("R", (), {"status_code": 500}),
-        type("R", (), {"status_code": 200, "text": """
-            <table class="table-staples">
-                <tr>
-                    <td>1</td>
-                    <td>Test Card</td>
-                    <td></td>
-                    <td>5%</td>
-                    <td>1</td>
-                </tr>
-            </table>
-            """})
+        type("R", (), {"status_code": 200, "text": _table("""
+            <tr>
+                <td>1</td>
+                <td>Test Card</td>
+                <td></td>
+                <td>5%</td>
+                <td>1</td>
+            </tr>
+        """)})
     ]
 
     def fake_get(*args: Any, **kwargs: Any) -> Any:
