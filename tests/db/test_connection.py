@@ -22,11 +22,6 @@ def test_get_connection_creates_missing_parent_directory(tmp_path: Path, monkeyp
     assert db_path.exists()
 
 def test_get_connection_enforces_foreign_keys(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
-    # Regression test for H5: PRAGMA foreign_keys is per-connection and
-    # defaults OFF, and unlike journal_mode it does NOT persist in the
-    # database file - so it must be enabled on every connection, not just
-    # once via init_db. Without it, card_aliases.card_name REFERENCES
-    # cards(name) is decorative and a dangling alias is accepted silently.
     db_path = tmp_path / "cards.db"
     monkeypatch.setattr("meta_morphis.db.connection.config.DB_PATH", db_path)
 

@@ -50,7 +50,7 @@ def init_db(conn: sqlite3.Connection) -> None:
             percent REAL,
             avg_copies FLOAT,
             lookup_name TEXT,
-            PRIMARY KEY (name, format)
+            PRIMARY KEY (format, name)
         )
     """)
 

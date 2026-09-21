@@ -1,5 +1,5 @@
 # Runtime database
-data/
+/data/
 
 # Ignore compiled binaries
 *.exe
