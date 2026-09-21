@@ -183,19 +183,44 @@ def test_process_batch_request(monkeypatch: MonkeyPatch, capsys: CaptureFixture[
 
     raw = {
         "data": [
-            {"id": "1", "name": "Counterspell"}, 
+            {"id": "1", "name": "Counterspell"},
             {"id": "2", "name": "Duress"}
         ],
         "not_found": [{"name": "Unknown"}, {"name": "Cancel"}]
     }
 
     monkeypatch.setattr(
-        "meta_morphis.scryfall.service.fetch_single", 
+        "meta_morphis.scryfall.service.fetch_single",
         lambda name: {"id": "3", "name": name} if name != "Unknown" else None
     )
     
     assert _process_batch_request(conn, raw) == [
-        _card("Counterspell", card_id="1"), 
-        _card("Duress", card_id="2"), 
+        _card("Counterspell", card_id="1"),
+        _card("Duress", card_id="2"),
         _card("Cancel", card_id="3"),
     ]
+
+def test_process_batch_request_accepts_fuzzy_match_with_different_name(
+    monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]
+) -> None:
+    conn = sqlite3.connect(":memory:")
+
+    monkeypatch.setattr(
+        "meta_morphis.scryfall.service.record_bad_name_attempt",
+        lambda conn, name: pytest.fail("a resolved fuzzy match must not be recorded as a bad name")
+    )
+    monkeypatch.setattr(
+        "meta_morphis.scryfall.service.fetch_single",
+        lambda name: {"id": "1", "name": "Snapcaster Mage"}
+    )
+
+    raw: dict[str, Any] = {
+        "data": [],
+        "not_found": [{"name": "Snapcaster Mag"}],
+    }
+
+    result = _process_batch_request(conn, raw)
+
+    assert result == [_card("Snapcaster Mage", card_id="1")]
+    captured = capsys.readouterr()
+    assert "Bad name" not in captured.out
