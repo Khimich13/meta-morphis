@@ -39,3 +39,4 @@ if __name__ == "__main__":
     main()
 
 # TODO: Clean debugging print messages
+# TODO: Should I gather all the const values into the config.py?

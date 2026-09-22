@@ -1,12 +1,40 @@
 import sqlite3
 
+# Bump this whenever the schema changes, and add a `if current_version < N:`
+# block below with the migration steps. CREATE TABLE IF NOT EXISTS alone
+# can't detect an existing table whose columns have drifted from what the
+# code now expects - this guard makes that drift loud instead of silent.
+SCHEMA_VERSION = 1
+
 
 def init_db(conn: sqlite3.Connection) -> None:
     c = conn.cursor()
 
     # Enable WAL mode for better concurrency and safer writes
     c.execute("PRAGMA journal_mode=WAL;")
-    
+
+    current_version: int = c.execute("PRAGMA user_version").fetchone()[0]
+
+    if current_version > SCHEMA_VERSION:
+        raise RuntimeError(
+            f"Database is at schema version {current_version}, but this "
+            f"build only understands up to version {SCHEMA_VERSION}. "
+            f"Refusing to run against a newer schema - update the app."
+        )
+
+    if current_version < 1:
+        _migrate_to_v1(c)
+        current_version = 1
+
+    # Next schema change adds a block here, e.g.:
+    # if current_version < 2:
+    #     _migrate_to_v2(c)
+    #     current_version = 2
+
+    c.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+    conn.commit()
+
+def _migrate_to_v1(c: sqlite3.Cursor) -> None:
     # Create Scryfall card cache table
     c.execute("""
         CREATE TABLE IF NOT EXISTS cards (
@@ -53,5 +81,3 @@ def init_db(conn: sqlite3.Connection) -> None:
             PRIMARY KEY (format, name)
         )
     """)
-
-    conn.commit()
