@@ -13,6 +13,7 @@ from meta_morphis.scryfall.service import (
     _process_batch_request,
     fetch_cards,
 )
+from meta_morphis.utils.http import RequestUnavailable
 
 
 def _card(name: str, age: int = 0, card_id: str = "test") -> Card:
@@ -93,6 +94,27 @@ def test_fetch_updates_for_outdated(monkeypatch: MonkeyPatch) -> None:
     assert updates == [_card("Cancel")]
     assert unrecognized == [_card("Unknown")]
 
+# A batch that couldn't be reached must be reported, not silently dropped
+def test_fetch_updates_for_outdated_reports_unreachable_batch(
+    monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]
+) -> None:
+    conn = sqlite3.connect(":memory:")
+
+    outdated = [_card("Counterspell"), _card("Duress")]
+
+    def raise_unavailable(names: list[str]) -> dict[str, Any] | None:
+        raise RequestUnavailable("Scryfall is down")
+
+    monkeypatch.setattr("meta_morphis.scryfall.service.fetch_batch", raise_unavailable)
+
+    updates, unrecognized = _fetch_updates_for_outdated(conn, outdated)
+
+    assert updates == []
+    assert unrecognized == outdated
+    captured = capsys.readouterr()
+    assert "2 outdated card" in captured.out
+    assert "unreachable" in captured.out
+
 def test_fetch_cards(monkeypatch: MonkeyPatch) -> None:
     conn = sqlite3.connect(":memory:")
 
@@ -162,6 +184,34 @@ def test_fetch_cards_raises() -> None:
     with pytest.raises(RuntimeError):
         fetch_cards(conn, [])
 
+# Make sure that when more than 75 cards requested and any of the batch calls
+# fails, the caller will be notified
+def test_fetch_cards_reports_unreachable_missing_batch(
+    monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]
+) -> None:
+    
+    conn = sqlite3.connect(":memory:")
+
+    fresh_meta = MetaEntry(name="Duress", rank=1, percent=10, avg_copies=2)
+    missing_meta = MetaEntry(name="Counterspell", rank=2, percent=20, avg_copies=3)
+
+    monkeypatch.setattr(
+        "meta_morphis.scryfall.service._classify_cards",
+        lambda conn, meta: ([_card("Duress")], [], ["Counterspell"])
+    )
+
+    def raise_unavailable(names: list[str]) -> dict[str, Any] | None:
+        raise RequestUnavailable("Scryfall is down")
+
+    monkeypatch.setattr("meta_morphis.scryfall.service.fetch_batch", raise_unavailable)
+
+    result = fetch_cards(conn, [fresh_meta, missing_meta])
+
+    assert result == [_card("Duress")]
+    captured = capsys.readouterr()
+    assert "1 missing card" in captured.out
+    assert "unreachable" in captured.out
+
 def test_process_batch_request(monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]) -> None:
     conn = sqlite3.connect(":memory:")
 
@@ -224,3 +274,32 @@ def test_process_batch_request_accepts_fuzzy_match_with_different_name(
     assert result == [_card("Snapcaster Mage", card_id="1")]
     captured = capsys.readouterr()
     assert "Bad name" not in captured.out
+
+# If a bad response is not confirmed that it's a genuine "doesn't exist"
+# than it shouldn't go to the 7-day card_lookup_failures ban list
+def testf_process_batch_request_does_not_record_failure_on_outage(
+    monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]
+) -> None:
+    conn = sqlite3.connect(":memory:")
+
+    monkeypatch.setattr(
+        "meta_morphis.scryfall.service.record_bad_name_attempt",
+        lambda conn, name: pytest.fail("a transient outage must not be recorded as a bad name")
+    )
+
+    def raise_unavailable(name: str) -> dict[str, Any] | None:
+        raise RequestUnavailable("Scryfall is down")
+
+    monkeypatch.setattr("meta_morphis.scryfall.service.fetch_single", raise_unavailable)
+
+    raw: dict[str, Any] = {
+        "data": [],
+        "not_found": [{"name": "Counterspell"}],
+    }
+
+    result = _process_batch_request(conn, raw)
+
+    assert result == []
+    captured = capsys.readouterr()
+    assert "Bad name" not in captured.out
+    assert "Counterspell" in captured.out

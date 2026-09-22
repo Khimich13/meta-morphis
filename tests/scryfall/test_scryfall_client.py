@@ -1,10 +1,12 @@
 import json
 from typing import Any
 
+import pytest
 from pytest import MonkeyPatch
 
 from meta_morphis import config
 from meta_morphis.scryfall.client import batch, fetch_batch, fetch_single
+from meta_morphis.utils.http import RequestUnavailable
 
 
 class FakeResponse:
@@ -37,12 +39,16 @@ def test_fetch_batch_success(monkeypatch: MonkeyPatch) -> None:
     assert result == {"data": "ok"}
 
 def test_fetch_batch_failure(monkeypatch: MonkeyPatch) -> None:
+    # A 500 exhausting all retries means "couldn't complete the request",
+    # not "these cards don't exist" - fetch_batch must let it propagate
+    # rather than return None, so callers don't mistake a Scryfall outage
+    # for a clean empty result.
     def fake_post(
         method: str,
         url: str,
         headers: Any,
         params: Any,
-        json: Any, 
+        json: Any,
         timeout: int
     ) -> FakeResponse:
         return FakeResponse(500, {"something_happened": []})
@@ -51,9 +57,8 @@ def test_fetch_batch_failure(monkeypatch: MonkeyPatch) -> None:
 
     monkeypatch.setattr("time.sleep", lambda x: None)
 
-
-    result = fetch_batch(["Bolt"])
-    assert result is None
+    with pytest.raises(RequestUnavailable):
+        fetch_batch(["Bolt"])
 
 def test_fetch_batch_bad_200_response(monkeypatch: MonkeyPatch) -> None:
     # A 200 status doesn't guarantee a JSON body - e.g. a Cloudflare

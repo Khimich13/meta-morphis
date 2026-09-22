@@ -1,8 +1,9 @@
 from typing import Any
 
+import pytest
 from pytest import MonkeyPatch
 
-from meta_morphis.utils.http import request_with_retries
+from meta_morphis.utils.http import RequestUnavailable, request_with_retries
 
 
 class FakeResponse:
@@ -89,12 +90,12 @@ def test_request_retry_after(monkeypatch: MonkeyPatch) -> None:
 
 def test_request_failure(monkeypatch: MonkeyPatch) -> None:
     def fake_request(
-        method: str, 
-        url: str, 
-        *, 
-        headers: dict[str, str] | None = None, 
-        params: dict[str, str] | None = None, 
-        json: Any = None, 
+        method: str,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
+        json: Any = None,
         timeout: float = 10
     ) -> FakeResponse:
         return FakeResponse(500, "fail")
@@ -102,5 +103,75 @@ def test_request_failure(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr("requests.request", fake_request)
     monkeypatch.setattr("time.sleep", lambda x: None)
 
+    with pytest.raises(RequestUnavailable):
+        request_with_retries("GET", "http://fake", max_retries=3)
+
+# A clean 404 means "this genuinely doesn't exist" and must return None immediately
+def test_request_not_found_returns_none_without_retrying(monkeypatch: MonkeyPatch) -> None:
+    calls: list[int] = []
+
+    def fake_request(
+        method: str,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
+        json: Any = None,
+        timeout: float = 10
+    ) -> FakeResponse:
+        calls.append(1)
+        return FakeResponse(404, "not found")
+
+    monkeypatch.setattr("requests.request", fake_request)
+    monkeypatch.setattr("time.sleep", lambda x: None)
+
     result = request_with_retries("GET", "http://fake", max_retries=3)
     assert result is None
+    assert len(calls) == 1
+
+def test_request_network_error_raises_after_retries(monkeypatch: MonkeyPatch) -> None:
+    import requests
+
+    def fake_request(*args: Any, **kwargs: Any) -> FakeResponse:
+        raise requests.ConnectionError("boom")
+
+    monkeypatch.setattr("requests.request", fake_request)
+    monkeypatch.setattr("time.sleep", lambda x: None)
+
+    with pytest.raises(RequestUnavailable):
+        request_with_retries("GET", "http://fake", max_retries=3)
+
+def test_request_rate_limit_exhausted_raises(monkeypatch: MonkeyPatch) -> None:
+    def fake_request(
+        method: str,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
+        json: Any = None,
+        timeout: float = 10
+    ) -> FakeResponse:
+        return FakeResponse(429, "rate", headers={"Retry-After": "0"})
+
+    monkeypatch.setattr("requests.request", fake_request)
+    monkeypatch.setattr("time.sleep", lambda x: None)
+
+    with pytest.raises(RequestUnavailable):
+        request_with_retries("GET", "http://fake", max_retries=3)
+
+def test_request_unexpected_status_raises(monkeypatch: MonkeyPatch) -> None:
+    def fake_request(
+        method: str,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
+        json: Any = None,
+        timeout: float = 10
+    ) -> FakeResponse:
+        return FakeResponse(301, "moved")
+
+    monkeypatch.setattr("requests.request", fake_request)
+
+    with pytest.raises(RequestUnavailable):
+        request_with_retries("GET", "http://fake", max_retries=3)

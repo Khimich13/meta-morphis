@@ -5,7 +5,7 @@ from bs4.element import Tag
 
 from meta_morphis import config
 from meta_morphis.models.meta import MetaEntry
-from meta_morphis.utils.http import request_with_retries
+from meta_morphis.utils.http import RequestUnavailable, request_with_retries
 
 T = TypeVar("T")
 
@@ -19,11 +19,14 @@ _COLUMN_CLASSES = {
 
 
 def scrape_meta_cards(url: str) -> list[MetaEntry] | None:
-    raw = request_with_retries(
-        "GET",
-        url=url,
-        headers=config.GOLDFISH_HEADERS
-    )
+    try:
+        raw = request_with_retries(
+            "GET",
+            url=url,
+            headers=config.GOLDFISH_HEADERS
+        )
+    except RequestUnavailable:
+        return None
     if not raw:
         return None
 
