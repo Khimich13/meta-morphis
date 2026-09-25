@@ -37,6 +37,36 @@ def test_request_success(monkeypatch: MonkeyPatch) -> None:
     result = request_with_retries("GET", "http://fake")
     assert result == "OK"
 
+# the pacing timestamp used to be a function local, reset to 0.0 on every call, 
+# so min_delay could never be enforced between separate top-level calls
+def test_request_with_retries_paces_between_separate_calls(monkeypatch: MonkeyPatch) -> None:
+    clock = [1000.0]
+    monkeypatch.setattr("time.time", lambda: clock[0])
+
+    slept: list[float] = []
+    monkeypatch.setattr("time.sleep", lambda s: slept.append(s))
+
+    def fake_request(
+        method: str,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
+        json: Any = None,
+        timeout: float = 10
+    ) -> FakeResponse:
+        return FakeResponse(200, "OK")
+
+    monkeypatch.setattr("requests.request", fake_request)
+
+    request_with_retries("GET", "http://fake", min_delay=0.2)
+    # Almost no real time passes before the next call, matching two
+    # back-to-back fetch_single() calls in a loop.
+    clock[0] += 0.01
+    request_with_retries("GET", "http://fake", min_delay=0.2)
+
+    assert slept == [pytest.approx(0.19)]
+
 def test_request_retry_then_success(monkeypatch: MonkeyPatch) -> None:
     """Should retry on non-200 and succeed on next attempt."""
     calls: list[int] = []
@@ -88,9 +118,7 @@ def test_request_retry_after(monkeypatch: MonkeyPatch) -> None:
     assert result == "OK"
     assert slept == [1.0]
 
-# A negative Retry-After (e.g. from clock skew on the server) used to be
-# passed straight to time.sleep(), which raises ValueError on a negative
-# duration - it must be clamped to 0 instead of crashing the request.
+# A negative Retry-After (e.g. from clock skew on the server)
 def test_request_retry_after_negative_value_is_clamped(monkeypatch: MonkeyPatch) -> None:
     calls: list[int] = []
 
