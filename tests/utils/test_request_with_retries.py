@@ -88,6 +88,93 @@ def test_request_retry_after(monkeypatch: MonkeyPatch) -> None:
     assert result == "OK"
     assert slept == [1.0]
 
+# A negative Retry-After (e.g. from clock skew on the server) used to be
+# passed straight to time.sleep(), which raises ValueError on a negative
+# duration - it must be clamped to 0 instead of crashing the request.
+def test_request_retry_after_negative_value_is_clamped(monkeypatch: MonkeyPatch) -> None:
+    calls: list[int] = []
+
+    def fake_request(
+        method: str,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
+        json: Any = None,
+        timeout: float = 10
+    ) -> FakeResponse:
+        calls.append(1)
+        if len(calls) == 1:
+            return FakeResponse(429, "rate", headers={"Retry-After": "-5"})
+        return FakeResponse(200, "OK")
+
+    monkeypatch.setattr("requests.request", fake_request)
+
+    slept: list[float] = []
+    monkeypatch.setattr("time.sleep", lambda x: slept.append(x))
+
+    result = request_with_retries("GET", "http://fake", max_retries=3)
+    assert result == "OK"
+    assert slept == [0.0]
+
+# An absurdly large Retry-After (e.g. "3600") used to block for the full
+# duration on every retry, even on a call with a 5s timeout - it must be
+# capped at max_retry_after instead of honoured verbatim.
+def test_request_retry_after_huge_value_is_capped(monkeypatch: MonkeyPatch) -> None:
+    calls: list[int] = []
+
+    def fake_request(
+        method: str,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
+        json: Any = None,
+        timeout: float = 10
+    ) -> FakeResponse:
+        calls.append(1)
+        if len(calls) == 1:
+            return FakeResponse(429, "rate", headers={"Retry-After": "3600"})
+        return FakeResponse(200, "OK")
+
+    monkeypatch.setattr("requests.request", fake_request)
+
+    slept: list[float] = []
+    monkeypatch.setattr("time.sleep", lambda x: slept.append(x))
+
+    result = request_with_retries("GET", "http://fake", max_retries=3, max_retry_after=60.0)
+    assert result == "OK"
+    assert slept == [60.0]
+
+# "inf"/"nan" parse successfully as floats but aren't usable delays -
+# time.sleep(inf) raises OverflowError and time.sleep(nan) raises
+# ValueError, so these must fall back to exponential backoff instead.
+def test_request_retry_after_non_finite_falls_back_to_backoff(monkeypatch: MonkeyPatch) -> None:
+    calls: list[int] = []
+
+    def fake_request(
+        method: str,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
+        json: Any = None,
+        timeout: float = 10
+    ) -> FakeResponse:
+        calls.append(1)
+        if len(calls) == 1:
+            return FakeResponse(429, "rate", headers={"Retry-After": "inf"})
+        return FakeResponse(200, "OK")
+
+    monkeypatch.setattr("requests.request", fake_request)
+
+    slept: list[float] = []
+    monkeypatch.setattr("time.sleep", lambda x: slept.append(x))
+
+    result = request_with_retries("GET", "http://fake", max_retries=3, backoff_base=0.5)
+    assert result == "OK"
+    assert slept == [0.5]
+
 def test_request_failure(monkeypatch: MonkeyPatch) -> None:
     def fake_request(
         method: str,

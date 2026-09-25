@@ -1,3 +1,4 @@
+import math
 import time
 from typing import Any
 
@@ -27,7 +28,8 @@ def request_with_retries(
     timeout: float = 5.0,
     max_retries: int = 3,
     min_delay: float = 0.2,
-    backoff_base: float = 0.5
+    backoff_base: float = 0.5,
+    max_retry_after: float = 60.0
 ) ->  str | None:
 
     last_attempt_time = 0.0
@@ -71,12 +73,19 @@ def request_with_retries(
         # Rate limiting (429)
         if status == 429:
             retry_after = response.headers.get("Retry-After")
+            delay = None
             if retry_after:
                 try:
-                    delay = float(retry_after)
+                    parsed = float(retry_after)
+                    if math.isfinite(parsed):
+                        # A server-supplied delay is honoured but clamped -
+                        # a negative value (clock skew) or an absurdly
+                        # large one must not turn into a negative sleep()
+                        # (raises) or an hour-long block on a 5s-timeout call.
+                        delay = max(0.0, min(parsed, max_retry_after))
                 except ValueError:
-                    delay = backoff_base * (2 ** attempt)
-            else:
+                    pass
+            if delay is None:
                 delay = backoff_base * (2 ** attempt)
 
             if attempt + 1 == max_retries:
