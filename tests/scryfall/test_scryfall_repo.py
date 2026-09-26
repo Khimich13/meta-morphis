@@ -89,6 +89,51 @@ def test_save_cards_to_cache(conn: sqlite3.Connection) -> None:
         "type_line": "Instant"
     }
 
+def test_save_cards_to_cache_face_alias_first_claim_wins(
+    conn: sqlite3.Connection, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # "Fire" is a real face name shared by two
+    # distinct real cards, Fire // Ice and Start // Fire. INSERT OR
+    # REPLACE used to let whichever card was cached most recently
+    # silently steal the alias, so a lookup could flip to a different
+    # card with no error depending purely on fetch order.
+    fire_ice = Card.from_raw({
+        "id": "fi", "name": "Fire // Ice", "type_line": "Instant",
+        "card_faces": [
+            {"name": "Fire", "mana_cost": "1R", "type_line": "Instant"},
+            {"name": "Ice", "mana_cost": "1U", "type_line": "Instant"},
+        ],
+    })
+    start_fire = Card.from_raw({
+        "id": "sf", "name": "Start // Fire", "type_line": "Sorcery",
+        "card_faces": [
+            {"name": "Start", "mana_cost": "2W", "type_line": "Sorcery"},
+            {"name": "Fire", "mana_cost": "2R", "type_line": "Sorcery"},
+        ],
+    })
+
+    save_cards_to_cache(conn, [fire_ice])
+    save_cards_to_cache(conn, [start_fire])
+
+    card = get_card_from_cache(conn, "Fire")
+    assert card is not None
+    assert card.name == "Fire // Ice"
+
+    captured = capsys.readouterr()
+    assert "already belongs to another card" in captured.out
+
+    # Both cards remain independently reachable by their own canonical
+    # names and their unambiguous face names.
+    for lookup, expected_name in [
+        ("Fire // Ice", "Fire // Ice"),
+        ("Start // Fire", "Start // Fire"),
+        ("Ice", "Fire // Ice"),
+        ("Start", "Start // Fire"),
+    ]:
+        found = get_card_from_cache(conn, lookup)
+        assert found is not None
+        assert found.name == expected_name
+
 def test_save_cards_to_cache_reprint(conn: sqlite3.Connection) -> None:
     reprint = {
         "id": "2",

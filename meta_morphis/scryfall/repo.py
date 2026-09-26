@@ -61,13 +61,23 @@ def save_cards_to_cache(conn: sqlite3.Connection, cards: list[Card]) -> None:
             VALUES (?, ?)
         """, (key, key))
 
-        # Insert face names -> id
+        # Insert face names -> id. Unlike the main alias above, a face
+        # name isn't guaranteed unique across cards (e.g. "Fire" is a
+        # face of both "Fire // Ice" and "Start // Fire") - first claim
+        # wins rather than silently reassigning an alias that's already
+        # owned by a different card, so a lookup can't flip to a
+        # different card behind the caller's back just because the other
+        # one happened to be fetched more recently.
         for face in card.faces:
             face_key = normalize_name(face.name)
             c.execute("""
-                INSERT OR REPLACE INTO card_aliases (alias, card_name)
+                INSERT INTO card_aliases (alias, card_name)
                 VALUES (?, ?)
+                ON CONFLICT(alias) DO UPDATE SET card_name = excluded.card_name
+                WHERE card_aliases.card_name = excluded.card_name
             """, (face_key, key))
+            if c.rowcount == 0:
+                print(f"Alias '{face_key}' already belongs to another card - not claimed by '{key}'")
 
 def record_bad_name_attempt(conn: sqlite3.Connection, name: str) -> None:
     key = normalize_name(name)
