@@ -43,7 +43,7 @@ def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[Card]:
                 print(f"Could not fetch {len(batch_names)} missing card(s), Scryfall was unreachable ({e}) - will retry next run")
                 continue
             if raw:
-                cards = _process_batch_request(conn, raw)
+                cards, _ = _process_batch_request(conn, raw)
                 with conn:
                     save_cards_to_cache(conn, cards)
                 output.extend(cards)
@@ -75,23 +75,31 @@ def _classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[li
     return fresh, outdated, missing
 
 def _fetch_updates_for_outdated(conn: sqlite3.Connection, outdated: list[Card]) -> tuple[list[Card], list[Card]]:
+    # Correlated by the OLD (requested) name, not the refreshed card's new
+    # name - Scryfall errata renames (or a fuzzy-resolved correction) can
+    # legitimately give a card a different name than it was cached under,
+    # and comparing old-name-in-new-names used to put the same physical
+    # card in both `updates` and `unrecognized`.
     names = [card.name for card in outdated]
     updates: list[Card] = []
-    
+    unresolved_names: set[str] = set()
+
     for batch_names in batch(names):
         try:
             raw = fetch_batch(batch_names)
         except RequestUnavailable as e:
             print(f"Could not refresh {len(batch_names)} outdated card(s), Scryfall was unreachable ({e}) - will retry next run")
+            unresolved_names.update(batch_names)
             continue
         if raw:
-            cards = _process_batch_request(conn, raw)
+            cards, unresolved = _process_batch_request(conn, raw)
             updates.extend(cards)
+            unresolved_names.update(unresolved)
         else:
             print(f"Could not refresh {len(batch_names)} outdated card(s) - no data received")
+            unresolved_names.update(batch_names)
 
-    updates_names = {card.name for card in updates}
-    unrecognized = [card for card in outdated if card.name not in updates_names]
+    unrecognized = [card for card in outdated if card.name in unresolved_names]
     return updates, unrecognized
 
 def _to_card(raw: dict[str, Any]) -> Card | None:
@@ -101,8 +109,14 @@ def _to_card(raw: dict[str, Any]) -> Card | None:
         print(f"Skipping malformed card from Scryfall, missing field {e}")
         return None
 
-def _process_batch_request(conn: sqlite3.Connection, raw: dict[str, Any]) -> list[Card]:
+def _process_batch_request(conn: sqlite3.Connection, raw: dict[str, Any]) -> tuple[list[Card], list[str]]:
     cards: list[Card] = []
+    # Requested names that did NOT resolve to a card this run, whether
+    # Scryfall confirmed the name doesn't exist or we simply couldn't
+    # check because of an outage - either way, there's no refreshed card
+    # for it right now. Only a confirmed miss is ever recorded via
+    # record_bad_name_attempt; an outage never is
+    unresolved_names: list[str] = []
 
     for entry in raw.get("data", []):
         card = _to_card(entry)
@@ -117,6 +131,7 @@ def _process_batch_request(conn: sqlite3.Connection, raw: dict[str, Any]) -> lis
                 fetched = fetch_single(name)
             except RequestUnavailable as e:
                 print(f"Could not verify '{name}', Scryfall was unreachable ({e}) - will retry next run")
+                unresolved_names.append(name)
                 continue
             card = _to_card(fetched) if fetched else None
             if card:
@@ -125,8 +140,9 @@ def _process_batch_request(conn: sqlite3.Connection, raw: dict[str, Any]) -> lis
                 print(f"Bad name - {name} saved to card_lookup_failures")
                 with conn:
                     record_bad_name_attempt(conn, name)
+                unresolved_names.append(name)
 
     if not cards:
         print("Scryfall error: no data received")
 
-    return cards
+    return cards, unresolved_names

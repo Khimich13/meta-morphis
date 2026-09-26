@@ -84,7 +84,10 @@ def test_fetch_updates_for_outdated(monkeypatch: MonkeyPatch) -> None:
 
     monkeypatch.setattr(
         "meta_morphis.scryfall.service._process_batch_request",
-        lambda conn, raw: [_card(c["name"]) for c in raw["data"]]
+        lambda conn, raw: (
+            [_card(c["name"]) for c in raw["data"]],
+            [item["name"] for item in raw.get("not_found", [])],
+        )
     )
 
     result = _fetch_updates_for_outdated(conn, outdated)
@@ -93,6 +96,30 @@ def test_fetch_updates_for_outdated(monkeypatch: MonkeyPatch) -> None:
 
     assert updates == [_card("Cancel")]
     assert unrecognized == [_card("Unknown")]
+
+def test_fetch_updates_for_outdated_renamed_card_not_also_unrecognized(monkeypatch: MonkeyPatch) -> None:
+    # a Scryfall errata rename (or a fuzzy correction) can give a refreshed card a
+    # different name than it was cached under. Comparing the OLD requested name against
+    # the SET OF NEW names used to conclude the old name was "not
+    # found" even though it WAS refreshed - just under a different name
+    # - so the same physical card ended up in both `updates` and `unrecognized`.
+    conn = sqlite3.connect(":memory:")
+
+    outdated = [_card("Æther Vial")]
+
+    monkeypatch.setattr(
+        "meta_morphis.scryfall.service.fetch_batch",
+        lambda names: {"data": [], "not_found": [{"name": n} for n in names]}
+    )
+    monkeypatch.setattr(
+        "meta_morphis.scryfall.service._process_batch_request",
+        lambda conn, raw: ([_card("Aether Vial")], [])
+    )
+
+    updates, unrecognized = _fetch_updates_for_outdated(conn, outdated)
+
+    assert [c.name for c in updates] == ["Aether Vial"]
+    assert unrecognized == []
 
 # A batch that couldn't be reached must be reported, not silently dropped
 def test_fetch_updates_for_outdated_reports_unreachable_batch(
@@ -157,11 +184,11 @@ def test_fetch_cards(monkeypatch: MonkeyPatch) -> None:
         lambda names: {"data": [{"name": n} for n in names]}
     )
     monkeypatch.setattr(
-        "meta_morphis.scryfall.service._process_batch_request", 
-        lambda conn, raw: [_card(c["name"]) for c in raw["data"]]
+        "meta_morphis.scryfall.service._process_batch_request",
+        lambda conn, raw: ([_card(c["name"]) for c in raw["data"]], [])
     )
     monkeypatch.setattr(
-        "meta_morphis.scryfall.service.save_cards_to_cache", 
+        "meta_morphis.scryfall.service.save_cards_to_cache",
         lambda conn, cards: None
     )
     monkeypatch.setattr(
@@ -222,12 +249,12 @@ def test_process_batch_request(monkeypatch: MonkeyPatch, capsys: CaptureFixture[
         lambda conn, name: None
     )
 
-    assert _process_batch_request(conn, raw) == []
+    assert _process_batch_request(conn, raw) == ([], [])
     captured = capsys.readouterr()
     assert "Scryfall error: no data received" in captured.out
 
     raw = {"data": []}
-    assert _process_batch_request(conn, raw) == []
+    assert _process_batch_request(conn, raw) == ([], [])
     captured = capsys.readouterr()
     assert "Scryfall error: no data received" in captured.out
 
@@ -243,12 +270,15 @@ def test_process_batch_request(monkeypatch: MonkeyPatch, capsys: CaptureFixture[
         "meta_morphis.scryfall.service.fetch_single",
         lambda name: {"id": "3", "name": name} if name != "Unknown" else None
     )
-    
-    assert _process_batch_request(conn, raw) == [
-        _card("Counterspell", card_id="1"),
-        _card("Duress", card_id="2"),
-        _card("Cancel", card_id="3"),
-    ]
+
+    assert _process_batch_request(conn, raw) == (
+        [
+            _card("Counterspell", card_id="1"),
+            _card("Duress", card_id="2"),
+            _card("Cancel", card_id="3"),
+        ],
+        ["Unknown"],
+    )
 
 def test_process_batch_request_accepts_fuzzy_match_with_different_name(
     monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]
@@ -271,13 +301,13 @@ def test_process_batch_request_accepts_fuzzy_match_with_different_name(
 
     result = _process_batch_request(conn, raw)
 
-    assert result == [_card("Snapcaster Mage", card_id="1")]
+    assert result == ([_card("Snapcaster Mage", card_id="1")], [])
     captured = capsys.readouterr()
     assert "Bad name" not in captured.out
 
 # If a bad response is not confirmed that it's a genuine "doesn't exist"
 # than it shouldn't go to the 7-day card_lookup_failures ban list
-def testf_process_batch_request_does_not_record_failure_on_outage(
+def test_process_batch_request_does_not_record_failure_on_outage(
     monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]
 ) -> None:
     conn = sqlite3.connect(":memory:")
@@ -299,7 +329,7 @@ def testf_process_batch_request_does_not_record_failure_on_outage(
 
     result = _process_batch_request(conn, raw)
 
-    assert result == []
+    assert result == ([], ["Counterspell"])
     captured = capsys.readouterr()
     assert "Bad name" not in captured.out
     assert "Counterspell" in captured.out
