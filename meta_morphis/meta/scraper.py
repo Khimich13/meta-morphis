@@ -45,7 +45,7 @@ def scrape_meta_cards(url: str) -> list[MetaEntry] | None:
 def _parse_cell(cell: Tag, cast: Callable[[str], T]) -> T | None:
     try:
         return cast(cell.text.strip())
-    except Exception:
+    except ValueError:
         return None
 
 def _locate_columns(table: Tag) -> dict[str, int] | None:
@@ -107,15 +107,14 @@ def _parse_meta_table(html: str) -> tuple[list[MetaEntry], int] | None:
             skipped_count += 1
             continue
 
-        meta_entry = MetaEntry(
+        lookup_name = name.split("//")[0].strip() if "//" in name else None
+
+        entries.append(MetaEntry(
             name=name,
             rank=rank,
             percent=percent,
             avg_copies=avg_copies,
-        )
-        if "//" in name:
-            meta_entry.lookup_name = name.split("//")[0].strip()
-
-        entries.append(meta_entry)
+            lookup_name=lookup_name,
+        ))
 
     return entries, skipped_count

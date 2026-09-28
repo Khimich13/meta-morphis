@@ -33,7 +33,7 @@ class Card:
         else:
             mana_cost = raw.get("mana_cost")
 
-        return Card(
+        return cls(
             id=raw["id"],
             name=raw["name"],
             mana_cost=mana_cost,
