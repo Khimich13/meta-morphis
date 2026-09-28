@@ -23,12 +23,12 @@ class FakeResponse:
 
 def test_request_success(monkeypatch: MonkeyPatch) -> None:
     def fake_request(
-        method: str, 
-        url: str, 
-        *, 
-        headers: dict[str, str] | None = None, 
-        params: dict[str, str] | None = None, 
-        json: Any = None, 
+        method: str,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
+        json: Any = None,
         timeout: float = 10
     ) -> FakeResponse:
         return FakeResponse(200, "OK")
@@ -37,7 +37,7 @@ def test_request_success(monkeypatch: MonkeyPatch) -> None:
     result = request_with_retries("GET", "http://fake")
     assert result == "OK"
 
-# the pacing timestamp used to be a function local, reset to 0.0 on every call, 
+# the pacing timestamp used to be a function local, reset to 0.0 on every call,
 # so min_delay could never be enforced between separate top-level calls
 def test_request_with_retries_paces_between_separate_calls(monkeypatch: MonkeyPatch) -> None:
     clock = [1000.0]
@@ -72,12 +72,12 @@ def test_request_retry_then_success(monkeypatch: MonkeyPatch) -> None:
     calls: list[int] = []
 
     def fake_request(
-        method: str, 
-        url: str, 
-        *, 
-        headers: dict[str, str] | None = None, 
-        params: dict[str, str] | None = None, 
-        json: Any = None, 
+        method: str,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
+        json: Any = None,
         timeout: float = 10
     ) -> FakeResponse:
         calls.append(1)
@@ -97,11 +97,11 @@ def test_request_retry_after(monkeypatch: MonkeyPatch) -> None:
 
     def fake_request(
         method: str,
-        url: str, 
-        *, 
-        headers: dict[str, str] | None = None, 
-        params: dict[str, str] | None = None, 
-        json: Any = None, 
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
+        json: Any = None,
         timeout: float = 10
     ) -> FakeResponse:
         calls.append(1)

@@ -54,7 +54,7 @@ def test_get_card_from_cache(conn: sqlite3.Connection) -> None:
     }
 
     assert get_card_from_cache(conn, "Unknown") == None
-    
+
 def test_save_cards_to_cache(conn: sqlite3.Connection) -> None:
     new_card_1 = {
         "id": "2",
@@ -146,11 +146,11 @@ def test_save_cards_to_cache_reprint(conn: sqlite3.Connection) -> None:
     cards_with_same_name = conn.execute(
         "SELECT * FROM cards WHERE name = ?", (normalize_name("Sai, Master Thopterist"),)
     ).fetchall()
-    
+
     assert len(cards_with_same_name) == 1
 
     # id column itself was updated, not just the json blob
-    assert cards_with_same_name[0][0] == "2"  
+    assert cards_with_same_name[0][0] == "2"
 
     card = get_card_from_cache(conn, "Sai, Master Thopterist")
 

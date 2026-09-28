@@ -107,10 +107,10 @@ def _parse_meta_table(html: str) -> tuple[list[MetaEntry], int] | None:
             continue
 
         meta_entry = MetaEntry(
-            name = name,
-            rank = rank,
-            percent = percent,
-            avg_copies= avg_copies,
+            name=name,
+            rank=rank,
+            percent=percent,
+            avg_copies=avg_copies,
         )
         if "//" in name:
             meta_entry.lookup_name = name.split("//")[0].strip()

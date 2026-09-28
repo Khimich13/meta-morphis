@@ -28,7 +28,7 @@ class RequestUnavailable(Exception):
 
 def request_with_retries(
     method: str,
-    url: str, 
+    url: str,
     headers: dict[str, str] | None = None,
     params: dict[str, Any] | None = None,
     json: dict[str, Any] | None = None,

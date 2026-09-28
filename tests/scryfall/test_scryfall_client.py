@@ -21,11 +21,11 @@ class FakeResponse:
 
 def test_fetch_batch_success(monkeypatch: MonkeyPatch) -> None:
     def fake_post(
-        method: str, 
+        method: str,
         url: str,
         headers: Any,
         params: Any,
-        json: Any, 
+        json: Any,
         timeout: int
     ) -> FakeResponse:
         assert method == "POST"
@@ -84,9 +84,9 @@ def test_fetch_batch_bad_200_response(monkeypatch: MonkeyPatch) -> None:
 def test_fetch_single_exact_success(monkeypatch: MonkeyPatch) -> None:
     def fake_get(
         method: str,
-        url: str, 
-        headers: Any, 
-        params: Any, 
+        url: str,
+        headers: Any,
+        params: Any,
         json: Any,
         timeout: int
     ) -> FakeResponse:
@@ -140,9 +140,9 @@ def test_fetch_single_exact_404_falls_back_to_fuzzy(monkeypatch: MonkeyPatch) ->
 def test_fetch_single_failure(monkeypatch: MonkeyPatch) -> None:
     def fake_get(
         method: str,
-        url: str, 
-        headers: Any, 
-        params: Any, 
+        url: str,
+        headers: Any,
+        params: Any,
         json: Any,
         timeout: int
     ) -> FakeResponse:

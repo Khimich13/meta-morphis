@@ -18,7 +18,7 @@ def get_meta_cards(conn: sqlite3.Connection, format_name: str) -> list[MetaEntry
         return load_cached_meta(conn, format_name)
 
     print("Refreshing meta data from MTGGoldfish...\n")
-    
+
     url = config.FORMATS[format_name]
     meta = scrape_meta_cards(url)
 
@@ -28,7 +28,7 @@ def get_meta_cards(conn: sqlite3.Connection, format_name: str) -> list[MetaEntry
         if cached:
             print("Using cached meta data instead\n")
             return cached
-        raise(RuntimeError("Program has failed to find meta info!"))
+        raise RuntimeError("Program has failed to find meta info!")
 
     with conn:
         save_meta_to_cache(conn, meta, format_name)

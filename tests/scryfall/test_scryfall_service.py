@@ -27,22 +27,22 @@ def test_classify_cards(monkeypatch: MonkeyPatch) -> None:
     conn = sqlite3.connect(":memory:")
 
     fresh_meta = MetaEntry(
-        name= "Duress",
-        rank= 10,
-        percent= 15,
-        avg_copies= 2
+        name="Duress",
+        rank=10,
+        percent=15,
+        avg_copies=2
     )
     outdated_meta = MetaEntry(
-        name= "Counterspell",
-        rank= 5,
-        percent= 10,
-        avg_copies= 3.2
+        name="Counterspell",
+        rank=5,
+        percent=10,
+        avg_copies=3.2
     )
     missing_meta = MetaEntry(
-        name= "Llanowar Elf",
-        rank= 1,
-        percent= 25,
-        avg_copies= 3.9
+        name="Llanowar Elf",
+        rank=1,
+        percent=25,
+        avg_copies=3.9
     )
 
     meta = [fresh_meta, outdated_meta, missing_meta]
@@ -70,10 +70,10 @@ def test_classify_cards(monkeypatch: MonkeyPatch) -> None:
     assert missing_result == ["Llanowar Elf"]
 
 def test_classify_cards_skips_outdated_card_within_cooldown(monkeypatch: MonkeyPatch) -> None:
-    # A refresh recently confirmed to fail for this name used to be 
-    # retried every single run regardless, since should_skip_lookup 
-    # was only ever consulted on the cache-miss branch - never for a 
-    # cached-but-outdated card. That's 2 Scryfall requests per stale 
+    # A refresh recently confirmed to fail for this name used to be
+    # retried every single run regardless, since should_skip_lookup
+    # was only ever consulted on the cache-miss branch - never for a
+    # cached-but-outdated card. That's 2 Scryfall requests per stale
     # card, forever, for a name that's already known to fail.
     conn = sqlite3.connect(":memory:")
 
@@ -171,41 +171,41 @@ def test_fetch_cards(monkeypatch: MonkeyPatch) -> None:
     conn = sqlite3.connect(":memory:")
 
     fresh = MetaEntry(
-        name= "Duress",
-        rank= 10,
-        percent= 15,
-        avg_copies= 2
+        name="Duress",
+        rank=10,
+        percent=15,
+        avg_copies=2
     )
     outdated_refreshed = MetaEntry(
-        name= "Counterspell",
-        rank= 5,
-        percent= 10,
-        avg_copies= 3.2
+        name="Counterspell",
+        rank=5,
+        percent=10,
+        avg_copies=3.2
     )
     outdated_not_refreshed = MetaEntry(
-        name= "Fling",
-        rank= 20,
-        percent= 4,
-        avg_copies= 1.1
+        name="Fling",
+        rank=20,
+        percent=4,
+        avg_copies=1.1
     )
     missing = MetaEntry(
-        name= "Llanowar Elf",
-        rank= 1,
-        percent= 25,
-        avg_copies= 3.9
+        name="Llanowar Elf",
+        rank=1,
+        percent=25,
+        avg_copies=3.9
     )
 
     meta = [fresh, outdated_refreshed, outdated_not_refreshed, missing]
     monkeypatch.setattr(
-        "meta_morphis.scryfall.service._classify_cards", 
+        "meta_morphis.scryfall.service._classify_cards",
         lambda conn, meta: (
-            [_card(fresh.name)], 
-            [_card(outdated_refreshed.name), _card(outdated_not_refreshed.name)], 
+            [_card(fresh.name)],
+            [_card(outdated_refreshed.name), _card(outdated_not_refreshed.name)],
             [missing.name]
         )
     )
     monkeypatch.setattr(
-        "meta_morphis.scryfall.service.fetch_batch", 
+        "meta_morphis.scryfall.service.fetch_batch",
         lambda names: {"data": [{"name": n} for n in names]}
     )
     monkeypatch.setattr(
@@ -217,14 +217,14 @@ def test_fetch_cards(monkeypatch: MonkeyPatch) -> None:
         lambda conn, cards: None
     )
     monkeypatch.setattr(
-        "meta_morphis.scryfall.service._fetch_updates_for_outdated", 
+        "meta_morphis.scryfall.service._fetch_updates_for_outdated",
         lambda conn, outdated: ([_card(outdated_refreshed.name)], [_card(outdated_not_refreshed.name)])
     )
 
     result = fetch_cards(conn, meta)
 
     assert result == [
-        _card(fresh.name), 
+        _card(fresh.name),
         _card(outdated_refreshed.name),
         _card(outdated_not_refreshed.name),
         _card(missing.name),
@@ -241,7 +241,7 @@ def test_fetch_cards_raises() -> None:
 def test_fetch_cards_reports_unreachable_missing_batch(
     monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]
 ) -> None:
-    
+
     conn = sqlite3.connect(":memory:")
 
     fresh_meta = MetaEntry(name="Duress", rank=1, percent=10, avg_copies=2)

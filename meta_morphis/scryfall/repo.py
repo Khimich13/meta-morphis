@@ -53,8 +53,8 @@ def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> None:
     """Register an extra lookup alias for an already-cached card - e.g.
     the exact spelling that was searched for, when Scryfall's own
     matching (fuzzy, or a lenient exact match) resolved it to a
-    different canonical name than normalize_name would derive from it. 
-    The card must already have a row in `cards`, since card_aliases.card_name 
+    different canonical name than normalize_name would derive from it.
+    The card must already have a row in `cards`, since card_aliases.card_name
     is a foreign key into it.
     """
     c = conn.cursor()
@@ -78,7 +78,7 @@ def save_cards_to_cache(conn: sqlite3.Connection, cards: list[Card]) -> None:
                 updated_at = excluded.updated_at
         """, (
             card.id,
-            key, 
+            key,
             json.dumps(card.raw),
             int(time.time())
         ))

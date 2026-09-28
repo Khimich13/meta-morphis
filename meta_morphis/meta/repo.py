@@ -37,13 +37,12 @@ def load_cached_meta(conn: sqlite3.Connection, format_name: str) -> list[MetaEnt
     meta = []
     for name, rank, percent, avg_copies, lookup_name in rows:
         meta.append(MetaEntry(
-            name= name,
-            rank= rank,
-            percent= percent,
-            avg_copies= avg_copies,
-            lookup_name= lookup_name
-        )
-    )
+            name=name,
+            rank=rank,
+            percent=percent,
+            avg_copies=avg_copies,
+            lookup_name=lookup_name,
+        ))
 
     return meta
 

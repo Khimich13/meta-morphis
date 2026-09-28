@@ -31,7 +31,7 @@ def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[Card]:
             save_cards_to_cache(conn, updates)
         print(f"{len(updates)} outdated cards were refreshed successfully")
         output.extend(updates)
-        
+
         if unrecognized:
             print(f"{len(unrecognized)} outdated cards were not found in Scryfall and was not refreshed")
             output.extend(unrecognized)
@@ -63,7 +63,7 @@ def _classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[li
 
     for entry in meta:
         name = entry.lookup_name or entry.name
-        
+
         cached = get_card_from_cache(conn, name)
 
         if cached:
@@ -151,7 +151,7 @@ def _process_batch_request(conn: sqlite3.Connection, raw: dict[str, Any]) -> tup
                     # than normalize_name would derive from what was
                     # searched - register the searched spelling as an
                     # alias too, so it hits cache next run instead of
-                    # asking Scryfall about it again forever. The card 
+                    # asking Scryfall about it again forever. The card
                     # row must exist first for the alias's foreign key.
                     with conn:
                         save_cards_to_cache(conn, [card])
