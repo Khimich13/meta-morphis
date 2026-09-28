@@ -5,9 +5,11 @@ from meta_morphis import config
 from meta_morphis.models.card import Card
 from meta_morphis.models.meta import MetaEntry
 from meta_morphis.utils.http import RequestUnavailable
+from meta_morphis.utils.text import normalize_name
 
 from .client import batch, fetch_batch, fetch_single
 from .repo import (
+    add_alias,
     get_card_from_cache,
     record_bad_name_attempt,
     save_cards_to_cache,
@@ -66,7 +68,14 @@ def _classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[li
 
         if cached:
             if cached.age > config.SCRYFALL_REFRESH_RATE:
-                outdated.append(cached)
+                if should_skip_lookup(conn, name):
+                    # A refresh was recently confirmed to fail for this
+                    # name - serve the stale copy instead of
+                    # hammering Scryfall again every run for the length
+                    # of the cooldown.
+                    fresh.append(cached)
+                else:
+                    outdated.append(cached)
             else:
                 fresh.append(cached)
         elif not should_skip_lookup(conn, name):
@@ -136,6 +145,17 @@ def _process_batch_request(conn: sqlite3.Connection, raw: dict[str, Any]) -> tup
             card = _to_card(fetched) if fetched else None
             if card:
                 cards.append(card)
+                if normalize_name(card.name) != normalize_name(name):
+                    # Scryfall's own matching (fuzzy, or a lenient exact
+                    # match) resolved this to a different canonical name
+                    # than normalize_name would derive from what was
+                    # searched - register the searched spelling as an
+                    # alias too, so it hits cache next run instead of
+                    # asking Scryfall about it again forever. The card 
+                    # row must exist first for the alias's foreign key.
+                    with conn:
+                        save_cards_to_cache(conn, [card])
+                        add_alias(conn, name, card.name)
             else:
                 print(f"Bad name - {name} saved to card_lookup_failures")
                 with conn:

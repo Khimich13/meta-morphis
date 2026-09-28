@@ -35,6 +35,34 @@ def get_card_from_cache(conn: sqlite3.Connection, name: str) -> Card | None:
     card.age = int(time.time()) - updated_at
     return card
 
+def _claim_alias(c: sqlite3.Cursor, alias: str, card_name: str) -> bool:
+    """Claim `alias` for `card_name` if it's unclaimed or already owned
+    by that same card. Returns False, leaving the existing row
+    untouched, if it's already owned by a different card (first claim
+    wins). `alias` and `card_name` must already be normalized.
+    """
+    c.execute("""
+        INSERT INTO card_aliases (alias, card_name)
+        VALUES (?, ?)
+        ON CONFLICT(alias) DO UPDATE SET card_name = excluded.card_name
+        WHERE card_aliases.card_name = excluded.card_name
+    """, (alias, card_name))
+    return c.rowcount > 0
+
+def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> None:
+    """Register an extra lookup alias for an already-cached card - e.g.
+    the exact spelling that was searched for, when Scryfall's own
+    matching (fuzzy, or a lenient exact match) resolved it to a
+    different canonical name than normalize_name would derive from it. 
+    The card must already have a row in `cards`, since card_aliases.card_name 
+    is a foreign key into it.
+    """
+    c = conn.cursor()
+    alias_key = normalize_name(alias)
+    card_key = normalize_name(card_name)
+    if not _claim_alias(c, alias_key, card_key):
+        print(f"Alias '{alias_key}' already belongs to another card - not claimed by '{card_key}'")
+
 def save_cards_to_cache(conn: sqlite3.Connection, cards: list[Card]) -> None:
     c = conn.cursor()
     for card in cards:
@@ -70,13 +98,7 @@ def save_cards_to_cache(conn: sqlite3.Connection, cards: list[Card]) -> None:
         # one happened to be fetched more recently.
         for face in card.faces:
             face_key = normalize_name(face.name)
-            c.execute("""
-                INSERT INTO card_aliases (alias, card_name)
-                VALUES (?, ?)
-                ON CONFLICT(alias) DO UPDATE SET card_name = excluded.card_name
-                WHERE card_aliases.card_name = excluded.card_name
-            """, (face_key, key))
-            if c.rowcount == 0:
+            if not _claim_alias(c, face_key, key):
                 print(f"Alias '{face_key}' already belongs to another card - not claimed by '{key}'")
 
 def record_bad_name_attempt(conn: sqlite3.Connection, name: str) -> None:

@@ -5,8 +5,10 @@ import pytest
 from pytest import CaptureFixture, MonkeyPatch
 
 from meta_morphis import config
+from meta_morphis.db.init_db import init_db
 from meta_morphis.models.card import Card
 from meta_morphis.models.meta import MetaEntry
+from meta_morphis.scryfall.repo import get_card_from_cache
 from meta_morphis.scryfall.service import (
     _classify_cards,
     _fetch_updates_for_outdated,
@@ -66,6 +68,29 @@ def test_classify_cards(monkeypatch: MonkeyPatch) -> None:
     assert fresh_result[0].name == "Duress"
     assert outdated_result[0].name == "Counterspell"
     assert missing_result == ["Llanowar Elf"]
+
+def test_classify_cards_skips_outdated_card_within_cooldown(monkeypatch: MonkeyPatch) -> None:
+    # A refresh recently confirmed to fail for this name used to be 
+    # retried every single run regardless, since should_skip_lookup 
+    # was only ever consulted on the cache-miss branch - never for a 
+    # cached-but-outdated card. That's 2 Scryfall requests per stale 
+    # card, forever, for a name that's already known to fail.
+    conn = sqlite3.connect(":memory:")
+
+    monkeypatch.setattr(
+        "meta_morphis.scryfall.service.should_skip_lookup",
+        lambda conn, name: True
+    )
+    monkeypatch.setattr(
+        "meta_morphis.scryfall.service.get_card_from_cache",
+        lambda conn, name: _card(name, age=config.SCRYFALL_REFRESH_RATE + 1)
+    )
+
+    fresh, outdated, missing = _classify_cards(conn, [MetaEntry(name="Sai, Master Thopterist", rank=1)])
+
+    assert [c.name for c in fresh] == ["Sai, Master Thopterist"]
+    assert outdated == []
+    assert missing == []
 
 def test_fetch_updates_for_outdated(monkeypatch: MonkeyPatch) -> None:
     conn = sqlite3.connect(":memory:")
@@ -284,6 +309,7 @@ def test_process_batch_request_accepts_fuzzy_match_with_different_name(
     monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]
 ) -> None:
     conn = sqlite3.connect(":memory:")
+    init_db(conn)
 
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.record_bad_name_attempt",
@@ -304,6 +330,12 @@ def test_process_batch_request_accepts_fuzzy_match_with_different_name(
     assert result == ([_card("Snapcaster Mage", card_id="1")], [])
     captured = capsys.readouterr()
     assert "Bad name" not in captured.out
+
+    # The exact spelling that was searched for gets its own alias
+    # too, not just the canonical name it resolved to.
+    found = get_card_from_cache(conn, "Snapcaster Mag")
+    assert found is not None
+    assert found.name == "Snapcaster Mage"
 
 # If a bad response is not confirmed that it's a genuine "doesn't exist"
 # than it shouldn't go to the 7-day card_lookup_failures ban list
