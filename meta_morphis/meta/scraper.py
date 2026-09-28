@@ -1,4 +1,5 @@
-from typing import Callable, TypeVar
+from collections.abc import Callable
+from typing import TypeVar
 
 from bs4 import BeautifulSoup
 from bs4.element import Tag

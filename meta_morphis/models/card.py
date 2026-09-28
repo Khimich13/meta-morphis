@@ -16,7 +16,7 @@ class Card:
 
     @classmethod
     def from_raw(cls, raw: dict[str, Any]) -> "Card":
-        faces = []
+        faces: list[CardFace] = []
 
         # Build CardFace objects if present
         if "card_faces" in raw:

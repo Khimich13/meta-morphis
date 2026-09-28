@@ -57,9 +57,9 @@ def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[Card]:
     return output
 
 def _classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[list[Card], list[Card], list[str]]:
-    fresh = []
-    outdated = []
-    missing = []
+    fresh: list[Card] = []
+    outdated: list[Card] = []
+    missing: list[str] = []
 
     for entry in meta:
         name = entry.lookup_name or entry.name

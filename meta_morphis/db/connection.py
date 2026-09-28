@@ -1,12 +1,12 @@
 import sqlite3
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Generator
 
 from meta_morphis import config
 
 
 @contextmanager
-def get_connection() -> Generator[sqlite3.Connection, None, None]:
+def get_connection() -> Iterator[sqlite3.Connection]:
     db_path = config.DB_PATH
     db_path.parent.mkdir(parents=True, exist_ok=True)
 

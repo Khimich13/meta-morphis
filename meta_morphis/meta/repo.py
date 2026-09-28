@@ -34,7 +34,7 @@ def load_cached_meta(conn: sqlite3.Connection, format_name: str) -> list[MetaEnt
         ORDER BY rank ASC
     """, (format_name,)).fetchall()
 
-    meta = []
+    meta: list[MetaEntry] = []
     for name, rank, percent, avg_copies, lookup_name in rows:
         meta.append(MetaEntry(
             name=name,
