@@ -5,9 +5,10 @@ from meta_morphis import config
 from meta_morphis.models.card import Card
 from meta_morphis.models.meta import MetaEntry
 from meta_morphis.utils.http import RequestUnavailable
+from meta_morphis.utils.lists import chunked
 from meta_morphis.utils.text import normalize_name
 
-from .client import batch, fetch_batch, fetch_single
+from .client import fetch_batch, fetch_single
 from .repo import (
     add_alias,
     get_card_from_cache,
@@ -38,7 +39,7 @@ def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[Card]:
 
     if missing:
         print("Trying to fetch missing names...")
-        for batch_names in batch(missing):
+        for batch_names in chunked(missing, config.SCRYFALL_BATCH_SIZE_LIMIT):
             try:
                 raw = fetch_batch(batch_names)
             except RequestUnavailable as e:
@@ -93,7 +94,7 @@ def _fetch_updates_for_outdated(conn: sqlite3.Connection, outdated: list[Card]) 
     updates: list[Card] = []
     unresolved_names: set[str] = set()
 
-    for batch_names in batch(names):
+    for batch_names in chunked(names, config.SCRYFALL_BATCH_SIZE_LIMIT):
         try:
             raw = fetch_batch(batch_names)
         except RequestUnavailable as e:

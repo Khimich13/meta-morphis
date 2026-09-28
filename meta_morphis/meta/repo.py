@@ -25,7 +25,7 @@ def update_meta_timestamp(conn: sqlite3.Connection, format_name: str) -> None:
         ON CONFLICT(format) DO UPDATE SET last_updated = excluded.last_updated
     """, (format_name, int(time.time()),))
 
-def load_cached_meta(conn: sqlite3.Connection, format_name: str) -> list[MetaEntry]:
+def get_meta_from_cache(conn: sqlite3.Connection, format_name: str) -> list[MetaEntry]:
     c = conn.cursor()
     rows = c.execute("""
         SELECT name, rank, percent, avg_copies, lookup_name

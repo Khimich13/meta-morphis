@@ -4,7 +4,7 @@ from meta_morphis import config
 from meta_morphis.models.meta import MetaEntry
 
 from .repo import (
-    load_cached_meta,
+    get_meta_from_cache,
     save_meta_to_cache,
     should_refresh_meta,
     update_meta_timestamp,
@@ -15,7 +15,7 @@ from .scraper import scrape_meta_cards
 def get_meta_cards(conn: sqlite3.Connection, format_name: str) -> list[MetaEntry]:
     if not should_refresh_meta(conn, format_name):
         print("Using cached meta data\n")
-        return load_cached_meta(conn, format_name)
+        return get_meta_from_cache(conn, format_name)
 
     print("Refreshing meta data from MTGGoldfish...\n")
 
@@ -24,7 +24,7 @@ def get_meta_cards(conn: sqlite3.Connection, format_name: str) -> list[MetaEntry
 
     if not meta:
         print("Failed fetching data from MTGGoldfish...\n")
-        cached = load_cached_meta(conn, format_name)
+        cached = get_meta_from_cache(conn, format_name)
         if cached:
             print("Using cached meta data instead\n")
             return cached

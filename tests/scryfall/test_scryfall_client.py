@@ -5,7 +5,7 @@ import pytest
 from pytest import MonkeyPatch
 
 from meta_morphis import config
-from meta_morphis.scryfall.client import batch, fetch_batch, fetch_single
+from meta_morphis.scryfall.client import fetch_batch, fetch_single
 from meta_morphis.utils.http import RequestUnavailable
 
 
@@ -172,8 +172,3 @@ def test_fetch_single_bad_200_response(monkeypatch: MonkeyPatch) -> None:
 
     result = fetch_single("Lightning Bolt")
     assert result is None
-
-def test_batch() -> None:
-    names = ["a", "b", "c", "d", "e"]
-    result = batch(names, size=2)
-    assert result == [["a", "b"], ["c", "d"], ["e"]]

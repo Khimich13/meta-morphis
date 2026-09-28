@@ -6,7 +6,7 @@ import pytest
 from meta_morphis import config
 from meta_morphis.db.init_db import init_db
 from meta_morphis.meta.repo import (
-    load_cached_meta,
+    get_meta_from_cache,
     save_meta_to_cache,
     should_refresh_meta,
     update_meta_timestamp,
@@ -69,12 +69,12 @@ def test_update_meta_timestamp_update(conn: sqlite3.Connection) -> None:
 
     assert row[0] != 123
 
-def test_load_cached_meta(conn: sqlite3.Connection) -> None:
+def test_get_meta_from_cache(conn: sqlite3.Connection) -> None:
     conn.execute("""
         INSERT INTO meta VALUES ('Bolt', 'pauper', 1, 25.0, 1, NULL)
     """)
 
-    result = load_cached_meta(conn, "pauper")
+    result = get_meta_from_cache(conn, "pauper")
 
     assert len(result) == 1
     assert isinstance(result[0], MetaEntry)

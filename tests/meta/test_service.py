@@ -5,7 +5,7 @@ from pytest import MonkeyPatch
 
 from meta_morphis.db.init_db import init_db
 from meta_morphis.meta.repo import (
-    load_cached_meta,
+    get_meta_from_cache,
     save_meta_to_cache,
     update_meta_timestamp,
 )
@@ -25,7 +25,7 @@ def test_get_meta_cards_uses_cache(conn: sqlite3.Connection, monkeypatch: Monkey
         lambda conn, fmt: False
     )
     monkeypatch.setattr(
-        "meta_morphis.meta.service.load_cached_meta",
+        "meta_morphis.meta.service.get_meta_from_cache",
         lambda conn, fmt: [MetaEntry("cached", 0, 0, 0)]
     )
 
@@ -112,7 +112,7 @@ def test_get_meta_cards_scraper_returns_empty_list_uses_cache(conn: sqlite3.Conn
     result = get_meta_cards(conn, "pauper")
 
     assert [m.name for m in result] == ["cached-meta"]
-    assert [m.name for m in load_cached_meta(conn, "pauper")] == ["cached-meta"]
+    assert [m.name for m in get_meta_from_cache(conn, "pauper")] == ["cached-meta"]
 
 def test_get_meta_cards_scraper_fail_uses_cache(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(
@@ -131,7 +131,7 @@ def test_get_meta_cards_scraper_fail_uses_cache(conn: sqlite3.Connection, monkey
     )
 
     monkeypatch.setattr(
-        "meta_morphis.meta.service.load_cached_meta",
+        "meta_morphis.meta.service.get_meta_from_cache",
         lambda conn, fmt: [MetaEntry("cached-meta", 0, 0, 0)]
     )
 
@@ -156,7 +156,7 @@ def test_get_meta_cards_scraper_fail_and_no_cache(conn: sqlite3.Connection, monk
     )
 
     monkeypatch.setattr(
-        "meta_morphis.meta.service.load_cached_meta",
+        "meta_morphis.meta.service.get_meta_from_cache",
         lambda conn, fmt: []
     )
 

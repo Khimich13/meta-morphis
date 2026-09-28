@@ -43,6 +43,3 @@ def fetch_single(name: str) -> dict[str, Any] | None:
         return data
     except json.JSONDecodeError:
         return None
-
-def batch(names: list[str], size: int=config.SCRYFALL_BATCH_SIZE_LIMIT) -> list[list[str]]:
-    return [names[i:i+size] for i in range(0, len(names), size)]
