@@ -20,6 +20,12 @@ _HEADER = """
 def _table(rows_html: str, header: str = _HEADER) -> str:
     return f'<table class="table-staples">{header}{rows_html}</table>'
 
+class FakeResponse:
+    def __init__(self, status_code: int, text: str = "") -> None:
+        self.status_code = status_code
+        self.text = text
+        self.headers: dict[str, str] = {}
+
 
 def test_parse_meta_table_valid() -> None:
     html = _table("""
@@ -32,7 +38,7 @@ def test_parse_meta_table_valid() -> None:
         </tr>
     """)
     result = _parse_meta_table(html)
-    assert result != None
+    assert result is not None
     entries, skipped_count = result
     assert skipped_count == 0
     assert len(entries) == 1
@@ -108,7 +114,7 @@ def test_parse_meta_table_columns_reordered_still_parses() -> None:
         header=header,
     )
     result = _parse_meta_table(html)
-    assert result != None
+    assert result is not None
     entries, skipped_count = result
     assert skipped_count == 0
     assert len(entries) == 1
@@ -129,7 +135,7 @@ def test_parse_meta_table_double_name() -> None:
         </tr>
     """)
     result = _parse_meta_table(html)
-    assert result != None
+    assert result is not None
     entries, skipped_count = result
 
     assert skipped_count == 0
@@ -150,7 +156,7 @@ def test_parse_meta_table_row_with_too_few_columns_is_skipped() -> None:
         </tr>
     """)
     result = _parse_meta_table(html)
-    assert result != None
+    assert result is not None
     entries, skipped_count = result
 
     assert skipped_count == 1
@@ -167,7 +173,7 @@ def test_parse_meta_table_empty_name_is_skipped() -> None:
         </tr>
     """)
     result = _parse_meta_table(html)
-    assert result != None
+    assert result is not None
     entries, skipped_count = result
 
     assert skipped_count == 1
@@ -184,7 +190,7 @@ def test_parse_meta_table_single_bad_field_is_tolerated() -> None:
         </tr>
     """)
     result = _parse_meta_table(html)
-    assert result != None
+    assert result is not None
     entries, skipped_count = result
 
     assert skipped_count == 0
@@ -207,56 +213,45 @@ def test_parse_meta_table_structural_empty_row_not_counted_as_skipped() -> None:
         </tr>
     """)
     result = _parse_meta_table(html)
-    assert result != None
+    assert result is not None
     entries, skipped_count = result
 
     assert skipped_count == 0
     assert len(entries) == 1
 
 def test_scrape_meta_cards_success(monkeypatch: MonkeyPatch) -> None:
-    class FakeResponse:
-        def __init__(self) -> None:
-            self.status_code = 200
-            self.headers: dict[str, str] = {}
-            self.text = _table("""
-                <tr>
-                    <td>1</td>
-                    <td>Test Card</td>
-                    <td></td>
-                    <td>5%</td>
-                    <td>1</td>
-                </tr>
-            """)
-
-        def json(self) -> None:
-            raise ValueError("Not JSON")
-
-    monkeypatch.setattr("requests.request", lambda *args, **kwargs: FakeResponse())
+    html = _table("""
+        <tr>
+            <td>1</td>
+            <td>Test Card</td>
+            <td></td>
+            <td>5%</td>
+            <td>1</td>
+        </tr>
+    """)
+    monkeypatch.setattr("requests.request", lambda *args, **kwargs: FakeResponse(200, html))
 
     result = scrape_meta_cards("http://fake-url")
-    assert result != None
+    assert result is not None
     assert len(result) == 1
     assert result[0].name == "Test Card"
 
 def test_scrape_meta_cards_retry(monkeypatch: MonkeyPatch) -> None:
-    responses = [
-        type("R", (), {"status_code": 500}),
-        type("R", (), {"status_code": 500}),
-        type("R", (), {"status_code": 200, "text": _table("""
-            <tr>
-                <td>1</td>
-                <td>Test Card</td>
-                <td></td>
-                <td>5%</td>
-                <td>1</td>
-            </tr>
-        """)})
-    ]
+    html = _table("""
+        <tr>
+            <td>1</td>
+            <td>Test Card</td>
+            <td></td>
+            <td>5%</td>
+            <td>1</td>
+        </tr>
+    """)
+    responses = [FakeResponse(500), FakeResponse(500), FakeResponse(200, html)]
 
-    def fake_get(*args: Any, **kwargs: Any) -> Any:
+    def fake_request(*args: Any, **kwargs: Any) -> FakeResponse:
         return responses.pop(0)
 
-    monkeypatch.setattr("requests.request", fake_get)
+    monkeypatch.setattr("requests.request", fake_request)
     monkeypatch.setattr("time.sleep", lambda x: None)
 
     result = scrape_meta_cards("http://fake-url")
@@ -265,10 +260,7 @@ def test_scrape_meta_cards_retry(monkeypatch: MonkeyPatch) -> None:
     assert len(result) == 1
 
 def test_scrape_meta_cards_all_fail(monkeypatch: MonkeyPatch) -> None:
-    class FakeResponse:
-        status_code = 500
-
-    monkeypatch.setattr("requests.request", lambda *args, **kwargs: FakeResponse())
+    monkeypatch.setattr("requests.request", lambda *args, **kwargs: FakeResponse(500))
     monkeypatch.setattr("time.sleep", lambda x: None)
 
     assert scrape_meta_cards("http://fake-url") is None

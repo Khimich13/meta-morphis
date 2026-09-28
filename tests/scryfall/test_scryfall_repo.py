@@ -44,7 +44,7 @@ def conn() -> sqlite3.Connection:
 def test_get_card_from_cache(conn: sqlite3.Connection) -> None:
     card = get_card_from_cache(conn, "Sai, Master Thopterist")
 
-    assert card != None
+    assert card is not None
 
     assert card.raw == {
         "id": "1",
@@ -53,7 +53,7 @@ def test_get_card_from_cache(conn: sqlite3.Connection) -> None:
         "type_line": "Legendary Creature — Human Artificer"
     }
 
-    assert get_card_from_cache(conn, "Unknown") == None
+    assert get_card_from_cache(conn, "Unknown") is None
 
 def test_save_cards_to_cache(conn: sqlite3.Connection) -> None:
     new_card_1 = {
@@ -72,7 +72,7 @@ def test_save_cards_to_cache(conn: sqlite3.Connection) -> None:
     save_cards_to_cache(conn, [Card.from_raw(new_card_1), Card.from_raw(new_card_2)])
 
     card = get_card_from_cache(conn, "Shock")
-    assert card != None
+    assert card is not None
     assert card.raw == {
         "id": "2",
         "name": "Shock",
@@ -81,7 +81,7 @@ def test_save_cards_to_cache(conn: sqlite3.Connection) -> None:
     }
 
     card = get_card_from_cache(conn, "Counterspell")
-    assert card != None
+    assert card is not None
     assert card.raw == {
         "id": "3",
         "name": "Counterspell",
