@@ -3,7 +3,6 @@ import sqlite3
 import pytest
 from pytest import MonkeyPatch
 
-from meta_morphis.db.init_db import init_db
 from meta_morphis.meta.repo import (
     get_meta_from_cache,
     save_meta_to_cache,
@@ -12,12 +11,6 @@ from meta_morphis.meta.repo import (
 from meta_morphis.meta.service import get_meta_cards
 from meta_morphis.models.meta import MetaEntry
 
-
-@pytest.fixture
-def conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(":memory:")
-    init_db(conn)
-    return conn
 
 def test_get_meta_cards_uses_cache(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(

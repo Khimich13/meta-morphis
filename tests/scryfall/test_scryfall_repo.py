@@ -4,7 +4,6 @@ import time
 
 import pytest
 
-from meta_morphis.db.init_db import init_db
 from meta_morphis.models.card import Card
 from meta_morphis.scryfall.repo import (
     get_card_from_cache,
@@ -16,9 +15,9 @@ from meta_morphis.utils.text import normalize_name
 
 
 @pytest.fixture
-def conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(":memory:")
-    init_db(conn)
+def conn(conn: sqlite3.Connection) -> sqlite3.Connection:
+    # Overrides the shared `conn` fixture from conftest.py for this module:
+    # same empty database, plus one old cached card to test against.
     conn.execute(
         "INSERT INTO cards VALUES (?, ?, ?, ?)", (
             "1",

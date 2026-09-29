@@ -5,7 +5,6 @@ import pytest
 from pytest import CaptureFixture, MonkeyPatch
 
 from meta_morphis import config
-from meta_morphis.db.init_db import init_db
 from meta_morphis.models.card import Card
 from meta_morphis.models.meta import MetaEntry
 from meta_morphis.scryfall.repo import get_card_from_cache
@@ -23,9 +22,7 @@ def _card(name: str, age: int = 0, card_id: str = "test") -> Card:
     card.age = age
     return card
 
-def test_classify_cards(monkeypatch: MonkeyPatch) -> None:
-    conn = sqlite3.connect(":memory:")
-
+def test_classify_cards(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
     fresh_meta = MetaEntry(
         name="Duress",
         rank=10,
@@ -69,13 +66,12 @@ def test_classify_cards(monkeypatch: MonkeyPatch) -> None:
     assert outdated_result[0].name == "Counterspell"
     assert missing_result == ["Llanowar Elf"]
 
-def test_classify_cards_skips_outdated_card_within_cooldown(monkeypatch: MonkeyPatch) -> None:
+def test_classify_cards_skips_outdated_card_within_cooldown(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
     # A refresh recently confirmed to fail for this name used to be
     # retried every single run regardless, since should_skip_lookup
     # was only ever consulted on the cache-miss branch - never for a
     # cached-but-outdated card. That's 2 Scryfall requests per stale
     # card, forever, for a name that's already known to fail.
-    conn = sqlite3.connect(":memory:")
 
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.should_skip_lookup",
@@ -92,9 +88,7 @@ def test_classify_cards_skips_outdated_card_within_cooldown(monkeypatch: MonkeyP
     assert outdated == []
     assert missing == []
 
-def test_fetch_updates_for_outdated(monkeypatch: MonkeyPatch) -> None:
-    conn = sqlite3.connect(":memory:")
-
+def test_fetch_updates_for_outdated(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
     outdated = [_card("Unknown"), _card("Cancel")]
 
     fetch_batch_response = {
@@ -122,13 +116,12 @@ def test_fetch_updates_for_outdated(monkeypatch: MonkeyPatch) -> None:
     assert updates == [_card("Cancel")]
     assert unrecognized == [_card("Unknown")]
 
-def test_fetch_updates_for_outdated_renamed_card_not_also_unrecognized(monkeypatch: MonkeyPatch) -> None:
+def test_fetch_updates_for_outdated_renamed_card_not_also_unrecognized(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
     # a Scryfall errata rename (or a fuzzy correction) can give a refreshed card a
     # different name than it was cached under. Comparing the OLD requested name against
     # the SET OF NEW names used to conclude the old name was "not
     # found" even though it WAS refreshed - just under a different name
     # - so the same physical card ended up in both `updates` and `unrecognized`.
-    conn = sqlite3.connect(":memory:")
 
     outdated = [_card("Æther Vial")]
 
@@ -148,10 +141,8 @@ def test_fetch_updates_for_outdated_renamed_card_not_also_unrecognized(monkeypat
 
 # A batch that couldn't be reached must be reported, not silently dropped
 def test_fetch_updates_for_outdated_reports_unreachable_batch(
-    monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]
 ) -> None:
-    conn = sqlite3.connect(":memory:")
-
     outdated = [_card("Counterspell"), _card("Duress")]
 
     def raise_unavailable(names: list[str]) -> dict[str, Any] | None:
@@ -167,9 +158,7 @@ def test_fetch_updates_for_outdated_reports_unreachable_batch(
     assert "2 outdated card" in captured.out
     assert "unreachable" in captured.out
 
-def test_fetch_cards(monkeypatch: MonkeyPatch) -> None:
-    conn = sqlite3.connect(":memory:")
-
+def test_fetch_cards(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
     fresh = MetaEntry(
         name="Duress",
         rank=10,
@@ -230,19 +219,15 @@ def test_fetch_cards(monkeypatch: MonkeyPatch) -> None:
         _card(missing.name),
     ]
 
-def test_fetch_cards_raises() -> None:
-    conn = sqlite3.connect(":memory:")
-
+def test_fetch_cards_raises(conn: sqlite3.Connection) -> None:
     with pytest.raises(RuntimeError):
         fetch_cards(conn, [])
 
 # Make sure that when more than 75 cards requested and any of the batch calls
 # fails, the caller will be notified
 def test_fetch_cards_reports_unreachable_missing_batch(
-    monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]
 ) -> None:
-
-    conn = sqlite3.connect(":memory:")
 
     fresh_meta = MetaEntry(name="Duress", rank=1, percent=10, avg_copies=2)
     missing_meta = MetaEntry(name="Counterspell", rank=2, percent=20, avg_copies=3)
@@ -264,9 +249,7 @@ def test_fetch_cards_reports_unreachable_missing_batch(
     assert "1 missing card" in captured.out
     assert "unreachable" in captured.out
 
-def test_process_batch_request(monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]) -> None:
-    conn = sqlite3.connect(":memory:")
-
+def test_process_batch_request(conn: sqlite3.Connection, monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]) -> None:
     raw: dict[str, Any] = {"object": []}
 
     monkeypatch.setattr(
@@ -306,11 +289,8 @@ def test_process_batch_request(monkeypatch: MonkeyPatch, capsys: CaptureFixture[
     )
 
 def test_process_batch_request_accepts_fuzzy_match_with_different_name(
-    monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]
 ) -> None:
-    conn = sqlite3.connect(":memory:")
-    init_db(conn)
-
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.record_bad_name_attempt",
         lambda conn, name: pytest.fail("a resolved fuzzy match must not be recorded as a bad name")
@@ -340,10 +320,8 @@ def test_process_batch_request_accepts_fuzzy_match_with_different_name(
 # If a bad response is not confirmed that it's a genuine "doesn't exist"
 # than it shouldn't go to the 7-day card_lookup_failures ban list
 def test_process_batch_request_does_not_record_failure_on_outage(
-    monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]
 ) -> None:
-    conn = sqlite3.connect(":memory:")
-
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.record_bad_name_attempt",
         lambda conn, name: pytest.fail("a transient outage must not be recorded as a bad name")

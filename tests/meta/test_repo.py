@@ -1,10 +1,8 @@
 import sqlite3
 import time
 
-import pytest
 
 from meta_morphis import config
-from meta_morphis.db.init_db import init_db
 from meta_morphis.meta.repo import (
     get_meta_from_cache,
     save_meta_to_cache,
@@ -13,12 +11,6 @@ from meta_morphis.meta.repo import (
 )
 from meta_morphis.models.meta import MetaEntry
 
-
-@pytest.fixture
-def conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(":memory:")
-    init_db(conn)
-    return conn
 
 def test_should_refresh_meta_no_row(conn: sqlite3.Connection) -> None:
     assert should_refresh_meta(conn, "pauper") is True
