@@ -15,7 +15,7 @@ def should_refresh_meta(conn: sqlite3.Connection, format_name: str) -> bool:
         return True # never scraped before
 
     last_updated = row[0]
-    return (time.time() - last_updated) > config.META_REFRESH_RATE
+    return (time.time() - last_updated) > config.GOLDFISH_REFRESH_RATE
 
 def update_meta_timestamp(conn: sqlite3.Connection, format_name: str) -> None:
     c = conn.cursor()

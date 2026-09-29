@@ -29,7 +29,7 @@ def test_fetch_batch_success(monkeypatch: MonkeyPatch) -> None:
         timeout: int
     ) -> FakeResponse:
         assert method == "POST"
-        assert url == config.URL_COLLECTION
+        assert url == config.SCRYFALL_COLLECTION_URL
         assert json == {"identifiers": [{"name": "Lightning Bolt"}]}
         return FakeResponse(200, {"data": "ok"})
 

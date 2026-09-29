@@ -19,7 +19,7 @@ def get_meta_cards(conn: sqlite3.Connection, format_name: str) -> list[MetaEntry
 
     print("Refreshing meta data from MTGGoldfish...\n")
 
-    url = config.FORMATS[format_name]
+    url = config.GOLDFISH_FORMAT_URLS[format_name]
     meta = scrape_meta_cards(url)
 
     if not meta:

@@ -1,29 +1,33 @@
 import os
 from pathlib import Path
 
-#MTGGoldfish configs
-META_REFRESH_RATE = 24 * 60 * 60 # 24 hours
-FORMATS = {
+_DAY = 24 * 60 * 60
+
+# MTGGoldfish
+GOLDFISH_FORMAT_URLS = {
     "pauper": "https://www.mtggoldfish.com/format-staples/pauper/full/spells",
     "premodern": "https://www.mtggoldfish.com/format-staples/premodern/full/all",
     "pioneer": "https://www.mtggoldfish.com/format-staples/pioneer/full/all",
     "standard": "https://www.mtggoldfish.com/format-staples/standard/full/all",
-    "modern": "https://www.mtggoldfish.com/format-staples/modern/full/all"
+    "modern": "https://www.mtggoldfish.com/format-staples/modern/full/all",
 }
-BAD_ROWS_LIMIT = 10
 GOLDFISH_HEADERS = {
     "User-Agent": "meta-morphis (https://github.com/Khimich13/meta-morphis)",
 }
-#ScryFall API configs
-URL_COLLECTION = "https://api.scryfall.com/cards/collection"
-URL_NAMED = "https://api.scryfall.com/cards/named"
-SCRYFALL_REFRESH_RATE = 24 * 60 * 60 * 30 # 30 days
-SCRYFALL_BATCH_SIZE_LIMIT = 75
-SCRYFALL_BAD_NAMES_LOOKUP_COOLDOWN = 24 * 60 * 60 * 7 # 7 days
+GOLDFISH_REFRESH_RATE = _DAY
+GOLDFISH_BAD_ROWS_LIMIT = 10
+
+# Scryfall
+SCRYFALL_COLLECTION_URL = "https://api.scryfall.com/cards/collection"
+SCRYFALL_NAMED_URL = "https://api.scryfall.com/cards/named"
 SCRYFALL_HEADERS = {
-        "User-Agent": "meta-morphis",
-        "Accept": "application/json"
-    }
-#DB
+    "User-Agent": "meta-morphis",
+    "Accept": "application/json",
+}
+SCRYFALL_REFRESH_RATE = 30 * _DAY
+SCRYFALL_BATCH_SIZE_LIMIT = 75
+SCRYFALL_BAD_NAMES_LOOKUP_COOLDOWN = 7 * _DAY
+
+# Database
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DB_PATH = Path(os.environ.get("META_MORPHIS_DB") or PROJECT_ROOT/"data"/"cards.db")
+DB_PATH = Path(os.environ.get("META_MORPHIS_DB") or PROJECT_ROOT / "data" / "cards.db")

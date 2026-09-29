@@ -10,13 +10,13 @@ from meta_morphis.scryfall.service import fetch_cards
 def choose_format() -> str:
     while True:
         print("Print the name of the format:\n")
-        for format_name, _ in config.FORMATS.items():
+        for format_name, _ in config.GOLDFISH_FORMAT_URLS.items():
             print(f"{format_name}")
         print()
 
         response = input().strip().lower()
 
-        if response in config.FORMATS:
+        if response in config.GOLDFISH_FORMAT_URLS:
             return response
 
         print("Invalid choice!")
@@ -39,4 +39,3 @@ if __name__ == "__main__":
     main()
 
 # TODO: Clean debugging print messages
-# TODO: Should I gather all the const values into the config.py?

@@ -24,7 +24,7 @@ def test_should_refresh_meta_no_row(conn: sqlite3.Connection) -> None:
     assert should_refresh_meta(conn, "pauper") is True
 
 def test_should_refresh_meta_old(conn: sqlite3.Connection) -> None:
-    old_time = int(time.time()) - (config.META_REFRESH_RATE + 10)
+    old_time = int(time.time()) - (config.GOLDFISH_REFRESH_RATE + 10)
 
     conn.execute(
         "INSERT INTO meta_refresh VALUES (?, ?)",

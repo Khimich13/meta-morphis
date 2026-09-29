@@ -10,7 +10,7 @@ def fetch_batch(names: list[str]) -> dict[str, Any] | None:
 
     raw = request_with_retries(
         "POST",
-        config.URL_COLLECTION,
+        config.SCRYFALL_COLLECTION_URL,
         headers=config.SCRYFALL_HEADERS,
         json={"identifiers": identifiers},
     )
@@ -25,14 +25,14 @@ def fetch_batch(names: list[str]) -> dict[str, Any] | None:
 def fetch_single(name: str) -> dict[str, Any] | None:
     raw = request_with_retries(
         "GET",
-        url=config.URL_NAMED,
+        url=config.SCRYFALL_NAMED_URL,
         headers=config.SCRYFALL_HEADERS,
         params={"exact": name}
     )
     if raw is None:
         raw = request_with_retries(
             "GET",
-            url=config.URL_NAMED,
+            url=config.SCRYFALL_NAMED_URL,
             headers=config.SCRYFALL_HEADERS,
             params={"fuzzy": name}
         )

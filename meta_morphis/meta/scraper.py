@@ -37,7 +37,7 @@ def scrape_meta_cards(url: str) -> list[MetaEntry] | None:
 
     meta, skipped_count = result
 
-    if skipped_count > config.BAD_ROWS_LIMIT:
+    if skipped_count > config.GOLDFISH_BAD_ROWS_LIMIT:
         return None
 
     return meta
