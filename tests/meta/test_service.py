@@ -155,3 +155,22 @@ def test_get_meta_cards_scraper_fail_and_no_cache(conn: sqlite3.Connection, monk
 
     with pytest.raises(RuntimeError):
         get_meta_cards(conn, "pauper")
+# An unknown format used to escape as a bare KeyError after the cache check
+def test_get_meta_cards_unknown_format_raises(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "meta_morphis.meta.service.scrape_meta_cards",
+        lambda url: pytest.fail("an unknown format must not be scraped")
+    )
+
+    with pytest.raises(ValueError, match="legacy"):
+        get_meta_cards(conn, "legacy")
+
+# Validation happens before the cache check, so a leftover cache row for a
+# format no longer in config can't be served silently
+def test_get_meta_cards_unknown_format_raises_even_with_cached_rows(conn: sqlite3.Connection) -> None:
+    with conn:
+        save_meta_to_cache(conn, [MetaEntry(name="Brainstorm", rank=1)], "legacy")
+        update_meta_timestamp(conn, "legacy")
+
+    with pytest.raises(ValueError, match="legacy"):
+        get_meta_cards(conn, "legacy")
