@@ -264,3 +264,21 @@ def test_scrape_meta_cards_all_fail(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr("time.sleep", lambda x: None)
 
     assert scrape_meta_cards("http://fake-url") is None
+
+# Real MTGGoldfish name cells wrap the name in an <a> next to tooltip markup,
+# so the cell's full text would be "Relic of ProgenitusView Card Details"
+def test_parse_meta_table_takes_name_from_anchor() -> None:
+    html = _table("""
+        <tr>
+            <td>1</td>
+            <td><a href="/price/relic">Relic of Progenitus</a><span>View Card Details</span></td>
+            <td></td>
+            <td>35%</td>
+            <td>2.8</td>
+        </tr>
+    """)
+    result = _parse_meta_table(html)
+    assert result is not None
+    entries, _ = result
+
+    assert entries[0].name == "Relic of Progenitus"

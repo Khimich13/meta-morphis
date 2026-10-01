@@ -1,4 +1,5 @@
 import sqlite3
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -7,7 +8,7 @@ from pytest import CaptureFixture, MonkeyPatch
 from meta_morphis import config
 from meta_morphis.models.card import Card
 from meta_morphis.models.meta import MetaEntry
-from meta_morphis.scryfall.repo import get_card_from_cache
+from meta_morphis.scryfall.repo import get_card_from_cache, save_cards_to_cache
 from meta_morphis.scryfall.service import (
     _classify_cards,
     _fetch_updates_for_outdated,
@@ -343,3 +344,55 @@ def test_process_batch_request_does_not_record_failure_on_outage(
     captured = capsys.readouterr()
     assert "Bad name" not in captured.out
     assert "Counterspell" in captured.out
+
+# Split cards are looked up by their lookup_name ("Wear"), not Goldfish's
+# full "A // B" name - that's what gets queued and sent to Scryfall
+def test_classify_cards_uses_lookup_name(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr("meta_morphis.scryfall.service.should_skip_lookup", lambda conn, name: False)
+    monkeypatch.setattr("meta_morphis.scryfall.service.get_card_from_cache", lambda conn, name: None)
+
+    _, _, missing = _classify_cards(conn, [MetaEntry(name="Wear // Tear", lookup_name="Wear")])
+
+    assert missing == ["Wear"]
+
+# Refreshed and newly fetched cards are each read back through a second
+# connection, which only sees committed data. They're tested separately on
+# purpose: in one run, committing the newly fetched cards also commits a
+# pending refresh, which would hide a missing commit on the refresh path.
+def test_fetch_cards_commits_refreshed_card(db_file: Path, monkeypatch: MonkeyPatch) -> None:
+    writer = sqlite3.connect(db_file)
+    with writer:
+        save_cards_to_cache(writer, [Card.from_raw({"id": "old", "name": "Counterspell"})])
+        writer.execute("UPDATE cards SET updated_at = 0")
+
+    monkeypatch.setattr(
+        "meta_morphis.scryfall.service.fetch_batch",
+        lambda names: {"data": [{"id": "new", "name": "Counterspell"}]}
+    )
+
+    fetch_cards(writer, [MetaEntry(name="Counterspell")])
+    writer.close()
+
+    reader = sqlite3.connect(db_file)
+    refreshed = get_card_from_cache(reader, "Counterspell")
+    reader.close()
+
+    assert refreshed is not None
+    assert refreshed.id == "new"
+    assert refreshed.age < 60
+
+def test_fetch_cards_commits_newly_fetched_card(db_file: Path, monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "meta_morphis.scryfall.service.fetch_batch",
+        lambda names: {"data": [{"id": "1", "name": "Shock"}]}
+    )
+
+    writer = sqlite3.connect(db_file)
+    fetch_cards(writer, [MetaEntry(name="Shock")])
+    writer.close()
+
+    reader = sqlite3.connect(db_file)
+    fetched = get_card_from_cache(reader, "Shock")
+    reader.close()
+
+    assert fetched is not None

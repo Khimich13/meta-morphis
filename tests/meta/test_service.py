@@ -1,4 +1,6 @@
 import sqlite3
+import time
+from pathlib import Path
 
 import pytest
 from pytest import MonkeyPatch
@@ -174,3 +176,25 @@ def test_get_meta_cards_unknown_format_raises_even_with_cached_rows(conn: sqlite
 
     with pytest.raises(ValueError, match="legacy"):
         get_meta_cards(conn, "legacy")
+
+# Read back through a second connection, which only sees committed data -
+# the shared `conn` fixture can't tell whether a write was ever committed
+def test_get_meta_cards_commits_scraped_meta(db_file: Path, monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "meta_morphis.meta.service.scrape_meta_cards",
+        lambda url: [MetaEntry("Lightning Bolt", 1, 25.0, 3.5)]
+    )
+
+    writer = sqlite3.connect(db_file)
+    get_meta_cards(writer, "pauper")
+    writer.close()
+
+    reader = sqlite3.connect(db_file)
+    cached = get_meta_from_cache(reader, "pauper")
+    last_updated = reader.execute(
+        "SELECT last_updated FROM meta_refresh WHERE format = 'pauper'"
+    ).fetchone()[0]
+    reader.close()
+
+    assert [m.name for m in cached] == ["Lightning Bolt"]
+    assert abs(time.time() - last_updated) < 60

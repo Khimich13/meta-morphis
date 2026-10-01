@@ -1,5 +1,6 @@
 import sqlite3
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 
@@ -15,6 +16,18 @@ def conn() -> Iterator[sqlite3.Connection]:
     init_db(conn)
     yield conn
     conn.close()
+
+
+@pytest.fixture
+def db_file(tmp_path: Path) -> Path:
+    # A file-backed database with the real schema. Unlike `conn`, a second
+    # connection to this file sees only committed data - which is what it
+    # takes to prove a write actually reached the database.
+    path = tmp_path / "cards.db"
+    conn = sqlite3.connect(path)
+    init_db(conn)
+    conn.close()
+    return path
 
 
 @pytest.fixture(autouse=True)

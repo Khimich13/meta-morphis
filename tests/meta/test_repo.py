@@ -94,3 +94,20 @@ def test_save_meta_to_cache(conn: sqlite3.Connection) -> None:
         ("Bolt", 1),
         ("Brainstorm", 2),
     ]
+
+# The DELETE that clears old meta must be scoped to the format being saved
+def test_save_meta_to_cache_keeps_other_formats(conn: sqlite3.Connection) -> None:
+    save_meta_to_cache(conn, [MetaEntry("Counterspell", 1, 30.0, 4.0)], "modern")
+    save_meta_to_cache(conn, [MetaEntry("Lightning Bolt", 1, 25.0, 3.5)], "pauper")
+
+    assert [m.name for m in get_meta_from_cache(conn, "modern")] == ["Counterspell"]
+
+# Every field must survive a save/load round trip, in rank order - including
+# lookup_name, which split cards need to hit the Scryfall cache
+def test_meta_cache_round_trip(conn: sqlite3.Connection) -> None:
+    bolt = MetaEntry("Lightning Bolt", rank=1, percent=25.0, avg_copies=3.5)
+    wear_tear = MetaEntry("Wear // Tear", rank=2, percent=10.0, avg_copies=1.5, lookup_name="Wear")
+
+    save_meta_to_cache(conn, [wear_tear, bolt], "pauper")
+
+    assert get_meta_from_cache(conn, "pauper") == [bolt, wear_tear]
