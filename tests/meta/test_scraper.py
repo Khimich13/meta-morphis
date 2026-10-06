@@ -2,6 +2,7 @@ from typing import Any
 
 from pytest import MonkeyPatch
 
+from meta_morphis import config
 from meta_morphis.meta.scraper import _parse_meta_table, scrape_meta_cards
 
 # MTGGoldfish header markup: columns are located by <th> classes
@@ -282,3 +283,19 @@ def test_parse_meta_table_takes_name_from_anchor() -> None:
     entries, _ = result
 
     assert entries[0].name == "Relic of Progenitus"
+
+# Too many malformed rows means the page itself is broken, so the whole scrape
+# is rejected (falling back to cached meta) rather than trusted. Checked at
+# the boundary: exactly the limit is still accepted, one more is not.
+def test_scrape_meta_cards_rejects_page_over_bad_rows_limit(monkeypatch: MonkeyPatch) -> None:
+    good_row = "<tr><td>1</td><td>Lightning Bolt</td><td></td><td>25%</td><td>3.5</td></tr>"
+    bad_row = "<tr><td>?</td><td>?</td></tr>"
+    limit = config.GOLDFISH_BAD_ROWS_LIMIT
+
+    for bad_rows, expected_ok in [(limit, True), (limit + 1, False)]:
+        html = _table(good_row + bad_row * bad_rows)
+        monkeypatch.setattr("requests.request", lambda *args, **kwargs: FakeResponse(200, html))
+
+        result = scrape_meta_cards("http://fake-url")
+
+        assert (result is not None) is expected_ok, f"{bad_rows} bad rows"

@@ -8,7 +8,11 @@ from pytest import CaptureFixture, MonkeyPatch
 from meta_morphis import config
 from meta_morphis.models.card import Card
 from meta_morphis.models.meta import MetaEntry
-from meta_morphis.scryfall.repo import get_card_from_cache, save_cards_to_cache
+from meta_morphis.scryfall.repo import (
+    get_card_from_cache,
+    save_cards_to_cache,
+    should_skip_lookup,
+)
 from meta_morphis.scryfall.service import (
     _classify_cards,
     _fetch_updates_for_outdated,
@@ -396,3 +400,22 @@ def test_fetch_cards_commits_newly_fetched_card(db_file: Path, monkeypatch: Monk
     reader.close()
 
     assert fetched is not None
+
+# The counterpart to the outage test: a CONFIRMED miss (both exact and fuzzy
+# found nothing) must start the cooldown, or the name is re-queried every run
+def test_process_batch_request_records_confirmed_bad_name(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr("meta_morphis.scryfall.service.fetch_single", lambda name: None)
+
+    _process_batch_request(conn, {"data": [], "not_found": [{"name": "Bogus Card"}]})
+
+    assert should_skip_lookup(conn, "Bogus Card") is True
+
+# A card missing a required field is skipped with a message instead of
+# crashing the whole batch, and the rest of the batch still comes through
+def test_process_batch_request_skips_malformed_card(conn: sqlite3.Connection) -> None:
+    raw: dict[str, Any] = {"data": [{"name": "No Id Card"}, {"id": "1", "name": "Shock"}]}
+
+    cards, unresolved = _process_batch_request(conn, raw)
+
+    assert [c.name for c in cards] == ["Shock"]
+    assert unresolved == []

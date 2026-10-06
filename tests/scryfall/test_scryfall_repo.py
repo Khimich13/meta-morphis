@@ -229,3 +229,11 @@ def test_record_bad_name_attempt_updates(conn: sqlite3.Connection) -> None:
     """, (key,)).fetchone()
 
     assert new_row[0] > old
+
+# A corrupt JSON blob is treated as a cache miss (so the card gets re-fetched)
+# rather than crashing every lookup that hits it
+def test_get_card_from_cache_corrupt_json_is_a_miss(conn: sqlite3.Connection) -> None:
+    conn.execute("INSERT INTO cards VALUES (?, ?, ?, ?)", ("2", "shock", "{not json", int(time.time())))
+    conn.execute("INSERT INTO card_aliases (alias, card_name) VALUES (?, ?)", ("shock", "shock"))
+
+    assert get_card_from_cache(conn, "Shock") is None
