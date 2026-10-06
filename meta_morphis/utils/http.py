@@ -9,6 +9,9 @@ import requests
 # _process_batch_request makes many separate top-level calls to
 # request_with_retries in a loop - a function-local timestamp resets on
 # every one of them and can never enforce spacing between them.
+# Read from time.monotonic(), not time.time(): the wall clock can be set
+# back mid-run, and a gap measured across that correction would turn
+# into a sleep as long as the correction itself.
 _last_request_time = 0.0
 
 
@@ -46,12 +49,12 @@ def request_with_retries(
         if used_retry_after:
             used_retry_after = False
         else:
-            now = time.time()
+            now = time.monotonic()
             since_last = now - _last_request_time
             if since_last < min_delay:
                 time.sleep(min_delay - since_last)
 
-        _last_request_time = time.time()
+        _last_request_time = time.monotonic()
 
         try:
             response = requests.request(

@@ -41,7 +41,7 @@ def test_request_success(monkeypatch: MonkeyPatch) -> None:
 # so min_delay could never be enforced between separate top-level calls
 def test_request_with_retries_paces_between_separate_calls(monkeypatch: MonkeyPatch) -> None:
     clock = [1000.0]
-    monkeypatch.setattr("time.time", lambda: clock[0])
+    monkeypatch.setattr("time.monotonic", lambda: clock[0])
 
     slept: list[float] = []
     monkeypatch.setattr("time.sleep", lambda s: slept.append(s))
@@ -66,6 +66,27 @@ def test_request_with_retries_paces_between_separate_calls(monkeypatch: MonkeyPa
     request_with_retries("GET", "http://fake", min_delay=0.2)
 
     assert slept == [pytest.approx(0.19)]
+
+# Pacing used to read the wall clock, so a clock correction mid-run (set
+# back an hour) turned into an hour-long sleep before the next request
+def test_request_with_retries_pacing_ignores_wall_clock_changes(monkeypatch: MonkeyPatch) -> None:
+    wall_clock = [1_000_000.0]
+    monkeypatch.setattr("time.time", lambda: wall_clock[0])
+    monkeypatch.setattr("time.monotonic", lambda: 500.0)
+
+    slept: list[float] = []
+    monkeypatch.setattr("time.sleep", lambda s: slept.append(s))
+
+    def fake_request(*args: Any, **kwargs: Any) -> FakeResponse:
+        return FakeResponse(200, "OK")
+
+    monkeypatch.setattr("requests.request", fake_request)
+
+    request_with_retries("GET", "http://fake", min_delay=0.2)
+    wall_clock[0] -= 3600
+    request_with_retries("GET", "http://fake", min_delay=0.2)
+
+    assert slept == [pytest.approx(0.2)]
 
 def test_request_retry_then_success(monkeypatch: MonkeyPatch) -> None:
     """Should retry on non-200 and succeed on next attempt."""
