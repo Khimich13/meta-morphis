@@ -2,7 +2,7 @@ import json
 from typing import Any
 
 from meta_morphis import config
-from meta_morphis.utils.http import request_with_retries
+from meta_morphis.utils.http import RequestUnavailable, request_with_retries
 
 
 def fetch_batch(names: list[str]) -> dict[str, Any] | None:
@@ -16,11 +16,7 @@ def fetch_batch(names: list[str]) -> dict[str, Any] | None:
     )
     if raw is None:
         return None
-    try:
-        data: dict[str, Any] = json.loads(raw)
-        return data
-    except json.JSONDecodeError:
-        return None
+    return _parse_json(raw)
 
 def fetch_single(name: str) -> dict[str, Any] | None:
     raw = request_with_retries(
@@ -38,8 +34,14 @@ def fetch_single(name: str) -> dict[str, Any] | None:
         )
     if raw is None:
         return None
+    return _parse_json(raw)
+
+def _parse_json(raw: str) -> dict[str, Any]:
+    # A 200 whose body isn't JSON (a proxy or antivirus block page, say)
+    # is not Scryfall saying "no such card" - returning None here would
+    # get a real name recorded in card_lookup_failures.
     try:
         data: dict[str, Any] = json.loads(raw)
-        return data
-    except json.JSONDecodeError:
-        return None
+    except json.JSONDecodeError as e:
+        raise RequestUnavailable(f"response was not valid JSON: {e}") from e
+    return data

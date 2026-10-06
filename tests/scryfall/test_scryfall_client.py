@@ -78,8 +78,8 @@ def test_fetch_batch_bad_200_response(monkeypatch: MonkeyPatch) -> None:
 
     monkeypatch.setattr("requests.request", fake_post)
 
-    result = fetch_batch(["Lightning Bolt"])
-    assert result is None
+    with pytest.raises(RequestUnavailable):
+        fetch_batch(["Lightning Bolt"])
 
 def test_fetch_single_exact_success(monkeypatch: MonkeyPatch) -> None:
     def fake_get(
@@ -155,6 +155,8 @@ def test_fetch_single_failure(monkeypatch: MonkeyPatch) -> None:
     result = fetch_single("Unknown Card")
     assert result is None
 
+# Returning None here used to read as "confirmed missing", which put a
+# real card on the 7-day card_lookup_failures list
 def test_fetch_single_bad_200_response(monkeypatch: MonkeyPatch) -> None:
     def fake_get(
         method: str,
@@ -170,5 +172,5 @@ def test_fetch_single_bad_200_response(monkeypatch: MonkeyPatch) -> None:
 
     monkeypatch.setattr("requests.request", fake_get)
 
-    result = fetch_single("Lightning Bolt")
-    assert result is None
+    with pytest.raises(RequestUnavailable):
+        fetch_single("Lightning Bolt")
