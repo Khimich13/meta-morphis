@@ -435,4 +435,22 @@ def test_process_batch_request_skips_malformed_card(conn: sqlite3.Connection) ->
     cards, unresolved = _process_batch_request(conn, raw)
 
     assert [c.name for c in cards] == ["Shock"]
-    assert unresolved == []
+    assert unresolved == ["No Id Card"]
+
+# An outdated card whose refreshed entry can't be parsed used to vanish
+# from the output instead of falling back to its stale cached copy
+def test_fetch_updates_for_outdated_keeps_card_with_malformed_refresh(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
+    outdated = [_card("Sai, Master Thopterist"), _card("Counterspell")]
+
+    monkeypatch.setattr(
+        "meta_morphis.scryfall.service.fetch_batch",
+        lambda names: {
+            "data": [{"name": "Sai, Master Thopterist"}, {"id": "2", "name": "Counterspell"}],
+            "not_found": [],
+        }
+    )
+
+    updates, unrecognized = _fetch_updates_for_outdated(conn, outdated)
+
+    assert [c.name for c in updates] == ["Counterspell"]
+    assert [c.name for c in unrecognized] == ["Sai, Master Thopterist"]

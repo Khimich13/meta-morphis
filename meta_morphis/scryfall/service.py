@@ -123,16 +123,19 @@ def _to_card(raw: dict[str, Any]) -> Card | None:
 def _process_batch_request(conn: sqlite3.Connection, raw: dict[str, Any]) -> tuple[list[Card], list[str]]:
     cards: list[Card] = []
     # Requested names that did NOT resolve to a card this run, whether
-    # Scryfall confirmed the name doesn't exist or we simply couldn't
-    # check because of an outage - either way, there's no refreshed card
-    # for it right now. Only a confirmed miss is ever recorded via
-    # record_bad_name_attempt; an outage never is
+    # Scryfall confirmed the name doesn't exist, sent data we couldn't
+    # parse, or we simply couldn't check because of an outage - either
+    # way, there's no refreshed card for it right now. Only a confirmed
+    # miss is ever recorded via record_bad_name_attempt; an outage never is
     unresolved_names: list[str] = []
 
     for entry in raw.get("data", []):
         card = _to_card(entry)
         if card:
             cards.append(card)
+        elif "name" in entry:
+            # Reported, so a refresh serves the stale copy instead of dropping it
+            unresolved_names.append(entry["name"])
 
     not_found = raw.get("not_found", [])
     if not_found:
