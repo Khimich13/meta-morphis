@@ -221,8 +221,9 @@ def test_request_failure(monkeypatch: MonkeyPatch) -> None:
     with pytest.raises(RequestUnavailable):
         request_with_retries("GET", "http://fake", max_retries=3)
 
-# A clean 404 means "this genuinely doesn't exist" and must return None immediately
-def test_request_not_found_returns_none_without_retrying(monkeypatch: MonkeyPatch) -> None:
+# A clean 404/422 means "this genuinely doesn't exist" and must return None immediately
+@pytest.mark.parametrize("status", [404, 422])
+def test_request_not_found_returns_none_without_retrying(monkeypatch: MonkeyPatch, status: int) -> None:
     calls: list[int] = []
 
     def fake_request(
@@ -235,7 +236,7 @@ def test_request_not_found_returns_none_without_retrying(monkeypatch: MonkeyPatc
         timeout: float = 10
     ) -> FakeResponse:
         calls.append(1)
-        return FakeResponse(404, "not found")
+        return FakeResponse(status, "not found")
 
     monkeypatch.setattr("requests.request", fake_request)
     monkeypatch.setattr("time.sleep", lambda x: None)
@@ -255,6 +256,47 @@ def test_request_network_error_raises_after_retries(monkeypatch: MonkeyPatch) ->
 
     with pytest.raises(RequestUnavailable):
         request_with_retries("GET", "http://fake", max_retries=3)
+
+# min_delay=0.0 keeps pacing out of `slept` - with sleep mocked no real time
+# passes between attempts, so pacing would otherwise add its own sleeps.
+def test_request_network_error_backs_off_exponentially(monkeypatch: MonkeyPatch) -> None:
+    import requests
+
+    def fake_request(*args: Any, **kwargs: Any) -> FakeResponse:
+        raise requests.ConnectionError("boom")
+
+    monkeypatch.setattr("requests.request", fake_request)
+
+    slept: list[float] = []
+    monkeypatch.setattr("time.sleep", lambda x: slept.append(x))
+
+    with pytest.raises(RequestUnavailable):
+        request_with_retries("GET", "http://fake", max_retries=3, min_delay=0.0, backoff_base=0.5)
+
+    # No sleep after the last attempt - it raises instead
+    assert slept == [0.5, 1.0]
+
+def test_request_server_error_backs_off_exponentially(monkeypatch: MonkeyPatch) -> None:
+    def fake_request(
+        method: str,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
+        json: Any = None,
+        timeout: float = 10
+    ) -> FakeResponse:
+        return FakeResponse(503, "unavailable")
+
+    monkeypatch.setattr("requests.request", fake_request)
+
+    slept: list[float] = []
+    monkeypatch.setattr("time.sleep", lambda x: slept.append(x))
+
+    with pytest.raises(RequestUnavailable):
+        request_with_retries("GET", "http://fake", max_retries=3, min_delay=0.0, backoff_base=0.5)
+
+    assert slept == [0.5, 1.0]
 
 def test_request_rate_limit_exhausted_raises(monkeypatch: MonkeyPatch) -> None:
     def fake_request(

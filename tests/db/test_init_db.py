@@ -1,4 +1,5 @@
 import sqlite3
+from pathlib import Path
 
 import pytest
 
@@ -30,6 +31,15 @@ def test_init_db_creates_all_expected_tables() -> None:
         "meta_refresh",
         "meta",
     }
+
+# Uses a file - an in-memory database can't be put in WAL mode at all.
+# The mode is stored in the file itself, so a fresh connection sees it.
+def test_init_db_enables_wal(db_file: Path) -> None:
+    conn = sqlite3.connect(db_file)
+    mode = conn.execute("PRAGMA journal_mode").fetchone()[0]
+    conn.close()
+
+    assert mode == "wal"
 
 def test_init_db_is_idempotent() -> None:
     conn = sqlite3.connect(":memory:")
