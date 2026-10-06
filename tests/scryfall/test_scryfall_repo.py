@@ -3,7 +3,9 @@ import sqlite3
 import time
 
 import pytest
+from pytest import MonkeyPatch
 
+from meta_morphis import config
 from meta_morphis.models.card import Card
 from meta_morphis.scryfall.repo import (
     get_card_from_cache,
@@ -209,6 +211,30 @@ def test_should_skip_lookup_after_cooldown(conn: sqlite3.Connection) -> None:
     """, (normalize_name("BadName"), old))
 
     assert should_skip_lookup(conn, "BadName", cooldown=10) is False
+
+# Written by a clock that ran ahead - must not extend the cooldown
+def test_should_skip_lookup_future_attempt(conn: sqlite3.Connection) -> None:
+    future = int(time.time()) + 3600
+
+    conn.execute("""
+        INSERT INTO card_lookup_failures (name, last_attempt)
+        VALUES (?, ?)
+    """, (normalize_name("BadName"), future))
+
+    assert should_skip_lookup(conn, "BadName", cooldown=999999) is False
+
+# The default used to be bound at import time, so patching config did nothing
+def test_should_skip_lookup_default_cooldown_follows_config(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
+    old = int(time.time()) - 100
+
+    conn.execute("""
+        INSERT INTO card_lookup_failures (name, last_attempt)
+        VALUES (?, ?)
+    """, (normalize_name("BadName"), old))
+
+    monkeypatch.setattr(config, "SCRYFALL_BAD_NAMES_LOOKUP_COOLDOWN", 10)
+
+    assert should_skip_lookup(conn, "BadName") is False
 
 def test_record_bad_name_attempt_updates(conn: sqlite3.Connection) -> None:
     old = int(time.time()) - 999999

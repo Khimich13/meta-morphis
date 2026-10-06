@@ -115,9 +115,13 @@ def record_bad_name_attempt(conn: sqlite3.Connection, name: str) -> None:
         int(time.time())
     ))
 
-def should_skip_lookup(conn: sqlite3.Connection, name: str, cooldown: int = config.SCRYFALL_BAD_NAMES_LOOKUP_COOLDOWN) -> bool:
+def should_skip_lookup(conn: sqlite3.Connection, name: str, cooldown: int | None = None) -> bool:
+    # Default resolved at call time, not import time, so it follows config
+    if cooldown is None:
+        cooldown = config.SCRYFALL_BAD_NAMES_LOOKUP_COOLDOWN
+
     key = normalize_name(name)
-    cutoff = int(time.time()) - cooldown
+    now = int(time.time())
 
     c = conn.cursor()
     c.execute("""
@@ -130,5 +134,7 @@ def should_skip_lookup(conn: sqlite3.Connection, name: str, cooldown: int = conf
     if not row:
         return False
 
+    # An attempt "in the future" was written by a clock that ran ahead -
+    # don't let it extend the cooldown, look the name up again instead.
     last_attempt = int(row[0])
-    return last_attempt > cutoff
+    return now - cooldown < last_attempt <= now

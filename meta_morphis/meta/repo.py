@@ -14,8 +14,10 @@ def should_refresh_meta(conn: sqlite3.Connection, format_name: str) -> bool:
     if row is None:
         return True # never scraped before
 
-    last_updated = row[0]
-    return (time.time() - last_updated) > config.GOLDFISH_REFRESH_RATE
+    # A negative age means the timestamp was written by a clock that ran
+    # ahead - treat it as stale, or refreshing stops until time catches up.
+    age = time.time() - row[0]
+    return age < 0 or age > config.GOLDFISH_REFRESH_RATE
 
 def update_meta_timestamp(conn: sqlite3.Connection, format_name: str) -> None:
     c = conn.cursor()
@@ -31,7 +33,7 @@ def get_meta_from_cache(conn: sqlite3.Connection, format_name: str) -> list[Meta
         SELECT name, rank, percent, avg_copies, lookup_name
         FROM meta
         WHERE format = ?
-        ORDER BY rank ASC
+        ORDER BY rank IS NULL, rank
     """, (format_name,)).fetchall()
 
     meta: list[MetaEntry] = []

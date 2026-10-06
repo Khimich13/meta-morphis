@@ -68,7 +68,8 @@ def _classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[li
         cached = get_card_from_cache(conn, name)
 
         if cached:
-            if cached.age > config.SCRYFALL_REFRESH_RATE:
+            # Negative age = written by a clock that ran ahead, treat as stale
+            if cached.age < 0 or cached.age > config.SCRYFALL_REFRESH_RATE:
                 if should_skip_lookup(conn, name):
                     # A refresh was recently confirmed to fail for this
                     # name - serve the stale copy instead of

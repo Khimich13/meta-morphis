@@ -93,6 +93,23 @@ def test_classify_cards_skips_outdated_card_within_cooldown(conn: sqlite3.Connec
     assert outdated == []
     assert missing == []
 
+# A negative age means the card was cached by a clock that ran ahead
+def test_classify_cards_treats_future_cached_card_as_outdated(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "meta_morphis.scryfall.service.should_skip_lookup",
+        lambda conn, name: False
+    )
+    monkeypatch.setattr(
+        "meta_morphis.scryfall.service.get_card_from_cache",
+        lambda conn, name: _card(name, age=-3600)
+    )
+
+    fresh, outdated, missing = _classify_cards(conn, [MetaEntry(name="Counterspell", rank=1)])
+
+    assert fresh == []
+    assert [c.name for c in outdated] == ["Counterspell"]
+    assert missing == []
+
 def test_fetch_updates_for_outdated(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
     outdated = [_card("Unknown"), _card("Cancel")]
 

@@ -35,6 +35,18 @@ def test_should_refresh_meta_fresh(conn: sqlite3.Connection) -> None:
 
     assert should_refresh_meta(conn, "pauper") is False
 
+# Written by a clock that ran ahead - must not block refreshing until
+# real time catches up with it
+def test_should_refresh_meta_future_timestamp(conn: sqlite3.Connection) -> None:
+    future_time = int(time.time()) + 3600
+
+    conn.execute(
+        "INSERT INTO meta_refresh VALUES (?, ?)",
+        ("pauper", future_time)
+    )
+
+    assert should_refresh_meta(conn, "pauper") is True
+
 def test_update_meta_timestamp_insert(conn: sqlite3.Connection) -> None:
     update_meta_timestamp(conn, "pauper")
 
@@ -71,6 +83,19 @@ def test_get_meta_from_cache(conn: sqlite3.Connection) -> None:
     assert len(result) == 1
     assert isinstance(result[0], MetaEntry)
     assert result[0].name == "Bolt"
+
+# SQLite sorts NULL before any number in ascending order
+def test_get_meta_from_cache_puts_unranked_last(conn: sqlite3.Connection) -> None:
+    conn.execute("""
+        INSERT INTO meta VALUES
+            ('Unranked', 'pauper', NULL, 5.0, 1, NULL),
+            ('Second', 'pauper', 2, 10.0, 1, NULL),
+            ('First', 'pauper', 1, 25.0, 1, NULL)
+    """)
+
+    result = get_meta_from_cache(conn, "pauper")
+
+    assert [e.name for e in result] == ["First", "Second", "Unranked"]
 
 def test_save_meta_to_cache(conn: sqlite3.Connection) -> None:
     # old data
