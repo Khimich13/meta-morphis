@@ -20,6 +20,7 @@ GOLDFISH_BAD_ROWS_LIMIT = 10
 # Scryfall
 SCRYFALL_COLLECTION_URL = "https://api.scryfall.com/cards/collection"
 SCRYFALL_NAMED_URL = "https://api.scryfall.com/cards/named"
+SCRYFALL_SYMBOLOGY_URL = "https://api.scryfall.com/symbology"
 SCRYFALL_HEADERS = {
     "User-Agent": "meta-morphis/0.1.0 (+https://github.com/Khimich13/meta-morphis)",
     "Accept": "application/json",
@@ -32,6 +33,13 @@ SCRYFALL_BAD_NAMES_LOOKUP_COOLDOWN = 7 * _DAY
 # (https://scryfall.com/docs/api/rate-limits)
 SCRYFALL_MIN_DELAY = 0.5
 SCRYFALL_RATE_LIMIT_COOLDOWN = 30.0
+
+# PWA data export
+# A format with fewer cards than this resolved to Scryfall data is not
+# published - the previous pack is carried forward instead.
+EXPORT_MIN_CARDS = 45
+# Meta older than this is flagged stale in the manifest
+EXPORT_STALE_AFTER = 2 * _DAY
 
 # Database
 PROJECT_ROOT = Path(__file__).resolve().parents[1]

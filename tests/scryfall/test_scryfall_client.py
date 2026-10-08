@@ -5,7 +5,7 @@ import pytest
 from pytest import MonkeyPatch
 
 from meta_morphis import config
-from meta_morphis.scryfall.client import fetch_batch, fetch_single
+from meta_morphis.scryfall.client import fetch_batch, fetch_single, fetch_symbology
 from meta_morphis.utils.http import RequestUnavailable
 
 
@@ -183,6 +183,7 @@ def test_fetch_single_bad_200_response(monkeypatch: MonkeyPatch) -> None:
 @pytest.mark.parametrize("call", [
     lambda: fetch_batch(["Lightning Bolt"]),
     lambda: fetch_single("Lightning Bolt"),
+    lambda: fetch_symbology(),
 ])
 def test_requests_use_scryfall_pacing(monkeypatch: MonkeyPatch, call: Any) -> None:
     seen: list[dict[str, Any]] = []
@@ -202,3 +203,34 @@ def test_requests_use_scryfall_pacing(monkeypatch: MonkeyPatch, call: Any) -> No
         assert kwargs["min_delay"] == config.SCRYFALL_MIN_DELAY
         assert kwargs["default_retry_after"] == config.SCRYFALL_RATE_LIMIT_COOLDOWN
         assert kwargs["headers"] == config.SCRYFALL_HEADERS
+
+def test_fetch_symbology_success(monkeypatch: MonkeyPatch) -> None:
+    payload = {
+        "object": "list",
+        "data": [{
+            "symbol": "{U}",
+            "english": "one blue mana",
+            "svg_uri": "https://svgs.scryfall.io/card-symbols/U.svg",
+        }],
+    }
+
+    def fake_get(method: str, url: str, **kwargs: Any) -> FakeResponse:
+        assert method == "GET"
+        assert url == config.SCRYFALL_SYMBOLOGY_URL
+        return FakeResponse(200, payload)
+
+    monkeypatch.setattr("requests.request", fake_get)
+
+    assert fetch_symbology() == payload
+
+def test_fetch_symbology_bad_200_response(monkeypatch: MonkeyPatch) -> None:
+    # A block page served as 200 is "we don't know", not an empty list
+    class HtmlResponse(FakeResponse):
+        def __init__(self) -> None:
+            super().__init__(200, {})
+            self.text = "<html>blocked</html>"
+
+    monkeypatch.setattr("requests.request", lambda *a, **k: HtmlResponse())
+
+    with pytest.raises(RequestUnavailable):
+        fetch_symbology()

@@ -25,6 +25,14 @@ def fetch_single(name: str) -> dict[str, Any] | None:
         return None
     return _parse_json(raw)
 
+def fetch_symbology() -> dict[str, Any] | None:
+    # Every card symbol ({U}, {T}, hybrid, Phyrexian...) with its SVG
+    # and an English description, in one list response.
+    raw = _request("GET", config.SCRYFALL_SYMBOLOGY_URL)
+    if raw is None:
+        return None
+    return _parse_json(raw)
+
 def _request(
     method: str,
     url: str,
