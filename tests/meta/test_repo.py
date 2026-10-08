@@ -4,12 +4,32 @@ import time
 from meta_morphis import config
 from meta_morphis.meta.repo import (
     get_meta_from_cache,
+    get_meta_timestamp,
     save_meta_to_cache,
     should_refresh_meta,
     update_meta_timestamp,
 )
 from meta_morphis.models.meta import MetaEntry
 
+
+def test_get_meta_timestamp_never_scraped(conn: sqlite3.Connection) -> None:
+    assert get_meta_timestamp(conn, "pauper") is None
+
+def test_get_meta_timestamp_after_update(conn: sqlite3.Connection) -> None:
+    before = int(time.time())
+    update_meta_timestamp(conn, "pauper")
+
+    timestamp = get_meta_timestamp(conn, "pauper")
+    assert timestamp is not None
+    assert before <= timestamp <= int(time.time())
+
+def test_get_meta_timestamp_is_per_format(conn: sqlite3.Connection) -> None:
+    conn.execute("INSERT INTO meta_refresh VALUES (?, ?)", ("pauper", 1000))
+    conn.execute("INSERT INTO meta_refresh VALUES (?, ?)", ("pioneer", 2000))
+
+    assert get_meta_timestamp(conn, "pauper") == 1000
+    assert get_meta_timestamp(conn, "pioneer") == 2000
+    assert get_meta_timestamp(conn, "modern") is None
 
 def test_should_refresh_meta_no_row(conn: sqlite3.Connection) -> None:
     assert should_refresh_meta(conn, "pauper") is True

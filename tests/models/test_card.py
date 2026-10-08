@@ -37,6 +37,7 @@ def test_missing_mana_cost() -> None:
     }
     card = Card.from_raw(raw)
     assert card.mana_cost is None
+
 def test_new_fields_default_when_absent() -> None:
     # Minimal objects, as the cache and service tests build them, must
     # keep parsing - every new field is optional.
