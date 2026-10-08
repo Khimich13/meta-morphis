@@ -224,6 +224,66 @@ def test_request_retry_after_non_finite_falls_back_to_backoff(monkeypatch: Monke
     assert result == "OK"
     assert slept == [0.5]
 
+# A 429 without Retry-After falls back to default_retry_after when the
+# caller knows the API's lockout length, instead of retrying on the
+# short backoff inside the lockout.
+def test_request_429_without_retry_after_uses_default(monkeypatch: MonkeyPatch) -> None:
+    calls: list[int] = []
+
+    def fake_request(
+        method: str,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
+        json: Any = None,
+        timeout: float = 10
+    ) -> FakeResponse:
+        calls.append(1)
+        if len(calls) == 1:
+            return FakeResponse(429, "rate")
+        return FakeResponse(200, "OK")
+
+    monkeypatch.setattr("requests.request", fake_request)
+
+    slept: list[float] = []
+    monkeypatch.setattr("time.sleep", lambda x: slept.append(x))
+
+    result = request_with_retries(
+        "GET", "http://fake", max_retries=3, backoff_base=0.5, default_retry_after=30.0
+    )
+    assert result == "OK"
+    assert slept == [30.0]
+
+# The server's own Retry-After still wins over default_retry_after.
+def test_request_retry_after_header_beats_default(monkeypatch: MonkeyPatch) -> None:
+    calls: list[int] = []
+
+    def fake_request(
+        method: str,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
+        json: Any = None,
+        timeout: float = 10
+    ) -> FakeResponse:
+        calls.append(1)
+        if len(calls) == 1:
+            return FakeResponse(429, "rate", headers={"Retry-After": "2"})
+        return FakeResponse(200, "OK")
+
+    monkeypatch.setattr("requests.request", fake_request)
+
+    slept: list[float] = []
+    monkeypatch.setattr("time.sleep", lambda x: slept.append(x))
+
+    result = request_with_retries(
+        "GET", "http://fake", max_retries=3, default_retry_after=30.0
+    )
+    assert result == "OK"
+    assert slept == [2.0]
+
 def test_request_failure(monkeypatch: MonkeyPatch) -> None:
     def fake_request(
         method: str,

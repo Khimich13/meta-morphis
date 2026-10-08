@@ -102,7 +102,9 @@ def test_fetch_single_exact_success(monkeypatch: MonkeyPatch) -> None:
 def test_fetch_single_fuzzy_success(monkeypatch: MonkeyPatch) -> None:
     calls: list[Any] = []
 
-    def fake_request_with_retries(method: str, url: str, headers: Any, params: Any) -> str | None:
+    def fake_request_with_retries(
+        method: str, url: str, headers: Any, params: Any, **kwargs: Any
+    ) -> str | None:
         calls.append(params)
         if params == {"exact": "Lightning Bolt"}:
             return None
@@ -174,3 +176,29 @@ def test_fetch_single_bad_200_response(monkeypatch: MonkeyPatch) -> None:
 
     with pytest.raises(RequestUnavailable):
         fetch_single("Lightning Bolt")
+
+# Scryfall allows 2 requests/second on these endpoints and locks the
+# client out for 30s after a 429 - every call must carry those settings,
+# not request_with_retries' faster generic defaults.
+@pytest.mark.parametrize("call", [
+    lambda: fetch_batch(["Lightning Bolt"]),
+    lambda: fetch_single("Lightning Bolt"),
+])
+def test_requests_use_scryfall_pacing(monkeypatch: MonkeyPatch, call: Any) -> None:
+    seen: list[dict[str, Any]] = []
+
+    def fake_request_with_retries(method: str, url: str, **kwargs: Any) -> str | None:
+        seen.append(kwargs)
+        return json.dumps({"name": "Lightning Bolt"})
+
+    monkeypatch.setattr(
+        "meta_morphis.scryfall.client.request_with_retries",
+        fake_request_with_retries
+    )
+
+    call()
+    assert seen
+    for kwargs in seen:
+        assert kwargs["min_delay"] == config.SCRYFALL_MIN_DELAY
+        assert kwargs["default_retry_after"] == config.SCRYFALL_RATE_LIMIT_COOLDOWN
+        assert kwargs["headers"] == config.SCRYFALL_HEADERS

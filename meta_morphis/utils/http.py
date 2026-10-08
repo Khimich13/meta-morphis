@@ -39,7 +39,8 @@ def request_with_retries(
     max_retries: int = 3,
     min_delay: float = 0.2,
     backoff_base: float = 0.5,
-    max_retry_after: float = 60.0
+    max_retry_after: float = 60.0,
+    default_retry_after: float | None = None
 ) ->  str | None:
 
     global _last_request_time
@@ -95,6 +96,12 @@ def request_with_retries(
                         delay = max(0.0, min(parsed, max_retry_after))
                 except ValueError:
                     pass
+            if delay is None and default_retry_after is not None:
+                # Some APIs lock you out for a fixed time after a 429
+                # without saying so in Retry-After (Scryfall: 30s) -
+                # retrying on the short backoff would land inside that
+                # lockout and only count as more overload.
+                delay = max(0.0, min(default_retry_after, max_retry_after))
             if delay is None:
                 delay = backoff_base * (2 ** attempt)
 

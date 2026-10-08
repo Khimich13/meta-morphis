@@ -8,10 +8,9 @@ from meta_morphis.utils.http import RequestUnavailable, request_with_retries
 def fetch_batch(names: list[str]) -> dict[str, Any] | None:
     identifiers = [{"name": n} for n in names]
 
-    raw = request_with_retries(
+    raw = _request(
         "POST",
         config.SCRYFALL_COLLECTION_URL,
-        headers=config.SCRYFALL_HEADERS,
         json={"identifiers": identifiers},
     )
     if raw is None:
@@ -19,22 +18,30 @@ def fetch_batch(names: list[str]) -> dict[str, Any] | None:
     return _parse_json(raw)
 
 def fetch_single(name: str) -> dict[str, Any] | None:
-    raw = request_with_retries(
-        "GET",
-        url=config.SCRYFALL_NAMED_URL,
-        headers=config.SCRYFALL_HEADERS,
-        params={"exact": name}
-    )
+    raw = _request("GET", config.SCRYFALL_NAMED_URL, params={"exact": name})
     if raw is None:
-        raw = request_with_retries(
-            "GET",
-            url=config.SCRYFALL_NAMED_URL,
-            headers=config.SCRYFALL_HEADERS,
-            params={"fuzzy": name}
-        )
+        raw = _request("GET", config.SCRYFALL_NAMED_URL, params={"fuzzy": name})
     if raw is None:
         return None
     return _parse_json(raw)
+
+def _request(
+    method: str,
+    url: str,
+    params: dict[str, Any] | None = None,
+    json: dict[str, Any] | None = None,
+) -> str | None:
+    # Every Scryfall call goes through here so none of them can skip the
+    # API's pacing and 429-lockout rules.
+    return request_with_retries(
+        method,
+        url=url,
+        headers=config.SCRYFALL_HEADERS,
+        params=params,
+        json=json,
+        min_delay=config.SCRYFALL_MIN_DELAY,
+        default_retry_after=config.SCRYFALL_RATE_LIMIT_COOLDOWN,
+    )
 
 def _parse_json(raw: str) -> dict[str, Any]:
     # A 200 whose body isn't JSON (a proxy or antivirus block page, say)
