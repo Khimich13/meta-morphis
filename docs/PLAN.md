@@ -24,7 +24,7 @@ There is no HTTP API and no frontend yet. `pwa/data/*.json` are empty placeholde
 
 | Source | What it says (verified 2026-10-06) | Effect on this plan |
 |---|---|---|
-| **MTGGoldfish Terms of Use** | "intended solely for personal, non-commercial use… You may not reproduce…, publish, transmit, distribute, display, modify, create derivative works from… any of the contents". robots.txt does **not** disallow `/format-staples/` and has no crawl-delay. | **Not a blocker for a private MVP. It is a blocker for any public launch.** A GitHub Pages URL can be reached by anyone, so "friends only" is only privacy by obscurity. Before sharing widely, get written permission or change the meta source (open question 1). Packs ship only rank, an integer decks %, and average copies, with attribution. |
+| **MTGGoldfish Terms of Use** | "intended solely for personal, non-commercial use… You may not reproduce…, publish, transmit, distribute, display, modify, create derivative works from… any of the contents". robots.txt does **not** disallow `/format-staples/` and has no crawl-delay. | **Not a blocker for a private MVP. It is a blocker for any public launch.** A GitHub Pages URL can be reached by anyone, so "friends only" is only privacy by obscurity. Before sharing widely, get written permission or change the meta source (open question 1). Packs publish only the card list for now, with attribution (decided 2026-10-10). Rank, deck % and copy counts are optional in the format and switched off (decision 11). |
 | **Scryfall API terms** | Data is free "for the primary purpose of creating additional Magic software". You may not paywall it. You "may not use Scryfall data to create new games". You may not "simply repackage, republish, or proxy". | Fine. The app is a study tool about Magic cards, and it adds value: packs carry about 5% of Scryfall's fields, reshaped for quizzes. |
 | **Scryfall image rules** | "Do not cover, crop, or clip off the copyright or artist name". No distort, blur, desaturate or color-shift. No watermarks. `art_crop` requires listing the artist and copyright in the same interface. | **We never draw over card images** (decision 5). UI rule: never apply CSS `filter`, `opacity` dimming or stretching to a card image. |
 | **Scryfall rate limits** | `/cards/collection`, `/cards/named` and `/cards/search` allow **2 requests/second**. A 429 locks the client out for 30 s. `*.scryfall.io` has no limits. The User-Agent must be `AppName/version`. | **The current backend breaks this.** `request_with_retries` paces at `min_delay=0.2` (5 req/s), and on a 429 it retries after 0.5 s and 1 s, inside the lockout. Fixing this is Phase 0.1. |
@@ -46,6 +46,7 @@ There is no HTTP API and no frontend yet. `pwa/data/*.json` are empty placeholde
 | 8 | Mistakes | **No hearts.** A wrong item is re-asked once at the end of the lesson and goes into review. | Your choice. | Hearts. |
 | 9 | Symbols | Scryfall `/symbology`: `svg_uri` on `svgs.scryfall.io` (CORS `*`, cached), with the `english` field as `aria-label`. Exported as `symbols.<hash>.json`. | Official artwork and accessible names. | `mana-font` 1.18.0: last published 2024-11 and has no alt text. |
 | 10 | Pauper list | Change `config.GOLDFISH_FORMAT_URLS["pauper"]` from `/full/spells` to **`/full/all`** | Verified today: `/spells` leaves out creatures. Eleven of the `/all` top 50 are missing, including Guttersnipe, Baleful Strix and Writhing Chrysalis. `/all` has no lands, which matches the other formats. | Keeping `/spells`. |
+| 11 | Meta data in packs | **None for now** (decided 2026-10-10): no rank, deck % or copy counts. The pack format has an optional `meta` object and the exporter has `EXPORT_META_FIELDS = ()`, so any of them can be switched on later without a new format version. | Simpler exporter with no pairing step. Publishes the least MTGGoldfish content: only which 50 cards. Packs change only when a card enters or leaves the list. Cost: cards are taught in a per-device shuffled order, not most-played first. | Rank only (better teaching order, a little more exposure). All three values (enables two more question types, most exposure). |
 
 **Where your framing changes:**
 - Lighthouse 12 **removed the PWA category**, so PWA checks become Playwright assertions (§7).
@@ -67,7 +68,7 @@ There is no HTTP API and no frontend yet. `pwa/data/*.json` are empty placeholde
  │ api.scryfall.com/symbology (1 req) ──────────────────────┤                    │
  │                                       SQLite data/cards.db                    │
  │                                               ▼                               │
- │            python -m meta_morphis.export  (pair → build → hash → write)       │
+ │            python -m meta_morphis.export  (build → hash → write)              │
  │                                               ▼                               │
  │   web/public/data/manifest.json · packs/<fmt>.<sha12>.json · symbols.<sha12>.json
  │                                               ▼                               │
@@ -123,13 +124,13 @@ The JSON Schemas in `schema/` at the repo root are the source of truth: `manifes
   "schema": 1,
   "format": "pauper",
   "source": { "meta": "MTGGoldfish", "meta_url": "https://www.mtggoldfish.com/format-staples/pauper/full/all", "cards": "Scryfall" },
-  "cards": [ /* PackCard, sorted by rank */ ]
+  "cards": [ /* PackCard, sorted by name; by rank once meta.rank is published */ ]
 }
 ```
 **PackCard** fields:
 - `oracle_id`, `scryfall_id` (the printing used for images), `name` (display name, from `Card.name`, which comes from the raw JSON)
 - `layout`, `cmc`, `color_identity[]`, `keywords[]`, `scryfall_uri`
-- `meta`: `{ rank, decks_pct: int, avg_copies: float }`
+- `meta` (**optional, not published for now**): `{ rank?, decks_pct?: int, avg_copies?: float }`. The exporter writes only the fields named in `config.EXPORT_META_FIELDS`, and leaves the whole object out while that is empty. The app must work without it.
 - `faces[]`: one entry for single-faced cards
 - `sides[]`: physical images. 2 for transform/MDFC; 1 for normal, split, adventure and flip.
 - `name_tokens[]`: used for redaction and leak checks
@@ -153,7 +154,6 @@ The JSON Schemas in `schema/` at the repo root are the source of truth: `manifes
   "scryfall_id": "4c9c9b16-5567-4473-95e6-622292f77336",
   "name": "Hydroblast", "layout": "normal", "cmc": 1, "color_identity": ["U"], "keywords": [],
   "scryfall_uri": "https://scryfall.com/card/ema/55/hydroblast",
-  "meta": { "rank": 1, "decks_pct": 34, "avg_copies": 3.3 },
   "name_tokens": ["Hydroblast"],
   "faces": [{
     "name": "Hydroblast", "mana_cost": "{U}", "type_line": "Instant", "colors": ["U"],
@@ -183,7 +183,6 @@ The JSON Schemas in `schema/` at the repo root are the source of truth: `manifes
   "name": "Fable of the Mirror-Breaker // Reflection of Kiki-Jiki", "layout": "transform",
   "cmc": 3, "color_identity": ["R"], "keywords": ["Transform", "Treasure"],
   "scryfall_uri": "https://scryfall.com/card/neo/141/fable-of-the-mirror-breaker-reflection-of-kiki-jiki",
-  "meta": { "rank": 43, "decks_pct": 12, "avg_copies": 2.9 },
   "name_tokens": ["Fable of the Mirror-Breaker // Reflection of Kiki-Jiki", "Fable of the Mirror-Breaker", "Reflection of Kiki-Jiki"],
   "faces": [
     { "name": "Fable of the Mirror-Breaker", "mana_cost": "{2}{R}", "type_line": "Enchantment — Saga", "colors": ["R"],
@@ -253,7 +252,7 @@ The CLI in `main.py` keeps working unchanged.
 1. `meta_morphis/config.py`
    - Pauper URL → `/full/all`.
    - `SCRYFALL_HEADERS["User-Agent"] = "meta-morphis/0.1.0 (+https://github.com/Khimich13/meta-morphis)"`.
-   - Add `SCRYFALL_MIN_DELAY = 0.5`, `SCRYFALL_RATE_LIMIT_COOLDOWN = 30.0`, `SCRYFALL_SYMBOLOGY_URL`, `EXPORT_MIN_CARDS = 45`, `EXPORT_STALE_AFTER = 2 * _DAY`.
+   - Add `SCRYFALL_MIN_DELAY = 0.5`, `SCRYFALL_RATE_LIMIT_COOLDOWN = 30.0`, `SCRYFALL_SYMBOLOGY_URL`, `EXPORT_MIN_CARDS = 45`, `EXPORT_STALE_AFTER = 2 * _DAY`, `EXPORT_META_FIELDS: tuple[str, ...] = ()` (which of `rank`, `decks_pct`, `avg_copies` to publish; empty for now).
 2. `meta_morphis/utils/http.py`: new parameter `default_retry_after: float | None = None` on `request_with_retries`, used when a 429 has no `Retry-After`. It is clamped by the existing `max_retry_after`. Defaults are unchanged, so existing tests still pass.
 3. `meta_morphis/scryfall/client.py`
    - `fetch_batch` and `fetch_single` pass `min_delay=config.SCRYFALL_MIN_DELAY, default_retry_after=config.SCRYFALL_RATE_LIMIT_COOLDOWN`.
@@ -270,14 +269,15 @@ The CLI in `main.py` keeps working unchanged.
    - `text.py` (pure functions):
      - `name_tokens(card)`: the full name, each face name, and the short name of a legendary ("Sheoldred, the Apocalypse" → "Sheoldred").
      - `segment_text(oracle_text, tokens, keywords) -> list[TextSegment]`: finds reminder parentheses, self-references (whole word, longest first), and cloze candidates from fixed word lists. Candidates must appear exactly once.
-   - `build.py`: `build_card(entry: MetaEntry, card: Card) -> PackCard`, and `build_pack(format_name, pairs) -> Pack`, which sorts by rank and dedupes by `oracle_id`, keeping the best rank.
+   - `build.py`: `build_card(card: Card, entry: MetaEntry | None = None) -> PackCard`, which adds `meta` only when an entry is passed, and `build_pack(format_name, cards) -> Pack`, which dedupes by `oracle_id` and sorts by name.
    - `writer.py`:
      - `canonical_json(obj) -> bytes`: `sort_keys`, compact separators, `ensure_ascii=False`.
      - `write_pack(out_dir, pack) -> ManifestFormat`: sha256, filename `<fmt>.<sha12>.json`, temp file then `os.replace`.
      - `write_symbols`, `write_manifest`, `load_previous_manifest(out_dir)`, `prune(out_dir, keep)`.
    - `service.py`:
-     - `pair_meta_with_cards(conn, meta) -> tuple[list[tuple[MetaEntry, Card]], list[MetaEntry]]` **(fixes quirk 2)**. After `fetch_cards` fills the cache, it calls the existing `get_card_from_cache(conn, entry.lookup_name or entry.name)`. That reuses the alias table: face aliases cover Goldfish's "Fable of the Mirror-Breaker" (listed without its back face) and "Unholy Annex // Ritual Chamber" (with `lookup_name`), and the fuzzy aliases from `add_alias` also resolve.
-     - `export_formats(conn, formats, out_dir) -> ExportReport`. Per format: `get_meta_cards` → `fetch_cards` → pair → if fewer than `EXPORT_MIN_CARDS` paired, fail **this format only** and carry forward the previous manifest entry with `stale: true` → build → write. Then write the symbols file (falling back to the previous one) and the manifest.
+     - **Not built now; this is the step to add when `EXPORT_META_FIELDS` is first set.** While no meta data is published, the exporter writes the cards `fetch_cards` returns and quirk 2 doesn't arise.
+       `pair_meta_with_cards(conn, meta) -> tuple[list[tuple[MetaEntry, Card]], list[MetaEntry]]` **(fixes quirk 2)**. After `fetch_cards` fills the cache, it calls the existing `get_card_from_cache(conn, entry.lookup_name or entry.name)`. That reuses the alias table: face aliases cover Goldfish's "Fable of the Mirror-Breaker" (listed without its back face) and "Unholy Annex // Ritual Chamber" (with `lookup_name`), and the fuzzy aliases from `add_alias` also resolve.
+     - `export_formats(conn, formats, out_dir) -> ExportReport`. Per format: `get_meta_cards` → `fetch_cards` → dedupe by `oracle_id` → if fewer than `EXPORT_MIN_CARDS` cards, fail **this format only** and carry forward the previous manifest entry with `stale: true` → build → write. Then write the symbols file (falling back to the previous one) and the manifest.
    - `__main__.py`: argparse `--out`, `--formats` (default: all formats in config), `--fixture-from DIR` (builds the golden fixture from raw JSON files without network access). Exit code 1 only when no format is publishable.
    - **Quirk 1** (`cards.name` holds a normalized key) needs no change. The exporter only reads `Card.name`, the display name from the JSON. Renaming the column to `name_key` stays an optional later cleanup.
    - **Quirk 3** in Phase 0–1: every printing-specific question is dropped (§6). Phase 2 picks a common printing for Pauper (below).
@@ -286,7 +286,7 @@ The CLI in `main.py` keeps working unchanged.
    - `tests/export/test_text.py`: segments rebuild the exact oracle text; redaction covers full name, face names and legendary short names; reminder text is never a cloze; tokens that appear twice are excluded.
    - `tests/export/test_build.py`: normal, transform, split (Room), class and planeswalker fixtures.
    - `tests/export/test_writer.py`: same input gives the same hash; atomic replace; previous entry carried forward; prune.
-   - `tests/export/test_service.py`: pairing through `lookup_name` and face aliases; below-threshold format → stale carry-forward; uses the `conn` fixture and monkeypatched fetchers.
+   - `tests/export/test_service.py`: cards deduped by `oracle_id`; no `meta` key in the output while `EXPORT_META_FIELDS` is empty; below-threshold format → stale carry-forward; uses the `conn` fixture and monkeypatched fetchers.
    - `tests/export/test_contract.py`: output validates against the schemas, and the exporter run on `tests/fixtures/scryfall/*.json` equals the committed `web/tests/fixtures/pack.fixture.json` (golden file shared with Vitest).
    - Additions to `tests/utils/test_request_with_retries.py` (`default_retry_after`), `tests/scryfall/test_scryfall_client.py` (pacing arguments passed, symbology) and `tests/models/test_card.py` (new fields, `gameplay_faces`, `image_sides`).
    - Fixture raw JSON for Hydroblast, Fable, Unholy Annex, Stormchaser's Talent, Sheoldred and Graveyard Trespasser, copied from `data/cards.db`.
@@ -344,7 +344,7 @@ web/
 | Route | Screen |
 |---|---|
 | `#/welcome` | What the app is, format picker, Fan Content notice. On iOS in a browser tab, a nudge to install first (see storage below). |
-| `#/` | Home: unit path (5 units of 10 cards by rank), streak, daily-goal ring, "Start lesson", "Review mistakes (n)", meta-update banner |
+| `#/` | Home: unit path (5 units of 10 cards), streak, daily-goal ring, "Start lesson", "Review mistakes (n)", meta-update banner |
 | `#/lesson/:mode` | `next`, `review` or `unit/:n` |
 | `#/results/:lessonId` | XP, accuracy, cards learned, streak |
 | `#/progress` | Mastery grid per card, plus a list of cards that left the meta |
@@ -436,8 +436,8 @@ interface Option { key: string /* canonical value used for dedupe + grading */; 
 | `type_line` | type line | card text without the type line | `face.type_line` | same-primary-type pack type lines; subtype swaps from the pack's vocabulary; adding/removing Legendary or Artifact | permanents | 2 | 2 |
 | `power_toughness` | P/T | card text without P/T | `"p/t"` | ±1 on either value, ±1 on both, swapped | numeric P and T (not `*`) | 2 | 2 |
 | `oracle_cloze` | one cloze segment | card text with that segment blanked | segment `t` | same-class word list (numbers ±1–2, verbs, card types, zones, colors, keywords in the pack); never one that makes the text equal another card's | `k` ∈ cloze classes | 3 | 2 |
-| `meta_copies` | average copies | name + image, "How many copies does a typical {Format} deck run?" with 1/2/3/4 | `round(avg_copies)`, **only if** it is within 0.3 of the integer | the other integers | format-scoped | 2 | 2 |
-| `meta_compare` | relative popularity | 2 cards, "Which is in more {Format} decks?" | higher `decks_pct` | binary; pair only when the gap is ≥ 8 points | format-scoped | 3 | 3 |
+| `meta_copies` | average copies | name + image, "How many copies does a typical {Format} deck run?" with 1/2/3/4 | `round(avg_copies)`, **only if** it is within 0.3 of the integer | the other integers | format-scoped; **needs `meta.avg_copies`, not published for now** | 2 | later |
+| `meta_compare` | relative popularity | 2 cards, "Which is in more {Format} decks?" | higher `decks_pct` | binary; pair only when the gap is ≥ 8 points | format-scoped; **needs `meta.decks_pct`, not published for now** | 3 | later |
 | `build_mana_cost` | cost (recall, not recognition) | tap symbols to build the cost | exact key | none | as `mana_cost` | 3 | 3 |
 | `type_name` | name (recall) | art, type the name; grading uses a TS port of `normalize_name` plus Damerau-Levenshtein ≤ 2 | name tokens | none | all | 3 | 3 |
 
@@ -496,7 +496,7 @@ composeLesson(pack, items, today, rng, size=10, maxNew=3):
   sched   = items where oracleId ∈ pack ∧ (format == null ∨ format == pack.format)
   due     = sched where dueDate ≤ today, sorted by (dueDate, box)
   newN    = |due| > 20 ? 0 : (|due| > 10 ? 1 : maxNew)
-  newCards= first newN cards by rank with no items, from the lowest unlocked unit
+  newCards= first newN cards in teaching order with no items, from the lowest unlocked unit
   queue   = for c in newCards: [Intro(c), Q(c, tier-1 facet)]
   queue  += take(due, size − scored(queue))
   queue  += take(sched where box ≤ 2 ∧ not due, by lastReviewedAt asc, remaining)
@@ -504,7 +504,8 @@ composeLesson(pack, items, today, rng, size=10, maxNew=3):
   each item → generate(question type for its facet); null → skip and refill
   interleave so the same oracleId is never back to back; Intro stays right before its first question
 ```
-- **Units:** the current pack's rank order, in chunks of 10. Unit n+1 unlocks when every card in unit n is introduced. Unlocked units are stored in `kv` and only ever go up, so a meta shift never re-locks the path. New cards that enter an unlocked unit are introduced first.
+- **Teaching order:** by `meta.rank` when the pack publishes it. Otherwise by `hash(deviceId + oracle_id)`: a shuffle that is fixed per device and per card, so a card entering or leaving the list never moves the others.
+- **Units:** the teaching order, in chunks of 10. Unit n+1 unlocks when every card in unit n is introduced. Unlocked units are stored in `kv` and only ever go up, so a meta shift never re-locks the path. New cards that enter an unlocked unit are introduced first.
 - **During a lesson:** a wrong answer reveals the correct one plus the full unaltered card image, and the item is re-asked once at the end. There are no hearts. A lesson is at most 14 questions.
 
 **Leitner SRS** (`srs.ts`):
@@ -597,7 +598,7 @@ composeLesson(pack, items, today, rng, size=10, maxNew=3):
 - The daily cron deploys new data without triggering an app update.
 
 **Phase 2: breadth (M–L)**
-- `spell_speed`, `type_line`, `power_toughness`, `oracle_cloze`, `meta_copies`.
+- `spell_speed`, `type_line`, `power_toughness`, `oracle_cloze`.
 - All 5 formats and a format switcher; progress is shared through `oracle_id`.
 - Pauper display printing (schema v2).
 - Meta-update banner; Progress and Card detail screens; backup export/import; sound and Android haptics.
@@ -605,7 +606,7 @@ composeLesson(pack, items, today, rng, size=10, maxNew=3):
 *Acceptance:* every type passes the property tests on all five packs; switching formats keeps card-scoped progress; Pauper reveal images are common printings.
 
 **Phase 3: depth (M)**
-- `build_mana_cost`, `type_name`, `meta_compare`, rapid true/false review.
+- `build_mana_cost`, `type_name`, rapid true/false review.
 - Streak freeze; per-facet stats; Badging API (`setAppBadge`) for unmet goals on installed apps.
 - Optional lands unit from Goldfish `/full/lands`.
 - Widen the distractor pool from the Oracle Cards bulk file (23.5 MB gzipped JSONL, weekly, cached), **only if** answer logs show options are too easy to guess.
@@ -614,6 +615,7 @@ composeLesson(pack, items, today, rng, size=10, maxNew=3):
 - Optional accounts and sync: upload events, e.g. Supabase or Cloudflare Worker + D1. Never required, per the Fan Content Policy.
 - Streak reminders through Declarative Web Push: VAPID plus a scheduled sender. This adds the first server that stores user data, so it needs a privacy notice.
 - Android TWA.
+- MTGGoldfish meta data (rank, deck %, copies): set `EXPORT_META_FIELDS`, add the pairing step in `export/service.py`, and the app picks up rank-ordered teaching plus the `meta_copies` and `meta_compare` question types.
 - Our own meta source, if Goldfish declines.
 
 ---
@@ -622,7 +624,7 @@ composeLesson(pack, items, today, rng, size=10, maxNew=3):
 
 | Risk | Likelihood / impact | Mitigation |
 |---|---|---|
-| Goldfish's Terms of Use forbid republishing | High / high for a public launch | Personal circle only until resolved. Ship minimal fields with attribution. Ask MTGGoldfish for permission before any wider sharing. Fallback: compute our own meta from public decklists (Phase 4). |
+| Goldfish's Terms of Use forbid republishing | High / high for a public launch | Personal circle only until resolved. Publish only the card list for now (`EXPORT_META_FIELDS = ()`), with attribution. Ask MTGGoldfish for permission before any wider sharing. Fallback: compute our own meta from public decklists (Phase 4). |
 | Fan Content Policy "games" clause is read strictly | Low / high | Present the app as a study trainer about Magic cards, with no non-Magic game mechanics. Verbatim notice; free; no required registration. Scryfall's Art Game is precedent. |
 | Breaking Scryfall's rate limits gets the app banned | Certain today / high | Phase 0.1 fix (0.5 s pacing, 30 s 429 cooldown). The browser never calls the API. Images come from `*.scryfall.io`, which has no limits. |
 | Goldfish markup changes | Medium / medium | The scraper already locates columns by `<th>` class and has `GOLDFISH_BAD_ROWS_LIMIT`. The SQLite cache serves stale meta; the exporter carries forward the last good pack with `stale: true`; the UI shows the data date; the CI run fails loudly. |
@@ -638,7 +640,7 @@ composeLesson(pack, items, today, rng, size=10, maxNew=3):
 
 ## 10. Open questions for you
 
-1. **MTGGoldfish permission.** Will you email MTGGoldfish now, or keep strictly to friends until you do? Also, should the friends-phase pack ship exact `decks_pct` and `avg_copies`, or only rank and coarse buckets? The exporter can do either.
+1. **MTGGoldfish permission.** Will you email MTGGoldfish now, or keep strictly to friends until you do? (Decided 2026-10-10: packs publish no rank, deck % or copy counts for now. The format keeps them optional, so they can be switched on later.)
 2. **Name and icon.** Is "meta-morphis" the user-facing name in the manifest and the Fan Content notice? Do you have an icon idea? It can't use WotC symbols.
 
 ---
