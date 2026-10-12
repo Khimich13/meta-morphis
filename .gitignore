@@ -1,6 +1,9 @@
 # Runtime database
 /data/
 
+# Generated card data for the web app
+/web/public/data/
+
 # Ignore compiled binaries
 *.exe
 *.bin

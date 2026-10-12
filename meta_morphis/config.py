@@ -44,3 +44,7 @@ EXPORT_STALE_AFTER = 2 * _DAY
 # Database
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = Path(os.environ.get("META_MORPHIS_DB") or PROJECT_ROOT / "data" / "cards.db")
+
+# Web app data: one <format>.json per format, read by the app
+EXPORT_DIR = PROJECT_ROOT / "web" / "public" / "data"
+EXPORT_FORMATS = ["pauper"]

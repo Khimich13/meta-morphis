@@ -18,8 +18,8 @@ Each brick ends with something I can see and use.
 | # | Brick | What I can see when it's done | Status |
 |---|---|---|---|
 | 0 | Backend groundwork: Scryfall rate limits, Pauper list with creatures, extra card fields, symbols fetch, meta timestamp | Tests pass | Done |
-| 1 | Export one file, `web/public/data/pauper.json`, with each Pauper card's name, ID and picture link | The file, opened in an editor | **Next** |
-| 2 | A web page that shows those 50 cards | The cards in a browser on my computer | |
+| 1 | Export one file, `web/public/data/pauper.json`, with each Pauper card's name, ID and picture link | The file, opened in an editor | Done |
+| 2 | A web page that shows those 50 cards | The cards in a browser on my computer | **Next** |
 | 3 | Put it online, with the required fan-content notice | The cards on my phone | |
 | 4 | First quiz type: name the card from its art | A playable lesson | |
 | 5 | Remember progress and a streak | My progress is still there tomorrow | |
