@@ -30,6 +30,7 @@ export default function App() {
       ) : (
         <CardGrid cards={cards} />
       )}
+      <Notice />
     </main>
   );
 }
@@ -48,5 +49,24 @@ function CardGrid({ cards }: { cards: Card[] }) {
         ))}
       </ul>
     </>
+  );
+}
+
+function Notice() {
+  return (
+    <footer>
+      {/* Required wording of the Wizards of the Coast Fan Content Policy */}
+      <p>
+        meta-morphis is unofficial Fan Content permitted under the Fan Content
+        Policy. Not approved/endorsed by Wizards. Portions of the materials
+        used are property of Wizards of the Coast. ©Wizards of the Coast LLC.
+      </p>
+      <p>
+        Card data and images come from{' '}
+        <a href="https://scryfall.com">Scryfall</a>. The list of most played
+        cards comes from <a href="https://www.mtggoldfish.com">MTGGoldfish</a>.
+        This app is not affiliated with either.
+      </p>
+    </footer>
   );
 }

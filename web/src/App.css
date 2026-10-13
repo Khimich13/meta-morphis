@@ -35,3 +35,9 @@ main {
   /* Follows the card's own rounded corners */
   border-radius: 4.75% / 3.5%;
 }
+
+footer {
+  margin-top: 32px;
+  font-size: 0.8rem;
+  opacity: 0.7;
+}

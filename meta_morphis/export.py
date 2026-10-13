@@ -69,7 +69,13 @@ def write_export(data: ExportFile, out_dir: Path) -> Path:
 def export_format(conn: sqlite3.Connection, format_name: str, out_dir: Path) -> Path:
     meta = get_meta_cards(conn, format_name)
     cards = fetch_cards(conn, meta)
-    return write_export(build_export(format_name, cards), out_dir)
+    data = build_export(format_name, cards)
+    if len(data["cards"]) < config.EXPORT_MIN_CARDS:
+        raise RuntimeError(
+            f"Only {len(data['cards'])} usable cards for {format_name}, "
+            f"expected at least {config.EXPORT_MIN_CARDS} - not writing the file"
+        )
+    return write_export(data, out_dir)
 
 def main() -> None:
     with get_connection() as conn:

@@ -35,8 +35,8 @@ SCRYFALL_MIN_DELAY = 0.5
 SCRYFALL_RATE_LIMIT_COOLDOWN = 30.0
 
 # PWA data export
-# A format with fewer cards than this resolved to Scryfall data is not
-# published - the previous pack is carried forward instead.
+# An export with fewer usable cards than this fails instead of writing
+# the file, so a failed fetch can't publish an empty or half-empty page.
 EXPORT_MIN_CARDS = 45
 # Meta older than this is flagged stale in the manifest
 EXPORT_STALE_AFTER = 2 * _DAY

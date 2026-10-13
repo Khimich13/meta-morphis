@@ -3,7 +3,10 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+import pytest
 from pytest import MonkeyPatch
+
+from meta_morphis import config
 
 from meta_morphis.export import build_card, build_export, export_format
 from meta_morphis.models.card import Card
@@ -72,6 +75,7 @@ def test_export_format_writes_the_file(
     cards = [Card.from_raw(_raw("Lórien Revealed", oracle_id="l"))]
     monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, name: meta)
     monkeypatch.setattr("meta_morphis.export.fetch_cards", lambda conn, meta: cards)
+    monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 1)
 
     path = export_format(conn, "pauper", tmp_path / "data")
 
@@ -87,3 +91,17 @@ def test_export_format_writes_the_file(
             "images": ["Lórien Revealed.webp"],
         }],
     }
+
+# A failed fetch must not replace the file with an empty or half-empty one
+def test_export_format_fails_with_too_few_cards(
+    conn: sqlite3.Connection, tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    cards = [Card.from_raw(_raw("Hydroblast", oracle_id="h"))]
+    monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, name: [])
+    monkeypatch.setattr("meta_morphis.export.fetch_cards", lambda conn, meta: cards)
+    monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 2)
+
+    with pytest.raises(RuntimeError, match="Only 1 usable cards"):
+        export_format(conn, "pauper", tmp_path / "data")
+
+    assert not (tmp_path / "data" / "pauper.json").exists()
