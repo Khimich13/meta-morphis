@@ -3,6 +3,15 @@ import { useEffect, useState } from 'react';
 import './App.css';
 import { type Card, loadCards } from './cards';
 import Lesson from './Lesson';
+import {
+  type CardProgress,
+  localDay,
+  type Progress,
+  recordAnswer,
+  recordLesson,
+  streak,
+} from './progress';
+import { loadProgress, saveProgress } from './storage';
 
 const FORMAT = 'pauper';
 
@@ -11,6 +20,8 @@ export default function App() {
   const [cards, setCards] = useState<Card[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [inLesson, setInLesson] = useState(false);
+  // Read from the browser's storage once, when the app starts
+  const [progress, setProgress] = useState(loadProgress);
 
   // Runs once, after the page first appears
   useEffect(() => {
@@ -18,6 +29,11 @@ export default function App() {
       .then(setCards)
       .catch(() => setFailed(true));
   }, []);
+
+  // Runs after every change to the progress, so it is never lost
+  useEffect(() => {
+    saveProgress(progress);
+  }, [progress]);
 
   return (
     <main>
@@ -30,11 +46,21 @@ export default function App() {
       ) : cards === null ? (
         <p>Loading…</p>
       ) : inLesson ? (
-        <Lesson cards={cards} onDone={() => setInLesson(false)} />
+        <Lesson
+          cards={cards}
+          onAnswer={(card, correct) =>
+            setProgress((before) => recordAnswer(before, card.oracle_id, correct))
+          }
+          onLessonFinished={() =>
+            setProgress((before) => recordLesson(before, localDay()))
+          }
+          onDone={() => setInLesson(false)}
+        />
       ) : (
         <>
+          <Summary cards={cards} progress={progress} />
           <button onClick={() => setInLesson(true)}>Start lesson</button>
-          <CardGrid cards={cards} />
+          <CardGrid cards={cards} progress={progress} />
         </>
       )}
       <Notice />
@@ -42,21 +68,42 @@ export default function App() {
   );
 }
 
-function CardGrid({ cards }: { cards: Card[] }) {
+interface ProgressProps {
+  cards: Card[];
+  progress: Progress;
+}
+
+function Summary({ cards, progress }: ProgressProps) {
+  const days = streak(progress, localDay());
+  // Only cards in today's list count: one that left the list keeps its
+  // saved numbers but is no longer shown
+  const seen = cards.filter((card) => card.oracle_id in progress.cards).length;
+
   return (
-    <>
-      <p>{cards.length} cards</p>
-      <ul className="card-grid">
-        {cards.map((card) => (
-          <li key={card.oracle_id}>
-            <span>{card.name}</span>
-            {/* Card pictures are shown as they are: never stretched, covered or dimmed */}
-            <img src={card.images[0]} alt={card.name} loading="lazy" />
-          </li>
-        ))}
-      </ul>
-    </>
+    <p className="summary">
+      <strong>{days}-day streak</strong> · {seen} of {cards.length} cards seen
+    </p>
   );
+}
+
+function CardGrid({ cards, progress }: ProgressProps) {
+  return (
+    <ul className="card-grid">
+      {cards.map((card) => (
+        <li key={card.oracle_id}>
+          <span>{card.name}</span>
+          {/* Card pictures are shown as they are: never stretched, covered or dimmed */}
+          <img src={card.images[0]} alt={card.name} loading="lazy" />
+          <span className="card-progress">{describe(progress.cards[card.oracle_id])}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function describe(card: CardProgress | undefined): string {
+  if (card === undefined) return 'new';
+  return `${card.right} of ${card.right + card.wrong} right`;
 }
 
 function Notice() {

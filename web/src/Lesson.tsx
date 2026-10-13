@@ -5,11 +5,20 @@ import { isCorrect, makeLesson } from './quiz';
 
 interface LessonProps {
   cards: Card[];
+  /** Called once for every answer given */
+  onAnswer: (card: Card, correct: boolean) => void;
+  /** Called once when the last question has been answered */
+  onLessonFinished: () => void;
   /** Called when the player leaves the lesson */
   onDone: () => void;
 }
 
-export default function Lesson({ cards, onDone }: LessonProps) {
+export default function Lesson({
+  cards,
+  onAnswer,
+  onLessonFinished,
+  onDone,
+}: LessonProps) {
   const [questions, setQuestions] = useState(() => makeLesson(cards));
   // Which question is on screen, counting from 0
   const [index, setIndex] = useState(0);
@@ -18,13 +27,18 @@ export default function Lesson({ cards, onDone }: LessonProps) {
   const [score, setScore] = useState(0);
 
   function pick(option: Card) {
+    const correct = isCorrect(questions[index], option);
     setPicked(option);
-    if (isCorrect(questions[index], option)) {
+    if (correct) {
       setScore(score + 1);
     }
+    onAnswer(questions[index].card, correct);
   }
 
   function next() {
+    if (index + 1 === questions.length) {
+      onLessonFinished();
+    }
     setIndex(index + 1);
     setPicked(null);
   }

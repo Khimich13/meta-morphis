@@ -36,6 +36,15 @@ main {
   border-radius: 4.75% / 3.5%;
 }
 
+.summary {
+  font-size: 1.1rem;
+}
+
+.card-progress {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
 button {
   font: inherit;
   /* Big enough to tap comfortably on a phone */

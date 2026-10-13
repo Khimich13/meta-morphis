@@ -39,3 +39,4 @@ if __name__ == "__main__":
     main()
 
 # TODO: Clean debugging print messages
+# TODO: Deal with the different images for each card dilemma

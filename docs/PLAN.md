@@ -22,8 +22,8 @@ Each brick ends with something I can see and use.
 | 2 | A web page that shows those 50 cards | The cards in a browser on my computer | Done |
 | 3 | Put it online, with the required fan-content notice | The cards on my phone | Done |
 | 4 | First quiz type: name the card from its art | A playable lesson | Done |
-| 5 | Remember progress and a streak | My progress is still there tomorrow | **Next** |
-| 6 | Works offline and installs to the home screen | A lesson in airplane mode | |
+| 5 | Remember progress and a streak | My progress is still there tomorrow | Done |
+| 6 | Works offline and installs to the home screen | A lesson in airplane mode | **Next** |
 | 7 | Refresh the card data automatically once a day | New cards appear without me doing anything | |
 | 8+ | One more quiz type at a time: mana cost, then name from text, then whatever I want | A new kind of question | |
 
