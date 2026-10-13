@@ -4,6 +4,10 @@
 # Generated card data for the web app
 /web/public/data/
 
+# Web app packages and build output
+/web/node_modules/
+/web/dist/
+
 # Ignore compiled binaries
 *.exe
 *.bin

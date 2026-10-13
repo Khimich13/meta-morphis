@@ -11,7 +11,7 @@
 
 There is no HTTP API and no frontend yet. `pwa/data/*.json` are empty placeholders. This plan settles every major decision, the data contracts, the backend and frontend structure, the quiz engine, testing, the roadmap and the risks.
 
-**Answers you gave:** mostly Python and little JS → **Svelte**. Audience is **you + friends first**. **No hearts.**
+**Answers you gave:** mostly Python and little JS → Svelte at first, **changed to React on 2026-10-13** (see decision 3). Audience is **you + friends first**. **No hearts.**
 
 **Assumptions (correct me if any is wrong):**
 - No accounts in the MVP; progress stays on the device and is designed to sync later.
@@ -43,7 +43,7 @@ There is no HTTP API and no frontend yet. `pwa/data/*.json` are empty placeholde
 |---|---|---|---|---|
 | 1 | Data delivery | **Static, versioned JSON packs**, written by a new Python exporter in a daily GitHub Actions job and served by GitHub Pages | Data changes at most daily and is the same for every user. An offline-first app needs a downloadable bundle anyway. No server, no cost, and user traffic can never reach Goldfish or Scryfall. | (b) Thin API: needs a host and uptime, with no benefit until sync exists. (c) Hybrid: later, only when optional sync arrives (static packs + a small sync API). |
 | 2 | Question generation | **On the client**, from pack data, with a seeded RNG. **Text features are precomputed in Python**: segmented oracle text, self-name redaction, cloze candidates. | Questions can adapt to SRS state, variety is unlimited, and the payload stays small. Tests are deterministic through the seed. The text-processing work lands in Python, where you're strongest, and is tested with pytest. | A pre-generated `quizzes.json`: a fixed set that repeats, can't adapt to the learner, and is bigger. |
-| 3 | Frontend | **Svelte 5.57 + Vite 8.3 + TypeScript 6.0.3** (pinned), single-page app. **svelte-spa-router 5.1** (hash routes), **vite-plugin-pwa 2.0** (Workbox 7.4, `generateSW`), **Dexie 4.4**. Plain scoped CSS with design tokens and the system font stack. | Svelte 5 runes (`$state`, `$derived`) read like plain variables, which suits a Python developer. Tiny runtime. Hash routes need no server rewrites on Pages and work inside Capacitor later. | **SvelteKit 3.0.1**: released 2026-10-06, and `@vite-pwa/sveltekit` only supports Kit ^1/^2. **SvelteKit 2**: adds SSR/load/prerender concepts with no benefit for a 7-screen offline SPA. **React/Vue**: more ceremony. **TypeScript 7**: `svelte-check` 4.7 only supports TS ^5/^6. **Tailwind**: another language to learn. |
+| 3 | Frontend | **React 19.3 + Vite 8.3 + TypeScript 6.0.3**, single-page app (changed from Svelte on 2026-10-13). **react-router 8.4** with a hash router, **vite-plugin-pwa 2.0** (Workbox 7.4, `generateSW`), **Dexie 4.4**. Plain CSS files with design tokens and the system font stack. | React has the largest ecosystem and the most learning material, and it is the most widely used front-end library. Hash routes need no server rewrites on Pages and work inside Capacitor later. | **Svelte 5**: the first choice, easier to learn and about 55 KB smaller compressed, but with a much smaller ecosystem. **Next.js and other React frameworks**: add server rendering concepts with no benefit for a 7-screen offline SPA. **Vue**: a smaller ecosystem than React. **TypeScript 7**: very new on 2026-10-06 and not yet tried with this setup. **Tailwind**: another language to learn. |
 | 4 | Progress | IndexedDB through Dexie. An **append-only review event log** plus **derived per-item Leitner state**. Items are keyed `card:<oracle_id>:<facet>`, or `<format>:<oracle_id>:<facet>` for meta facets. | `oracle_id` is stable across printings. Knowing a card's cost carries over between formats. Sync later means uploading events and replaying them. | localStorage (synchronous, small). Name-based keys (renames, aliases). |
 | 5 | Images and hiding info | Hotlink `cards.scryfall.io` (webp `grid` and `art`). **Questions use our own text-rendered card** with a blank slot. Art questions use the `art` crop with an "Illustrated by X · © Wizards of the Coast" caption. The full card image appears **unaltered** on intro, reveal and card detail. The service worker caches images CacheFirst over CORS, plus an explicit "Download for offline" step. | Follows the image rules. Works for every layout and frame. Verified: both CDNs send `access-control-allow-origin: *` and `max-age` of one year, so cached responses are non-opaque with no quota padding. About 100 KB per card, roughly 5 MB per format. | **Masking regions of the real image**: frame positions vary across old, modern, showcase, split and saga frames, and covering the image is close to the legal-notice rules. **Self-hosting images**: Pages bandwidth, looks like republishing, and scans go stale. |
 | 6 | Hosting and updates | **GitHub Pages via Actions**, deployed on push, on a daily cron and on demand. `data/manifest.json` is NetworkFirst. Packs and symbols have hash-named, immutable filenames. The app shell is precached, with an update toast. | No new accounts or cost. The repo is already public on GitHub. | Cloudflare Pages: custom headers are nice, but it needs a new account and token; move there if needed. Committing data to git: noisy history. |
@@ -87,7 +87,7 @@ There is no HTTP API and no frontend yet. `pwa/data/*.json` are empty placeholde
   ├ NetworkFirst 3 s: data/manifest.json
   ├ CacheFirst: data/packs/*, data/symbols.*        ◄─ CacheFirst, CORS, statuses [200]
                                    ▼
- Svelte app: pack loader (sha256 check) → reconcile → lesson composer → generators
+ React app:  pack loader (sha256 check) → reconcile → lesson composer → generators
                                    ▼
  IndexedDB (Dexie): reviews (event log) → items (Leitner projection) · lessons · kv
 ```
@@ -305,7 +305,7 @@ The CLI in `main.py` keeps working unchanged.
 **CI workflows:**
 - `.github/workflows/ci.yml` (push and PR):
   - Python job: `uv sync --locked`, `uv run pytest`, `uv run mypy .`
-  - Web job: `npm ci`, `npm run check` (svelte-check), `npm test` (Vitest), `npm run build`, Playwright on Chromium and WebKit, `lhci autorun`.
+  - Web job: `npm ci`, `npm run check` (`tsc`), `npm test` (Vitest), `npm run build`, Playwright on Chromium and WebKit, `lhci autorun`.
 - `.github/workflows/deploy.yml` (push to main, cron `17 6 * * *`, `workflow_dispatch`; `permissions: pages: write, id-token: write`; `concurrency: pages`):
   1. `actions/cache/restore data/cards.db` (key `cards-db-${run_id}`, restore-keys `cards-db-`)
   2. `curl` the live `data/manifest.json` and the files it references into `web/public/data` (last-known-good; allowed to fail)
@@ -321,13 +321,13 @@ The CLI in `main.py` keeps working unchanged.
 
 ```
 web/
-  index.html  vite.config.ts  svelte.config.js  tsconfig.json  package.json  .nvmrc
+  index.html  vite.config.ts  tsconfig.json  package.json  .nvmrc
   playwright.config.ts  lighthouserc.json
   assets/logo.svg                       # source for @vite-pwa/assets-generator (no WotC symbols)
   public/ icons/…  data/ (gitignored, written by the exporter)
   src/
-    main.ts  App.svelte  routes.ts
-    screens/   Onboarding  Home  Lesson  Results  Progress  CardDetail  Settings  About   (.svelte)
+    main.tsx  App.tsx  App.css  routes.tsx
+    screens/   Onboarding  Home  Lesson  Results  Progress  CardDetail  Settings  About   (.tsx)
     components/ CardText  ArtPrompt  CardImage  OptionList  ManaCost  OracleText  Symbol
                 FeedbackSheet  IntroCard  LessonProgress  StreakBadge  XpBadge  UnitPath
                 UpdateToast  InstallHint  OfflineDownload  MetaUpdateBanner
@@ -338,11 +338,11 @@ web/
                                typeLine.ts powerToughness.ts oracleCloze.ts metaCopies.ts metaCompare.ts
       data/     types.ts  pack.ts (manifest/pack fetch + sha256 verify via SubtleCrypto)  db.ts  progress.ts  backup.ts
       platform/ sound.ts  haptics.ts  install.ts  storage.ts  dates.ts (local YYYY-MM-DD via Intl)
-      state/    settings.svelte.ts  pack.svelte.ts  lesson.svelte.ts      # Svelte 5 runes
+      state/    useSettings.ts  usePack.ts  useLesson.ts                # React hooks
     styles/    tokens.css (light/dark custom properties)  global.css
   tests/ unit/  e2e/  fixtures/pack.fixture.json (golden, produced by Python)
 ```
-`lib/engine/` is **pure TypeScript**: no DOM, no Svelte, no Dexie. That keeps it unit-testable.
+`lib/engine/` is **pure TypeScript**: no DOM, no React, no Dexie. That keeps it unit-testable.
 
 **Routes** (hash-based; the answer feedback is a sheet inside Lesson, not a route, so the back button behaves):
 
@@ -549,7 +549,7 @@ composeLesson(pack, items, today, rng, size=10, maxNew=3):
   - `reconcile`: a card leaves (no writes), re-enters (old box kept), a meta answer changes (demoted).
   - **Projection:** `rebuildItems(reviews)` deep-equals the incrementally maintained items (the guarantee that makes sync possible).
   - Mana parsing, canonical order and perturbation.
-- **Component tests:** `@testing-library/svelte` for `OptionList` keyboard handling and `FeedbackSheet` focus.
+- **Component tests:** `@testing-library/react` 16.3 for `OptionList` keyboard handling and `FeedbackSheet` focus.
 - **E2E (Playwright 1.63):** projects `chromium`, `webkit`, `Pixel 7` and `iPhone 15` (WebKit), against `vite preview` with fixture data.
   - Onboarding → Pauper → offline download → seeded lesson → results; streak = 1 and XP correct.
   - Reload keeps progress.
@@ -639,7 +639,7 @@ composeLesson(pack, items, today, rng, size=10, maxNew=3):
 | Small pool (50 cards) makes quizzes repetitive | Medium / medium | Several facets per card; similarity-weighted random distractors; perturbation-based value distractors; tiers that unlock over time; Phase 3 recall formats; Oracle bulk widening only if data says so. |
 | Meta shifts orphan progress | Certain / low | `oracle_id` keys; schedulability is computed; cards that leave keep their box and resume if they return; changed meta answers get demoted; banner explains it; units never re-lock. |
 | Scheduled workflows auto-disable after 60 days with no repo activity (public repos) | Medium / medium | The app shows "Data as of <date>" and warns after 3 days. GitHub emails before disabling; re-enabling is one click. Optional keepalive action. |
-| Bleeding-edge toolchain (Vite 8, vite-plugin-pwa 2.0 released 2026-10-03) | Medium / low | Pin exact versions in `package-lock.json`; Renovate or Dependabot weekly; TypeScript held at 6.0.x until svelte-check supports 7. |
+| Bleeding-edge toolchain (Vite 8, vite-plugin-pwa 2.0 released 2026-10-03) | Medium / low | Pin exact versions in `package-lock.json`; Renovate or Dependabot weekly; TypeScript held at 6.0.x until 7 has been tried with this setup. |
 
 ---
 
@@ -703,6 +703,7 @@ File shape (fbettega, verified on a real file): `Tournament` (`Date`, `Name`, `U
 - [GitHub: scheduled workflows disabled after 60 days](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/disable-and-enable-workflows)
 - [Chrome: Lighthouse PWA category removed](https://developer.chrome.com/blog/update-install-criteria)
 - Verified directly on 2026-10-06:
-  - `npm view` versions and peer dependencies (svelte 5.57.2, vite 8.3.3, vite-plugin-pwa 2.0.0, @vite-pwa/sveltekit 1.1.0 peers Kit ^1/^2, svelte-check 4.7.6 peers TS ^5/^6, dexie 4.4.6, vitest 5.0.3, @playwright/test 1.63.0, fast-check 4.10.2, ts-fsrs 5.4.2)
+  - `npm view` versions and peer dependencies (vite 8.3.3, vite-plugin-pwa 2.0.0, dexie 4.4.6, vitest 5.0.3, @playwright/test 1.63.0, fast-check 4.10.2, ts-fsrs 5.4.2)
+  - Verified on 2026-10-13 for the switch to React: react and react-dom 19.3.0, @vitejs/plugin-react 6.1.2 (peers vite ^8), react-router 8.4.0, @testing-library/react 16.3.3
   - `curl` headers on `cards.scryfall.io` and `svgs.scryfall.io` (`access-control-allow-origin: *`, one-year `max-age`)
   - Goldfish `/full/all` vs `/full/spells` compared with the repo's own `_parse_meta_table`

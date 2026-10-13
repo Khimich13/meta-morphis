@@ -19,8 +19,8 @@ Each brick ends with something I can see and use.
 |---|---|---|---|
 | 0 | Backend groundwork: Scryfall rate limits, Pauper list with creatures, extra card fields, symbols fetch, meta timestamp | Tests pass | Done |
 | 1 | Export one file, `web/public/data/pauper.json`, with each Pauper card's name, ID and picture link | The file, opened in an editor | Done |
-| 2 | A web page that shows those 50 cards | The cards in a browser on my computer | **Next** |
-| 3 | Put it online, with the required fan-content notice | The cards on my phone | |
+| 2 | A web page that shows those 50 cards | The cards in a browser on my computer | Done |
+| 3 | Put it online, with the required fan-content notice | The cards on my phone | **Next** |
 | 4 | First quiz type: name the card from its art | A playable lesson | |
 | 5 | Remember progress and a streak | My progress is still there tomorrow | |
 | 6 | Works offline and installs to the home screen | A lesson in airplane mode | |
@@ -31,7 +31,7 @@ Each brick ends with something I can see and use.
 
 - **Two programs, one file between them.** Python writes a JSON file per format. The app reads that file and loads card pictures from Scryfall's image servers. The app never calls Scryfall's API or MTGGoldfish.
 - **The exporter is one module,** `meta_morphis/export.py`. Each brick adds only the fields it needs.
-- **The app is built with Svelte and Vite,** in a `web/` folder, introduced one piece at a time from brick 2.
+- **The app is built with React, TypeScript and Vite,** in a `web/` folder, introduced one piece at a time from brick 2.
 - **Hosting is GitHub Pages.** It is free for this public repository.
 - **From MTGGoldfish we use only the list of cards.** No rank, deck percentage or copy counts.
 - **Progress is saved on the device,** under each card's Scryfall `oracle_id`, which stays the same across reprints.
