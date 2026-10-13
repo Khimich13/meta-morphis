@@ -7,6 +7,10 @@ export interface Card {
   name: string;
   /** One picture per physical side: two for a double-faced card */
   images: string[];
+  /** The front side's artwork alone */
+  art: string;
+  /** Who painted it - shown wherever the artwork appears by itself */
+  artist: string;
 }
 
 export interface CardFile {

@@ -20,9 +20,9 @@ Each brick ends with something I can see and use.
 | 0 | Backend groundwork: Scryfall rate limits, Pauper list with creatures, extra card fields, symbols fetch, meta timestamp | Tests pass | Done |
 | 1 | Export one file, `web/public/data/pauper.json`, with each Pauper card's name, ID and picture link | The file, opened in an editor | Done |
 | 2 | A web page that shows those 50 cards | The cards in a browser on my computer | Done |
-| 3 | Put it online, with the required fan-content notice | The cards on my phone | **Next** |
-| 4 | First quiz type: name the card from its art | A playable lesson | |
-| 5 | Remember progress and a streak | My progress is still there tomorrow | |
+| 3 | Put it online, with the required fan-content notice | The cards on my phone | Done |
+| 4 | First quiz type: name the card from its art | A playable lesson | Done |
+| 5 | Remember progress and a streak | My progress is still there tomorrow | **Next** |
 | 6 | Works offline and installs to the home screen | A lesson in airplane mode | |
 | 7 | Refresh the card data automatically once a day | New cards appear without me doing anything | |
 | 8+ | One more quiz type at a time: mana cost, then name from text, then whatever I want | A new kind of question | |

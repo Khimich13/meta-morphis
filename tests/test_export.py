@@ -18,7 +18,12 @@ def _raw(name: str, oracle_id: str = "oid", **extra: Any) -> dict[str, Any]:
         "id": "id-" + name,
         "oracle_id": oracle_id,
         "name": name,
-        "image_uris": {"grid": f"{name}.webp", "normal": f"{name}.jpg"},
+        "image_uris": {
+            "grid": f"{name}.webp",
+            "normal": f"{name}.jpg",
+            "art": f"{name}-art.webp",
+        },
+        "artist": "Some Artist",
         **extra,
     }
 
@@ -28,35 +33,50 @@ def test_build_card_single_faced() -> None:
         "oracle_id": "b94c0336",
         "name": "Hydroblast",
         "images": ["Hydroblast.webp"],
+        "art": "Hydroblast-art.webp",
+        "artist": "Some Artist",
     }
 
-def test_build_card_falls_back_to_normal_image() -> None:
-    card = Card.from_raw(_raw("Old Card", image_uris={"normal": "old.jpg"}))
+def test_build_card_falls_back_to_jpg_images() -> None:
+    card = Card.from_raw(
+        _raw("Old Card", image_uris={"normal": "old.jpg", "art_crop": "old-art.jpg"})
+    )
     built = build_card(card)
     assert built is not None
     assert built["images"] == ["old.jpg"]
+    assert built["art"] == "old-art.jpg"
 
 def test_build_card_double_faced_has_both_pictures() -> None:
     card = Card.from_raw({
         "id": "24c0d87b",
         "oracle_id": "c0957e5e",
         "name": "Fable of the Mirror-Breaker // Reflection of Kiki-Jiki",
+        "artist": "Joseph Meehan",
         "card_faces": [
             {"name": "Fable of the Mirror-Breaker", "type_line": "Enchantment — Saga",
-             "image_uris": {"grid": "front.webp"}},
+             "image_uris": {"grid": "front.webp", "art": "front-art.webp"}},
             {"name": "Reflection of Kiki-Jiki", "type_line": "Enchantment Creature",
-             "image_uris": {"grid": "back.webp"}},
+             "image_uris": {"grid": "back.webp", "art": "back-art.webp"}},
         ],
     })
     built = build_card(card)
     assert built is not None
     assert built["images"] == ["front.webp", "back.webp"]
+    # The artwork asked about is the front side's
+    assert built["art"] == "front-art.webp"
+    assert built["artist"] == "Joseph Meehan"
 
 def test_build_card_without_id_or_picture_is_left_out() -> None:
     no_id = Card.from_raw({"id": "1", "name": "No Id", "image_uris": {"grid": "x.webp"}})
     no_picture = Card.from_raw({"id": "2", "oracle_id": "oid", "name": "No Picture"})
     assert build_card(no_id) is None
     assert build_card(no_picture) is None
+
+def test_build_card_without_art_or_artist_is_left_out() -> None:
+    no_art = Card.from_raw(_raw("No Art", image_uris={"grid": "x.webp"}))
+    no_artist = Card.from_raw(_raw("No Artist", artist=None))
+    assert build_card(no_art) is None
+    assert build_card(no_artist) is None
 
 def test_build_export_sorts_by_name_and_skips_unusable_cards() -> None:
     cards = [
@@ -89,6 +109,8 @@ def test_export_format_writes_the_file(
             "oracle_id": "l",
             "name": "Lórien Revealed",
             "images": ["Lórien Revealed.webp"],
+            "art": "Lórien Revealed-art.webp",
+            "artist": "Some Artist",
         }],
     }
 

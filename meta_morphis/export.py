@@ -20,6 +20,10 @@ class ExportCard(TypedDict):
     name: str
     # One picture per physical side: two for a double-faced card
     images: list[str]
+    # The front side's artwork alone, and who painted it. Scryfall asks
+    # for the artist to be named wherever the artwork is shown by itself.
+    art: str
+    artist: str
 
 
 class ExportFile(TypedDict):
@@ -37,19 +41,32 @@ def image_urls(card: Card) -> list[str]:
     return urls
 
 def build_card(card: Card) -> ExportCard | None:
-    # Without an id the app can't tell cards apart, and without a
-    # picture it has nothing to show - leave such a card out.
+    # Without an id the app can't tell cards apart, and without its
+    # pictures and artist it can't show or ask about the card - leave
+    # such a card out.
     images = image_urls(card)
-    if not card.oracle_id or not images:
+    sides = card.image_sides()
+    if not card.oracle_id or not images or not sides:
         return None
-    return {"oracle_id": card.oracle_id, "name": card.name, "images": images}
+    front = sides[0]
+    # "art" is the WebP version of "art_crop"
+    art = front.image_uris.get("art") or front.image_uris.get("art_crop")
+    if not art or not front.artist:
+        return None
+    return {
+        "oracle_id": card.oracle_id,
+        "name": card.name,
+        "images": images,
+        "art": art,
+        "artist": front.artist,
+    }
 
 def build_export(format_name: str, cards: list[Card]) -> ExportFile:
     exported: list[ExportCard] = []
     for card in cards:
         built = build_card(card)
         if built is None:
-            print(f"Leaving out '{card.name}' - no oracle id or no picture")
+            print(f"Leaving out '{card.name}' - no oracle id, picture or artist")
             continue
         exported.append(built)
 

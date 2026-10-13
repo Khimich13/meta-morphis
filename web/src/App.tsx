@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import './App.css';
 import { type Card, loadCards } from './cards';
+import Lesson from './Lesson';
 
 const FORMAT = 'pauper';
 
@@ -9,6 +10,7 @@ export default function App() {
   // null until the card list has arrived
   const [cards, setCards] = useState<Card[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [inLesson, setInLesson] = useState(false);
 
   // Runs once, after the page first appears
   useEffect(() => {
@@ -27,8 +29,13 @@ export default function App() {
         </p>
       ) : cards === null ? (
         <p>Loading…</p>
+      ) : inLesson ? (
+        <Lesson cards={cards} onDone={() => setInLesson(false)} />
       ) : (
-        <CardGrid cards={cards} />
+        <>
+          <button onClick={() => setInLesson(true)}>Start lesson</button>
+          <CardGrid cards={cards} />
+        </>
       )}
       <Notice />
     </main>
