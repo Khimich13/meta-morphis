@@ -30,7 +30,7 @@ Each brick ends with something I can see and use.
 | 6e | Show each card in the printing whose artwork appears on the most regular printings, the same printing in the question and after answering | Familiar artworks, and a full card that matches the question | Done |
 | 7 | Refresh the card data automatically once a day | New cards appear without me doing anything | Done |
 | 7b | Faster app updates: reload into a new version as soon as it is downloaded, but never during a lesson, and check for one whenever the installed app comes back to the foreground. Today a new version arrives one visit late; card data is not affected | A new version within seconds of opening the app | Done |
-| 7c | Keep the card database between daily runs on GitHub, so the 50 artwork searches and the card data are only fetched again when they are 30 days old | Fewer requests to Scryfall | |
+| 7c | Keep the card database between daily runs on GitHub, so the 50 artwork searches and the card data are only fetched again when they are 30 days old | Fewer requests to Scryfall | Done |
 | 8+ | One more quiz type at a time: mana cost, then name from text, then whatever I want | A new kind of question | |
 
 ## Decisions that apply now

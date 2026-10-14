@@ -41,6 +41,6 @@ if __name__ == "__main__":
 # TODO: Clean debugging print messages
 # TODO: Add an option to pick the format
 # TODO: Update the grid layout when the card's name takes more than one line
-# TODO: Is there a way to turn off the scrolling ability while there is nothing to scroll?
 # TODO: Think about how to monetize the app in the future
 # TODO: Orginize the web files better?
+# TODO: Repeat the question if the answer is incorrect

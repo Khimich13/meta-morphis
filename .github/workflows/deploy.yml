@@ -49,6 +49,11 @@ jobs:
 
       # The card data is not in git, so create it here
       - uses: astral-sh/setup-uv@v10.3.0
+        with:
+          # The same uv as on the development machine (uv --version), so a
+          # new uv release can't change the build unnoticed. Update the two
+          # together.
+          version: "0.12.7"
       - name: Export card data
         run: uv run --no-dev python -m meta_morphis.export
 
