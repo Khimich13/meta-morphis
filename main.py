@@ -40,3 +40,4 @@ if __name__ == "__main__":
 
 # TODO: Clean debugging print messages
 # TODO: Deal with the different images for each card dilemma
+# TODO: Add an option to pick the format

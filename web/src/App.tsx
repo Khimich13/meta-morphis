@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import './App.css';
 import { type Card, loadCards } from './cards';
 import Lesson from './Lesson';
+import { savePictures } from './offline';
 import {
   type CardProgress,
   localDay,
@@ -22,6 +23,8 @@ export default function App() {
   const [inLesson, setInLesson] = useState(false);
   // Read from the browser's storage once, when the app starts
   const [progress, setProgress] = useState(loadProgress);
+  // How many card pictures are saved on the device, out of how many
+  const [pictures, setPictures] = useState({ saved: 0, total: 0 });
 
   // Runs once, after the page first appears
   useEffect(() => {
@@ -29,6 +32,13 @@ export default function App() {
       .then(setCards)
       .catch(() => setFailed(true));
   }, []);
+
+  // Once the card list is here, save its pictures for offline use
+  useEffect(() => {
+    if (cards !== null) {
+      savePictures(cards, (saved, total) => setPictures({ saved, total }));
+    }
+  }, [cards]);
 
   // Runs after every change to the progress, so it is never lost
   useEffect(() => {
@@ -59,6 +69,13 @@ export default function App() {
       ) : (
         <>
           <Summary cards={cards} progress={progress} />
+          {pictures.total > 0 && (
+            <p className="offline-status">
+              {pictures.saved === pictures.total
+                ? 'Ready to use offline'
+                : `Saving pictures for offline use: ${pictures.saved} of ${pictures.total}`}
+            </p>
+          )}
           <button onClick={() => setInLesson(true)}>Start lesson</button>
           <CardGrid cards={cards} progress={progress} />
         </>
@@ -93,7 +110,13 @@ function CardGrid({ cards, progress }: ProgressProps) {
         <li key={card.oracle_id}>
           <span>{card.name}</span>
           {/* Card pictures are shown as they are: never stretched, covered or dimmed */}
-          <img src={card.images[0]} alt={card.name} loading="lazy" />
+          {/* crossOrigin lets the saved copy of the picture be used */}
+          <img
+            src={card.images[0]}
+            alt={card.name}
+            loading="lazy"
+            crossOrigin="anonymous"
+          />
           <span className="card-progress">{describe(progress.cards[card.oracle_id])}</span>
         </li>
       ))}
@@ -111,7 +134,7 @@ function Notice() {
     <footer>
       {/* Required wording of the Wizards of the Coast Fan Content Policy */}
       <p>
-        meta-morphis is unofficial Fan Content permitted under the Fan Content
+        MetaMorphis is unofficial Fan Content permitted under the Fan Content
         Policy. Not approved/endorsed by Wizards. Portions of the materials
         used are property of Wizards of the Coast. ©Wizards of the Coast LLC.
       </p>

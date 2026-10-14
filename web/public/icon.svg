@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Placeholder icon. The background fills the whole square because
+       phones crop icons to their own shape; the letter stays in the middle. -->
+  <rect width="512" height="512" fill="#1f2a44"/>
+  <path d="M156 356V156h44l56 104 56-104h44v200h-40V232l-60 108-60-108v124z" fill="#f4f1ea"/>
+</svg>

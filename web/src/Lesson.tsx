@@ -76,7 +76,12 @@ export default function Lesson({
       <h2>Which card is this?</h2>
 
       {/* The alt text must not give the answer away */}
-      <img className="art" src={card.art} alt="Card artwork" />
+      <img
+        className="art"
+        src={card.art}
+        alt="Card artwork"
+        crossOrigin="anonymous"
+      />
       <p className="credit">
         Illustrated by {card.artist} · © Wizards of the Coast
       </p>
@@ -103,7 +108,7 @@ export default function Lesson({
           </p>
           <div className="reveal">
             {card.images.map((image) => (
-              <img key={image} src={image} alt={card.name} />
+              <img key={image} src={image} alt={card.name} crossOrigin="anonymous" />
             ))}
           </div>
           <button onClick={next} autoFocus>
