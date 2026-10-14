@@ -8,10 +8,23 @@ body {
   margin: 0;
 }
 
-main {
+/* The "See all cards" screen */
+.card-list {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 16px;
+  padding: calc(16px + env(safe-area-inset-top)) 16px
+    calc(16px + env(safe-area-inset-bottom));
+}
+
+.card-list-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.card-list-bar h1 {
+  margin: 0;
+  font-size: 1.3rem;
 }
 
 .card-grid {
@@ -40,10 +53,6 @@ main {
   border-radius: 4.75% / 3.5%;
 }
 
-.summary {
-  font-size: 1.1rem;
-}
-
 .offline-status {
   font-size: 0.8rem;
   opacity: 0.7;
@@ -66,8 +75,29 @@ button {
   cursor: pointer;
 }
 
-footer {
-  margin-top: 32px;
-  font-size: 0.8rem;
-  opacity: 0.7;
+/* The main action on a screen */
+.primary {
+  background: #2e9e5b;
+  border-color: #2e9e5b;
+  color: #fff;
+}
+
+/* A button that looks like a link, for less important actions */
+.link {
+  border: none;
+  text-decoration: underline;
+}
+
+/* A thin bar that fills up; the inner div's width is set in the code */
+.progress-bar {
+  height: 10px;
+  border-radius: 5px;
+  background: color-mix(in srgb, currentColor 15%, transparent);
+  overflow: hidden;
+}
+
+.progress-bar > div {
+  height: 100%;
+  background: #2e9e5b;
+  transition: width 0.3s;
 }

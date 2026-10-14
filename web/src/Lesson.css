@@ -34,18 +34,8 @@
   border: none;
 }
 
-.lesson-progress {
+.lesson-bar .progress-bar {
   flex: 1;
-  height: 10px;
-  border-radius: 5px;
-  background: color-mix(in srgb, currentColor 15%, transparent);
-  overflow: hidden;
-}
-
-.lesson-progress > div {
-  height: 100%;
-  background: #2e9e5b;
-  transition: width 0.3s;
 }
 
 .question {
@@ -143,9 +133,6 @@
 
 .lesson .primary {
   width: 100%;
-  background: #2e9e5b;
-  border-color: #2e9e5b;
-  color: #fff;
 }
 
 /* The results screen */

@@ -1,0 +1,77 @@
+/* The start screen fills exactly one screen, like a lesson. The middle
+   part takes the spare height, so the button stays near the bottom,
+   where a thumb reaches it. */
+.home {
+  box-sizing: border-box;
+  height: 100dvh;
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: calc(16px + env(safe-area-inset-top)) 16px
+    calc(12px + env(safe-area-inset-bottom));
+  /* Last resort on very short screens */
+  overflow-y: auto;
+  text-align: center;
+}
+
+.home p,
+.home h1 {
+  margin: 0;
+}
+
+.home-title h1 {
+  font-size: 2rem;
+}
+
+.home-title p {
+  opacity: 0.7;
+}
+
+.home-middle {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 32px;
+}
+
+.streak {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.streak span:first-child {
+  font-size: 2.5rem;
+}
+
+.streak strong {
+  font-size: 3.5rem;
+  line-height: 1;
+}
+
+.seen {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.home-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.home-actions .primary {
+  width: 100%;
+}
+
+.notice {
+  font-size: 0.7rem;
+  opacity: 0.6;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}

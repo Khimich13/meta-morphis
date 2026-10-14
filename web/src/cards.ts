@@ -26,3 +26,8 @@ export async function loadCards(format: string): Promise<Card[]> {
   const file: CardFile = await response.json();
   return file.cards;
 }
+
+/** A format's name for showing on screen: "pauper" → "Pauper" */
+export function formatLabel(format: string): string {
+  return format.charAt(0).toUpperCase() + format.slice(1);
+}

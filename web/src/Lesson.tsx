@@ -82,7 +82,7 @@ export default function Lesson({
           ✕
         </button>
         <div
-          className="lesson-progress"
+          className="progress-bar"
           role="progressbar"
           aria-valuemin={0}
           aria-valuemax={questions.length}
