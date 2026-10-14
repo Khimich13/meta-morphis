@@ -8,6 +8,7 @@ import Lesson from './Lesson';
 import { savePictures } from './offline';
 import { localDay, recordAnswer, recordLesson } from './progress';
 import { loadProgress, saveProgress } from './storage';
+import { useAppUpdate } from './update';
 
 const FORMAT = 'pauper';
 
@@ -37,6 +38,9 @@ export default function App() {
       savePictures(cards, (saved, total) => setPictures({ saved, total }));
     }
   }, [cards]);
+
+  // Switch to a newly published version of the app, but never mid-lesson
+  useAppUpdate(screen !== 'lesson');
 
   // Runs after every change to the progress, so it is never lost
   useEffect(() => {

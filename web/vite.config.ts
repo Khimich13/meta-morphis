@@ -11,8 +11,11 @@ export default defineConfig({
     // Makes the app installable and usable offline: writes the manifest
     // and generates the service worker during `npm run build`
     VitePWA({
-      // A new version replaces the saved one by itself, with no prompt
-      registerType: 'autoUpdate',
+      // A downloaded new version waits until the app switches to it -
+      // see src/update.ts, which does that when no lesson is running
+      registerType: 'prompt',
+      // src/update.ts registers the service worker itself
+      injectRegister: false,
       includeAssets: ['favicon.ico', 'icon.svg', 'apple-touch-icon-180x180.png'],
       // What the phone shows when the app is installed
       manifest: {
