@@ -8,6 +8,14 @@ body {
   margin: 0;
 }
 
+/* Phones let a page bounce when it is dragged past its edge, even when
+   it fits the screen, and Android browsers start pull-to-refresh. The
+   screens are built to fit, so neither is wanted. */
+html,
+body {
+  overscroll-behavior: none;
+}
+
 /* The "See all cards" screen */
 .card-list {
   max-width: 1100px;
