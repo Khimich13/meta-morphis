@@ -35,6 +35,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Keep the card database between runs, so data that is still fresh
+      # (Scryfall's card data and artwork choices, for 30 days) isn't
+      # fetched again every day. Each successful run saves the data/
+      # folder under its own name; the next run restores the newest one.
+      # If nothing is saved yet, the export simply starts empty.
+      - name: Restore the card database
+        uses: actions/cache@v6
+        with:
+          path: data
+          key: card-database-${{ github.run_id }}
+          restore-keys: card-database-
+
       # The card data is not in git, so create it here
       - uses: astral-sh/setup-uv@v10.3.0
       - name: Export card data

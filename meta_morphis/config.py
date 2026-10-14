@@ -14,7 +14,10 @@ GOLDFISH_FORMAT_URLS = {
 GOLDFISH_HEADERS = {
     "User-Agent": "meta-morphis (https://github.com/Khimich13/meta-morphis)",
 }
-GOLDFISH_REFRESH_RATE = _DAY
+# 20 hours rather than a full day: the daily run on GitHub starts a few
+# minutes earlier or later each day, and with a 24-hour limit a run that
+# started early would find yesterday's list still "fresh" and skip it.
+GOLDFISH_REFRESH_RATE = 20 * 60 * 60
 GOLDFISH_BAD_ROWS_LIMIT = 10
 
 # Scryfall
