@@ -23,6 +23,9 @@ export default defineConfig({
         scope: './',
         // Full screen, without the browser's address bar
         display: 'standalone',
+        // Keeps the installed app upright on Android. iPhones ignore this,
+        // so index.html also covers sideways phones with a message.
+        orientation: 'portrait',
         background_color: '#1f2a44',
         theme_color: '#1f2a44',
         icons: [

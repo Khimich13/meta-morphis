@@ -25,7 +25,9 @@ Each brick ends with something I can see and use.
 | 5 | Remember progress and a streak | My progress is still there tomorrow | Done |
 | 6 | Works offline and installs to the home screen | A lesson in airplane mode | Done |
 | 6b | Lesson layout that fits one screen: top bar with progress, the full card after answering | A lesson with no scrolling | Done |
+| 6c | Portrait only: installed Android app stays upright; a sideways phone shows "Turn your phone upright" | No sideways layout on a phone | Done |
 | 7 | Refresh the card data automatically once a day | New cards appear without me doing anything | **Next** |
+| 7b | Faster app updates: reload into a new version as soon as it is downloaded, but never during a lesson, and check for one whenever the installed app comes back to the foreground. Today a new version arrives one visit late; card data is not affected | A new version within seconds of opening the app | |
 | 8+ | One more quiz type at a time: mana cost, then name from text, then whatever I want | A new kind of question | |
 
 ## Decisions that apply now
