@@ -5,6 +5,13 @@ name: Deploy
 on:
   push:
     branches: [main]
+  # Once a day, to pick up changes to the most played cards. MTGGoldfish
+  # publishes no schedule. Its Pauper list stayed the same from 21:30 UTC
+  # on 13 October 2026 to 17:00 UTC the next day, so its daily update
+  # falls between 17:00 and 21:30 UTC, and this runs after that. The odd
+  # minute avoids the start of the hour, when GitHub delays scheduled runs.
+  schedule:
+    - cron: '17 22 * * *'
   # Adds a "Run workflow" button on the Actions page
   workflow_dispatch:
 

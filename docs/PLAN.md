@@ -27,7 +27,7 @@ Each brick ends with something I can see and use.
 | 6b | Lesson layout that fits one screen: top bar with progress, the full card after answering | A lesson with no scrolling | Done |
 | 6c | Portrait only: installed Android app stays upright; a sideways phone shows "Turn your phone upright" | No sideways layout on a phone | Done |
 | 6d | A start screen in place of the card list: streak, cards seen, Start lesson; the card list moves behind a "See all cards" link | A start screen that fits one screen | Done |
-| 7 | Refresh the card data automatically once a day | New cards appear without me doing anything | **Next** |
+| 7 | Refresh the card data automatically once a day | New cards appear without me doing anything | Done |
 | 7b | Faster app updates: reload into a new version as soon as it is downloaded, but never during a lesson, and check for one whenever the installed app comes back to the foreground. Today a new version arrives one visit late; card data is not affected | A new version within seconds of opening the app | |
 | 8+ | One more quiz type at a time: mana cost, then name from text, then whatever I want | A new kind of question | |
 
