@@ -5,7 +5,12 @@ import pytest
 from pytest import MonkeyPatch
 
 from meta_morphis import config
-from meta_morphis.scryfall.client import fetch_batch, fetch_single, fetch_symbology
+from meta_morphis.scryfall.client import (
+    fetch_batch,
+    fetch_single,
+    fetch_symbology,
+    search_printings,
+)
 from meta_morphis.utils.http import RequestUnavailable
 
 
@@ -234,3 +239,45 @@ def test_fetch_symbology_bad_200_response(monkeypatch: MonkeyPatch) -> None:
 
     with pytest.raises(RequestUnavailable):
         fetch_symbology()
+
+def test_search_printings_follows_every_page(monkeypatch: MonkeyPatch) -> None:
+    pages = {
+        config.SCRYFALL_SEARCH_URL: {
+            "data": [{"set": "lea"}], "has_more": True, "next_page": "https://next",
+        },
+        "https://next": {"data": [{"set": "m10"}], "has_more": False},
+    }
+    asked: list[tuple[str, Any]] = []
+
+    def fake_get(method: str, url: str, **kwargs: Any) -> FakeResponse:
+        asked.append((url, kwargs.get("params")))
+        return FakeResponse(200, pages[url])
+
+    monkeypatch.setattr("requests.request", fake_get)
+
+    assert search_printings("oid") == [{"set": "lea"}, {"set": "m10"}]
+    first_url, first_params = asked[0]
+    assert first_url == config.SCRYFALL_SEARCH_URL
+    assert first_params["q"].startswith("oracleid:oid ")
+    assert config.SCRYFALL_REGULAR_PRINTINGS in first_params["q"]
+    assert first_params["unique"] == "prints"
+
+def test_search_printings_no_match_is_none(monkeypatch: MonkeyPatch) -> None:
+    # Scryfall answers a search with no results with a 404
+    monkeypatch.setattr("requests.request", lambda *a, **k: FakeResponse(404, {}))
+    assert search_printings("oid") is None
+
+def test_search_printings_missing_later_page_is_unavailable(monkeypatch: MonkeyPatch) -> None:
+    # A first page that promises more, then a 404: the list would be
+    # incomplete, so this must not pass as a full answer
+    def fake_get(method: str, url: str, **kwargs: Any) -> FakeResponse:
+        if url == config.SCRYFALL_SEARCH_URL:
+            return FakeResponse(
+                200, {"data": [{"set": "lea"}], "has_more": True, "next_page": "https://next"}
+            )
+        return FakeResponse(404, {})
+
+    monkeypatch.setattr("requests.request", fake_get)
+
+    with pytest.raises(RequestUnavailable):
+        search_printings("oid")

@@ -138,3 +138,29 @@ def should_skip_lookup(conn: sqlite3.Connection, name: str, cooldown: int | None
     # don't let it extend the cooldown, look the name up again instead.
     last_attempt = int(row[0])
     return now - cooldown < last_attempt <= now
+
+def get_chosen_printing(conn: sqlite3.Connection, oracle_id: str) -> Card | None:
+    row = conn.execute("""
+        SELECT json, updated_at
+        FROM chosen_printings
+        WHERE oracle_id = ?
+    """, (oracle_id,)).fetchone()
+    if not row:
+        return None
+
+    json_blob, updated_at = row
+    try:
+        card = Card.from_raw(json.loads(json_blob))
+    except (json.JSONDecodeError, KeyError):
+        return None
+    card.age = int(time.time()) - updated_at
+    return card
+
+def save_chosen_printing(conn: sqlite3.Connection, oracle_id: str, raw: dict[str, Any]) -> None:
+    conn.execute("""
+        INSERT INTO chosen_printings (oracle_id, json, updated_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(oracle_id) DO UPDATE SET
+            json = excluded.json,
+            updated_at = excluded.updated_at
+    """, (oracle_id, json.dumps(raw), int(time.time())))

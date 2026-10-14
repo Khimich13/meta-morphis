@@ -7,21 +7,22 @@ import pytest
 from pytest import MonkeyPatch
 
 from meta_morphis import config
-
 from meta_morphis.export import build_card, build_export, export_format
 from meta_morphis.models.card import Card
 from meta_morphis.models.meta import MetaEntry
 
 
 def _raw(name: str, oracle_id: str = "oid", **extra: Any) -> dict[str, Any]:
+    # Scryfall's picture links carry the printing's id, like these
+    printing = "id-" + name
     return {
-        "id": "id-" + name,
+        "id": printing,
         "oracle_id": oracle_id,
         "name": name,
         "image_uris": {
-            "grid": f"{name}.webp",
-            "normal": f"{name}.jpg",
-            "art": f"{name}-art.webp",
+            "grid": f"grid/{printing}.webp",
+            "normal": f"normal/{printing}.jpg",
+            "art": f"art/{printing}.webp",
         },
         "artist": "Some Artist",
         **extra,
@@ -32,19 +33,22 @@ def test_build_card_single_faced() -> None:
     assert build_card(card) == {
         "oracle_id": "b94c0336",
         "name": "Hydroblast",
-        "images": ["Hydroblast.webp"],
-        "art": "Hydroblast-art.webp",
+        "images": ["grid/id-Hydroblast.webp"],
+        "art": "art/id-Hydroblast.webp",
         "artist": "Some Artist",
     }
 
 def test_build_card_falls_back_to_jpg_images() -> None:
     card = Card.from_raw(
-        _raw("Old Card", image_uris={"normal": "old.jpg", "art_crop": "old-art.jpg"})
+        _raw("Old Card", image_uris={
+            "normal": "normal/id-Old Card.jpg",
+            "art_crop": "art_crop/id-Old Card.jpg",
+        })
     )
     built = build_card(card)
     assert built is not None
-    assert built["images"] == ["old.jpg"]
-    assert built["art"] == "old-art.jpg"
+    assert built["images"] == ["normal/id-Old Card.jpg"]
+    assert built["art"] == "art_crop/id-Old Card.jpg"
 
 def test_build_card_double_faced_has_both_pictures() -> None:
     card = Card.from_raw({
@@ -54,16 +58,16 @@ def test_build_card_double_faced_has_both_pictures() -> None:
         "artist": "Joseph Meehan",
         "card_faces": [
             {"name": "Fable of the Mirror-Breaker", "type_line": "Enchantment — Saga",
-             "image_uris": {"grid": "front.webp", "art": "front-art.webp"}},
+             "image_uris": {"grid": "front/24c0d87b.webp", "art": "art/front/24c0d87b.webp"}},
             {"name": "Reflection of Kiki-Jiki", "type_line": "Enchantment Creature",
-             "image_uris": {"grid": "back.webp", "art": "back-art.webp"}},
+             "image_uris": {"grid": "back/24c0d87b.webp", "art": "art/back/24c0d87b.webp"}},
         ],
     })
     built = build_card(card)
     assert built is not None
-    assert built["images"] == ["front.webp", "back.webp"]
+    assert built["images"] == ["front/24c0d87b.webp", "back/24c0d87b.webp"]
     # The artwork asked about is the front side's
-    assert built["art"] == "front-art.webp"
+    assert built["art"] == "art/front/24c0d87b.webp"
     assert built["artist"] == "Joseph Meehan"
 
 def test_build_card_without_id_or_picture_is_left_out() -> None:
@@ -73,10 +77,19 @@ def test_build_card_without_id_or_picture_is_left_out() -> None:
     assert build_card(no_picture) is None
 
 def test_build_card_without_art_or_artist_is_left_out() -> None:
-    no_art = Card.from_raw(_raw("No Art", image_uris={"grid": "x.webp"}))
+    no_art = Card.from_raw(_raw("No Art", image_uris={"grid": "grid/id-No Art.webp"}))
     no_artist = Card.from_raw(_raw("No Artist", artist=None))
     assert build_card(no_art) is None
     assert build_card(no_artist) is None
+
+# The full card shown after answering must be the same printing as the
+# artwork in the question
+def test_build_card_with_pictures_of_different_printings_is_left_out() -> None:
+    mixed = Card.from_raw(_raw("Mixed", image_uris={
+        "grid": "grid/id-Mixed.webp",
+        "art": "art/another-printing.webp",
+    }))
+    assert build_card(mixed) is None
 
 def test_build_export_sorts_by_name_and_skips_unusable_cards() -> None:
     cards = [
@@ -95,6 +108,7 @@ def test_export_format_writes_the_file(
     cards = [Card.from_raw(_raw("Lórien Revealed", oracle_id="l"))]
     monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, name: meta)
     monkeypatch.setattr("meta_morphis.export.fetch_cards", lambda conn, meta: cards)
+    monkeypatch.setattr("meta_morphis.export.get_display_printing", lambda conn, card: card)
     monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 1)
 
     path = export_format(conn, "pauper", tmp_path / "data")
@@ -108,8 +122,8 @@ def test_export_format_writes_the_file(
         "cards": [{
             "oracle_id": "l",
             "name": "Lórien Revealed",
-            "images": ["Lórien Revealed.webp"],
-            "art": "Lórien Revealed-art.webp",
+            "images": ["grid/id-Lórien Revealed.webp"],
+            "art": "art/id-Lórien Revealed.webp",
             "artist": "Some Artist",
         }],
     }
@@ -121,9 +135,30 @@ def test_export_format_fails_with_too_few_cards(
     cards = [Card.from_raw(_raw("Hydroblast", oracle_id="h"))]
     monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, name: [])
     monkeypatch.setattr("meta_morphis.export.fetch_cards", lambda conn, meta: cards)
+    monkeypatch.setattr("meta_morphis.export.get_display_printing", lambda conn, card: card)
     monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 2)
 
     with pytest.raises(RuntimeError, match="Only 1 usable cards"):
         export_format(conn, "pauper", tmp_path / "data")
 
     assert not (tmp_path / "data" / "pauper.json").exists()
+
+def test_export_format_uses_the_chosen_printing(
+    conn: sqlite3.Connection, tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    default = Card.from_raw(_raw("Lightning Bolt", oracle_id="bolt"))
+    chosen = Card.from_raw({**_raw("Lightning Bolt", oracle_id="bolt"),
+                            "id": "m10",
+                            "artist": "Christopher Moeller",
+                            "image_uris": {"grid": "grid/m10.webp", "art": "art/m10.webp"}})
+    monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, name: [])
+    monkeypatch.setattr("meta_morphis.export.fetch_cards", lambda conn, meta: [default])
+    monkeypatch.setattr("meta_morphis.export.get_display_printing", lambda conn, card: chosen)
+    monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 1)
+
+    path = export_format(conn, "pauper", tmp_path)
+
+    [card] = json.loads(path.read_text(encoding="utf-8"))["cards"]
+    assert card["images"] == ["grid/m10.webp"]
+    assert card["art"] == "art/m10.webp"
+    assert card["artist"] == "Christopher Moeller"

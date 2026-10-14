@@ -12,7 +12,7 @@ from meta_morphis.db.connection import get_connection
 from meta_morphis.db.init_db import init_db
 from meta_morphis.meta.service import get_meta_cards
 from meta_morphis.models.card import Card
-from meta_morphis.scryfall.service import fetch_cards
+from meta_morphis.scryfall.service import fetch_cards, get_display_printing
 
 
 class ExportCard(TypedDict):
@@ -53,6 +53,11 @@ def build_card(card: Card) -> ExportCard | None:
     art = front.image_uris.get("art") or front.image_uris.get("art_crop")
     if not art or not front.artist:
         return None
+    # The full card shown after answering must be the same printing as
+    # the artwork asked about. Scryfall's picture links carry the
+    # printing's id, so both links must contain this card's id.
+    if card.id not in art or not all(card.id in image for image in images):
+        return None
     return {
         "oracle_id": card.oracle_id,
         "name": card.name,
@@ -66,7 +71,8 @@ def build_export(format_name: str, cards: list[Card]) -> ExportFile:
     for card in cards:
         built = build_card(card)
         if built is None:
-            print(f"Leaving out '{card.name}' - no oracle id, picture or artist")
+            print(f"Leaving out '{card.name}' - no oracle id, picture or artist, "
+                  "or pictures of different printings")
             continue
         exported.append(built)
 
@@ -85,7 +91,8 @@ def write_export(data: ExportFile, out_dir: Path) -> Path:
 
 def export_format(conn: sqlite3.Connection, format_name: str, out_dir: Path) -> Path:
     meta = get_meta_cards(conn, format_name)
-    cards = fetch_cards(conn, meta)
+    # The printing each card is shown with - see scryfall/artwork.py
+    cards = [get_display_printing(conn, card) for card in fetch_cards(conn, meta)]
     data = build_export(format_name, cards)
     if len(data["cards"]) < config.EXPORT_MIN_CARDS:
         raise RuntimeError(

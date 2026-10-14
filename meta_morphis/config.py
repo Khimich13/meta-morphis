@@ -21,6 +21,16 @@ GOLDFISH_BAD_ROWS_LIMIT = 10
 SCRYFALL_COLLECTION_URL = "https://api.scryfall.com/cards/collection"
 SCRYFALL_NAMED_URL = "https://api.scryfall.com/cards/named"
 SCRYFALL_SYMBOLOGY_URL = "https://api.scryfall.com/symbology"
+SCRYFALL_SEARCH_URL = "https://api.scryfall.com/cards/search"
+# Printings a player could meet at a table, for choosing a card's
+# artwork: paper only, and none of the special versions - promos,
+# gold-bordered and oversized cards (not tournament-legal), memorabilia,
+# and showcase, borderless, extended-art, full-art or "future" frames.
+SCRYFALL_REGULAR_PRINTINGS = (
+    "game:paper -is:promo -is:digital -border:gold -is:oversized "
+    "-st:memorabilia -frame:future -is:showcase -is:extendedart "
+    "-is:fullart -is:borderless"
+)
 SCRYFALL_HEADERS = {
     "User-Agent": "meta-morphis/0.1.0 (+https://github.com/Khimich13/meta-morphis)",
     "Accept": "application/json",

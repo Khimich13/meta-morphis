@@ -33,6 +33,32 @@ def fetch_symbology() -> dict[str, Any] | None:
         return None
     return _parse_json(raw)
 
+def search_printings(oracle_id: str) -> list[dict[str, Any]] | None:
+    """Every regular printing of a card, oldest first. None means Scryfall
+    found no printing matching the filters.
+    """
+    params = {
+        "q": f"oracleid:{oracle_id} {config.SCRYFALL_REGULAR_PRINTINGS}",
+        "unique": "prints",
+        "order": "released",
+        "dir": "asc",
+    }
+    raw = _request("GET", config.SCRYFALL_SEARCH_URL, params=params)
+    if raw is None:
+        return None
+    page = _parse_json(raw)
+    printings: list[dict[str, Any]] = list(page.get("data", []))
+
+    # Results come in pages of 175 - only cards with a very long print
+    # history need more than one
+    while page.get("has_more") and page.get("next_page"):
+        raw = _request("GET", page["next_page"])
+        if raw is None:
+            raise RequestUnavailable("a further page of search results was missing")
+        page = _parse_json(raw)
+        printings.extend(page.get("data", []))
+    return printings
+
 def _request(
     method: str,
     url: str,

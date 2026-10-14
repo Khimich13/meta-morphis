@@ -30,6 +30,7 @@ def test_init_db_creates_all_expected_tables() -> None:
         "card_lookup_failures",
         "meta_refresh",
         "meta",
+        "chosen_printings",
     }
 
 # Uses a file - an in-memory database can't be put in WAL mode at all.
@@ -69,3 +70,22 @@ def test_init_db_refuses_a_newer_schema_version() -> None:
 
     with pytest.raises(RuntimeError):
         init_db(conn)
+
+def test_init_db_upgrades_a_version_1_database() -> None:
+    # A database made before chosen_printings existed keeps its data
+    # and gains the new table
+    conn = sqlite3.connect(":memory:")
+    conn.execute("""
+        CREATE TABLE cards (
+            id TEXT NOT NULL UNIQUE, name TEXT PRIMARY KEY,
+            json TEXT NOT NULL, updated_at INTEGER NOT NULL
+        )
+    """)
+    conn.execute("INSERT INTO cards VALUES ('1', 'lightning bolt', '{}', 0)")
+    conn.execute("PRAGMA user_version = 1")
+
+    init_db(conn)
+
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
+    assert conn.execute("SELECT name FROM cards").fetchall() == [("lightning bolt",)]
+    assert conn.execute("SELECT COUNT(*) FROM chosen_printings").fetchone()[0] == 0

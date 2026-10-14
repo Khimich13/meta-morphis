@@ -8,12 +8,15 @@ from meta_morphis.utils.http import RequestUnavailable
 from meta_morphis.utils.lists import chunked
 from meta_morphis.utils.text import normalize_name
 
-from .client import fetch_batch, fetch_single
+from .artwork import choose_printing
+from .client import fetch_batch, fetch_single, search_printings
 from .repo import (
     add_alias,
     get_card_from_cache,
+    get_chosen_printing,
     record_bad_name_attempt,
     save_cards_to_cache,
+    save_chosen_printing,
     should_skip_lookup,
 )
 
@@ -56,6 +59,38 @@ def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[Card]:
     if not output:
         raise RuntimeError("No cards have been fetched either from Scryfall or from cache")
     return output
+
+def get_display_printing(conn: sqlite3.Connection, card: Card) -> Card:
+    """The printing of `card` the app should show - see scryfall/artwork.py.
+    Falls back to the last choice, or to `card` itself, when Scryfall
+    can't help, so a card is never left out for lack of a choice.
+    """
+    if not card.oracle_id:
+        return card
+
+    cached = get_chosen_printing(conn, card.oracle_id)
+    # A choice "from the future" was saved by a clock that ran ahead -
+    # treat it as old rather than trusting it indefinitely
+    if cached and 0 <= cached.age <= config.SCRYFALL_REFRESH_RATE:
+        return cached
+
+    try:
+        printings = search_printings(card.oracle_id)
+    except RequestUnavailable as e:
+        print(f"Could not choose a printing for '{card.name}', Scryfall was unreachable ({e})")
+        return cached or card
+
+    chosen = choose_printing(printings or [])
+    if chosen is None:
+        return cached or card
+    try:
+        display = Card.from_raw(chosen)
+    except KeyError:
+        return cached or card
+
+    with conn:
+        save_chosen_printing(conn, card.oracle_id, chosen)
+    return display
 
 def _classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[list[Card], list[Card], list[str]]:
     fresh: list[Card] = []

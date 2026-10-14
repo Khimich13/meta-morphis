@@ -4,7 +4,7 @@ import sqlite3
 # block below with the migration steps. CREATE TABLE IF NOT EXISTS alone
 # can't detect an existing table whose columns have drifted from what the
 # code now expects - this guard makes that drift loud instead of silent.
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def init_db(conn: sqlite3.Connection) -> None:
@@ -26,10 +26,14 @@ def init_db(conn: sqlite3.Connection) -> None:
         _migrate_to_v1(c)
         current_version = 1
 
+    if current_version < 2:
+        _migrate_to_v2(c)
+        current_version = 2
+
     # Next schema change adds a block here, e.g.:
-    # if current_version < 2:
-    #     _migrate_to_v2(c)
-    #     current_version = 2
+    # if current_version < 3:
+    #     _migrate_to_v3(c)
+    #     current_version = 3
 
     c.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     conn.commit()
@@ -79,5 +83,16 @@ def _migrate_to_v1(c: sqlite3.Cursor) -> None:
             avg_copies FLOAT,
             lookup_name TEXT,
             PRIMARY KEY (format, name)
+        )
+    """)
+
+def _migrate_to_v2(c: sqlite3.Cursor) -> None:
+    # The printing chosen to show for each card (see scryfall/artwork.py),
+    # as Scryfall's JSON for that printing
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS chosen_printings (
+            oracle_id TEXT PRIMARY KEY,
+            json TEXT NOT NULL,
+            updated_at INTEGER NOT NULL
         )
     """)
