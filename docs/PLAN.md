@@ -23,8 +23,9 @@ Each brick ends with something I can see and use.
 | 3 | Put it online, with the required fan-content notice | The cards on my phone | Done |
 | 4 | First quiz type: name the card from its art | A playable lesson | Done |
 | 5 | Remember progress and a streak | My progress is still there tomorrow | Done |
-| 6 | Works offline and installs to the home screen | A lesson in airplane mode | **Next** |
-| 7 | Refresh the card data automatically once a day | New cards appear without me doing anything | |
+| 6 | Works offline and installs to the home screen | A lesson in airplane mode | Done |
+| 6b | Lesson layout that fits one screen: top bar with progress, the full card after answering | A lesson with no scrolling | Done |
+| 7 | Refresh the card data automatically once a day | New cards appear without me doing anything | **Next** |
 | 8+ | One more quiz type at a time: mana cost, then name from text, then whatever I want | A new kind of question | |
 
 ## Decisions that apply now

@@ -1,0 +1,173 @@
+/* The lesson fills exactly one screen. Everything has a fixed size
+   except .picture, which takes whatever height is left. */
+.lesson {
+  box-sizing: border-box;
+  /* dvh: the height actually visible, as the browser's own bars come and go */
+  height: 100dvh;
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  /* Clear of the iPhone notch and home indicator in the installed app */
+  padding: calc(8px + env(safe-area-inset-top)) 16px
+    calc(16px + env(safe-area-inset-bottom));
+  /* Last resort on very short screens: scroll rather than cut anything off */
+  overflow-y: auto;
+}
+
+.lesson p,
+.lesson h2 {
+  margin: 0;
+}
+
+/* Top bar: leave button, progress bar, question number */
+.lesson-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lesson-bar .leave {
+  min-height: 40px;
+  padding: 0 12px;
+  border: none;
+}
+
+.lesson-progress {
+  flex: 1;
+  height: 10px;
+  border-radius: 5px;
+  background: color-mix(in srgb, currentColor 15%, transparent);
+  overflow: hidden;
+}
+
+.lesson-progress > div {
+  height: 100%;
+  background: #2e9e5b;
+  transition: width 0.3s;
+}
+
+.question {
+  font-size: 1.2rem;
+}
+
+/* The artwork and its credit, kept together at the top of the space
+   left over. The artwork shrinks to fit, and the credit follows it
+   directly; any spare space goes below the credit. */
+.artwork {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.artwork img {
+  /* Never taller than the space, never wider than the screen */
+  min-height: 120px;
+  max-width: 100%;
+  flex-shrink: 1;
+  /* Scaled to fit - never cropped or stretched */
+  object-fit: contain;
+  object-position: top;
+}
+
+/* The full card after answering: as large as fits in the height left,
+   at the top. */
+.picture {
+  flex: 1;
+  min-height: 160px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  /* Lets the picture inside measure this box with cqw and cqh units */
+  container-type: size;
+}
+
+.picture img {
+  /* Exactly the card's size: the full width of the box, or less if the
+     height runs out first (the height is 680/488 of the width). Because
+     the picture's box matches the card, the rounded corners below land
+     on the card's own corners. */
+  width: min(100cqw, 100cqh * 488 / 680);
+  height: auto;
+  aspect-ratio: 488 / 680;
+  /* Real cards have rounded corners; this hides the scan's background
+     in them, as on the card list */
+  border-radius: 4.75% / 3.5%;
+}
+
+.credit {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.options button {
+  width: 100%;
+}
+
+/* The result bar after answering. The symbol and the words say right or
+   wrong; the color only adds to them. */
+.feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 2px solid;
+}
+
+.feedback.correct {
+  border-color: #2e9e5b;
+}
+
+.feedback.wrong {
+  border-color: #d64545;
+}
+
+.verdict {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.lesson .primary {
+  width: 100%;
+  background: #2e9e5b;
+  border-color: #2e9e5b;
+  color: #fff;
+}
+
+/* The results screen */
+.lesson-done {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+.score {
+  font-size: 2.5rem;
+  font-weight: bold;
+}
+
+.lesson-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.lesson-actions button {
+  width: 100%;
+}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import type { Card } from './cards';
+import './Lesson.css';
 import { isCorrect, makeLesson } from './quiz';
 
 interface LessonProps {
@@ -9,7 +10,7 @@ interface LessonProps {
   onAnswer: (card: Card, correct: boolean) => void;
   /** Called once when the last question has been answered */
   onLessonFinished: () => void;
-  /** Called when the player leaves the lesson */
+  /** Called when the player leaves the lesson, finished or not */
   onDone: () => void;
 }
 
@@ -53,13 +54,17 @@ export default function Lesson({
   if (index >= questions.length) {
     return (
       <section className="lesson">
-        <h2>Lesson complete</h2>
-        <p className="score">
-          {score} / {questions.length}
-        </p>
-        <div className="actions">
-          <button onClick={restart}>Another lesson</button>
-          <button onClick={onDone}>Back to the cards</button>
+        <div className="lesson-done">
+          <h2>Lesson complete</h2>
+          <p className="score">
+            {score} / {questions.length}
+          </p>
+        </div>
+        <div className="lesson-actions">
+          <button className="primary" onClick={restart}>
+            Another lesson
+          </button>
+          <button onClick={onDone}>Back</button>
         </div>
       </section>
     );
@@ -67,63 +72,88 @@ export default function Lesson({
 
   const question = questions[index];
   const card = question.card;
+  // A question counts as done in the progress bar once it is answered
+  const answered = index + (picked === null ? 0 : 1);
 
   return (
     <section className="lesson">
-      <p>
-        Question {index + 1} of {questions.length}
-      </p>
-      <h2>Which card is this?</h2>
-
-      {/* The alt text must not give the answer away */}
-      <img
-        className="art"
-        src={card.art}
-        alt="Card artwork"
-        crossOrigin="anonymous"
-      />
-      <p className="credit">
-        Illustrated by {card.artist} · © Wizards of the Coast
-      </p>
-
-      <ul className="options">
-        {question.options.map((option) => (
-          <li key={option.oracle_id}>
-            <button
-              className={optionClass(option, card, picked)}
-              disabled={picked !== null}
-              onClick={() => pick(option)}
-            >
-              {option.name}
-            </button>
-          </li>
-        ))}
-      </ul>
-
-      {picked !== null && (
-        <div className="feedback">
-          {/* role="status" makes screen readers announce the result */}
-          <p role="status">
-            {isCorrect(question, picked) ? '✓ Correct' : `✗ It was ${card.name}`}
-          </p>
-          <div className="reveal">
-            {card.images.map((image) => (
-              <img key={image} src={image} alt={card.name} crossOrigin="anonymous" />
-            ))}
-          </div>
-          <button onClick={next} autoFocus>
-            Continue
-          </button>
+      <header className="lesson-bar">
+        <button className="leave" onClick={onDone} aria-label="Leave the lesson">
+          ✕
+        </button>
+        <div
+          className="lesson-progress"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={questions.length}
+          aria-valuenow={answered}
+        >
+          <div style={{ width: `${(answered / questions.length) * 100}%` }} />
         </div>
+        <span>
+          {index + 1}/{questions.length}
+        </span>
+      </header>
+
+      {picked === null ? (
+        <>
+          <h2 className="question">Which card is this?</h2>
+          {/* A figure ties the credit to the artwork, for screen readers too */}
+          <figure className="artwork">
+            {/* The alt text must not give the answer away */}
+            <img src={card.art} alt="Card artwork" crossOrigin="anonymous" />
+            {/* Scryfall asks for this whenever the artwork is shown by itself */}
+            <figcaption className="credit">
+              Illustrated by {card.artist} · © Wizards of the Coast
+            </figcaption>
+          </figure>
+          <ul className="options">
+            {question.options.map((option) => (
+              <li key={option.oracle_id}>
+                <button onClick={() => pick(option)}>{option.name}</button>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <>
+          <div className="picture">
+            {/* Only the front: two sides would each be too small to read.
+                The full card shows its own artist and copyright. */}
+            <img src={card.images[0]} alt={card.name} crossOrigin="anonymous" />
+          </div>
+          <Feedback card={card} picked={picked} onContinue={next} />
+        </>
       )}
     </section>
   );
 }
 
-// Once an answer is picked: mark the right option, and the picked one if it was wrong
-function optionClass(option: Card, correct: Card, picked: Card | null): string {
-  if (picked === null) return '';
-  if (option.oracle_id === correct.oracle_id) return 'correct';
-  if (option.oracle_id === picked.oracle_id) return 'wrong';
-  return '';
+interface FeedbackProps {
+  card: Card;
+  picked: Card;
+  onContinue: () => void;
+}
+
+function Feedback({ card, picked, onContinue }: FeedbackProps) {
+  const correct = picked.oracle_id === card.oracle_id;
+  return (
+    <div className={correct ? 'feedback correct' : 'feedback wrong'}>
+      {/* role="status" makes screen readers announce the result */}
+      <div role="status">
+        {correct ? (
+          <p className="verdict">✓ Correct: {card.name}</p>
+        ) : (
+          <>
+            <p className="verdict">✗ Not quite</p>
+            <p>You picked {picked.name}</p>
+            <p>It was {card.name}</p>
+          </>
+        )}
+      </div>
+      <button className="primary" onClick={onContinue} autoFocus>
+        Continue
+      </button>
+    </div>
+  );
 }

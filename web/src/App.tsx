@@ -45,6 +45,22 @@ export default function App() {
     saveProgress(progress);
   }, [progress]);
 
+  // A lesson fills the whole screen, with nothing else around it
+  if (inLesson && cards !== null) {
+    return (
+      <Lesson
+        cards={cards}
+        onAnswer={(card, correct) =>
+          setProgress((before) => recordAnswer(before, card.oracle_id, correct))
+        }
+        onLessonFinished={() =>
+          setProgress((before) => recordLesson(before, localDay()))
+        }
+        onDone={() => setInLesson(false)}
+      />
+    );
+  }
+
   return (
     <main>
       <h1>Most played cards in {FORMAT}</h1>
@@ -55,17 +71,6 @@ export default function App() {
         </p>
       ) : cards === null ? (
         <p>Loading…</p>
-      ) : inLesson ? (
-        <Lesson
-          cards={cards}
-          onAnswer={(card, correct) =>
-            setProgress((before) => recordAnswer(before, card.oracle_id, correct))
-          }
-          onLessonFinished={() =>
-            setProgress((before) => recordLesson(before, localDay()))
-          }
-          onDone={() => setInLesson(false)}
-        />
       ) : (
         <>
           <Summary cards={cards} progress={progress} />

@@ -4,6 +4,10 @@ html {
   font-family: system-ui, sans-serif;
 }
 
+body {
+  margin: 0;
+}
+
 main {
   max-width: 1100px;
   margin: 0 auto;
@@ -60,93 +64,6 @@ button {
   background: none;
   color: inherit;
   cursor: pointer;
-}
-
-.lesson {
-  max-width: 480px;
-  margin: 0 auto;
-}
-
-.lesson .art {
-  display: block;
-  width: 100%;
-  height: auto;
-  border-radius: 8px;
-}
-
-.credit {
-  margin-top: 4px;
-  font-size: 0.8rem;
-  opacity: 0.7;
-}
-
-.options {
-  list-style: none;
-  padding: 0;
-  display: grid;
-  gap: 8px;
-}
-
-.options button {
-  width: 100%;
-}
-
-/* A picked question keeps its buttons readable while they can't be pressed */
-.options button:disabled {
-  cursor: default;
-}
-
-/* Right and wrong are marked with a symbol as well as a color */
-.options button.correct {
-  border-color: #2e9e5b;
-}
-
-.options button.correct::after {
-  content: ' ✓';
-}
-
-.options button.wrong {
-  border-color: #d64545;
-}
-
-.options button.wrong::after {
-  content: ' ✗';
-}
-
-.feedback {
-  margin-top: 16px;
-  text-align: center;
-}
-
-.feedback [role='status'] {
-  font-size: 1.2rem;
-  font-weight: bold;
-}
-
-.reveal {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.reveal img {
-  width: 100%;
-  max-width: 260px;
-  height: auto;
-  aspect-ratio: 488 / 680;
-  border-radius: 4.75% / 3.5%;
-}
-
-.score {
-  font-size: 2.5rem;
-  font-weight: bold;
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
 }
 
 footer {
