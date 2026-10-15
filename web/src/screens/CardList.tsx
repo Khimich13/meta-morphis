@@ -1,5 +1,5 @@
-import { type Card, formatLabel } from './cards';
-import type { CardProgress, Progress } from './progress';
+import { type Card, formatLabel } from '../lib/cards';
+import type { CardProgress, Progress } from '../lib/progress';
 
 interface CardListProps {
   format: string;

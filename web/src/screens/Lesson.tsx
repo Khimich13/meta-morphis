@@ -1,14 +1,14 @@
 import { useState } from 'react';
 
-import type { Card } from './cards';
-import './Lesson.css';
+import type { Card } from '../lib/cards';
 import {
   afterAnswer,
   isCorrect,
   isFinished,
   isFirstTry,
   startLesson,
-} from './quiz';
+} from '../lib/quiz';
+import './Lesson.css';
 
 interface LessonProps {
   cards: Card[];

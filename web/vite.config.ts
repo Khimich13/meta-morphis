@@ -12,9 +12,9 @@ export default defineConfig({
     // and generates the service worker during `npm run build`
     VitePWA({
       // A downloaded new version waits until the app switches to it -
-      // see src/update.ts, which does that when no lesson is running
+      // see src/lib/update.ts, which does that when no lesson is running
       registerType: 'prompt',
-      // src/update.ts registers the service worker itself
+      // src/lib/update.ts registers the service worker itself
       injectRegister: false,
       includeAssets: ['favicon.ico', 'icon.svg', 'apple-touch-icon-180x180.png'],
       // What the phone shows when the app is installed
@@ -57,7 +57,7 @@ export default defineConfig({
           },
           {
             // Card pictures: the saved copy if there is one. The cache
-            // name must match PICTURE_CACHE in src/offline.ts, which
+            // name must match PICTURE_CACHE in src/lib/offline.ts, which
             // fills this cache ahead of time.
             urlPattern: /^https:\/\/cards\.scryfall\.io\//,
             handler: 'CacheFirst',

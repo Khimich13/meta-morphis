@@ -1,6 +1,6 @@
-import { type Card, formatLabel } from './cards';
+import { type Card, formatLabel } from '../lib/cards';
+import { localDay, type Progress, streak } from '../lib/progress';
 import './Home.css';
-import { localDay, type Progress, streak } from './progress';
 
 interface HomeProps {
   format: string;

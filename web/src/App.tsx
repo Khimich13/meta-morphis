@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 
 import './App.css';
-import { type Card, loadCards } from './cards';
-import CardList from './CardList';
-import Home from './Home';
-import Lesson from './Lesson';
-import { savePictures } from './offline';
-import { localDay, recordAnswer, recordLesson } from './progress';
-import { loadProgress, saveProgress } from './storage';
-import { useAppUpdate } from './update';
+import { type Card, loadCards } from './lib/cards';
+import { savePictures } from './lib/offline';
+import { localDay, recordAnswer, recordLesson } from './lib/progress';
+import { loadProgress, saveProgress } from './lib/storage';
+import { useAppUpdate } from './lib/update';
+import CardList from './screens/CardList';
+import Home from './screens/Home';
+import Lesson from './screens/Lesson';
 
 const FORMAT = 'pauper';
 
