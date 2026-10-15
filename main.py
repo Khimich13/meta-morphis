@@ -40,7 +40,4 @@ if __name__ == "__main__":
 
 # TODO: Clean debugging print messages
 # TODO: Add an option to pick the format
-# TODO: Update the grid layout when the card's name takes more than one line
 # TODO: Think about how to monetize the app in the future
-# TODO: Orginize the web files better?
-# TODO: Repeat the question if the answer is incorrect

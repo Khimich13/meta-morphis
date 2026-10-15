@@ -44,12 +44,23 @@ body {
   gap: 16px;
 }
 
+/* Each card's name, picture and record are three rows of the grid
+   itself (subgrid), so the cards in a row share row heights: a name on
+   two lines makes the name row taller for the whole row, and all the
+   pictures in it still start at the same height. */
 .card-grid li {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+  row-gap: 6px;
   font-size: 0.9rem;
   text-align: center;
+}
+
+/* A one-line name sits right above its picture, with any extra space
+   above it */
+.card-grid li > span:first-child {
+  align-self: end;
 }
 
 .card-grid img {

@@ -15,6 +15,8 @@ An app for phones and computers that teaches the most-played cards of a Magic fo
 
 Each brick ends with something I can see and use.
 
+New features get a row. Fixes and adjustments to an existing brick are recorded in the git history, not here.
+
 | # | Brick | What I can see when it's done | Status |
 |---|---|---|---|
 | 0 | Backend groundwork: Scryfall rate limits, Pauper list with creatures, extra card fields, symbols fetch, meta timestamp | Tests pass | Done |
