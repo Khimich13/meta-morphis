@@ -50,3 +50,66 @@ export function makeLesson(
 export function isCorrect(question: Question, picked: Card): boolean {
   return picked.oracle_id === question.card.oracle_id;
 }
+
+/**
+ * Where a lesson stands. A missed card goes to the back of the queue as
+ * a new question, again and again until it is answered right, so the
+ * lesson ends with every card answered right at least once.
+ */
+export interface LessonState {
+  /** The questions still to answer, the one on screen first */
+  queue: Question[];
+  /** How many different cards the lesson is about */
+  total: number;
+  /** How many of them have been answered right */
+  done: number;
+  /** oracle_ids of the cards answered wrongly at least once */
+  missed: string[];
+  /** Cards answered right on the first try */
+  score: number;
+}
+
+export function startLesson(
+  allCards: readonly Card[],
+  random: Random = Math.random,
+): LessonState {
+  const queue = makeLesson(allCards, random);
+  return { queue, total: queue.length, done: 0, missed: [], score: 0 };
+}
+
+/** True the first time a card is asked in this lesson - not on a repeat */
+export function isFirstTry(lesson: LessonState, card: Card): boolean {
+  return !lesson.missed.includes(card.oracle_id);
+}
+
+/** The lesson after the question on screen was answered */
+export function afterAnswer(
+  lesson: LessonState,
+  correct: boolean,
+  allCards: readonly Card[],
+  random: Random = Math.random,
+): LessonState {
+  const [current, ...rest] = lesson.queue;
+  const card = current.card;
+
+  if (correct) {
+    return {
+      ...lesson,
+      queue: rest,
+      done: lesson.done + 1,
+      score: lesson.score + (isFirstTry(lesson, card) ? 1 : 0),
+    };
+  }
+
+  // Back of the queue, as a new question: new wrong options in a new
+  // order, so the answer can't be remembered by its place
+  return {
+    ...lesson,
+    queue: [...rest, makeQuestion(card, allCards, random)],
+    missed: isFirstTry(lesson, card) ? [...lesson.missed, card.oracle_id] : lesson.missed,
+  };
+}
+
+export function isFinished(lesson: LessonState): boolean {
+  return lesson.queue.length === 0;
+}

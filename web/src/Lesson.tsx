@@ -2,11 +2,17 @@ import { useState } from 'react';
 
 import type { Card } from './cards';
 import './Lesson.css';
-import { isCorrect, makeLesson } from './quiz';
+import {
+  afterAnswer,
+  isCorrect,
+  isFinished,
+  isFirstTry,
+  startLesson,
+} from './quiz';
 
 interface LessonProps {
   cards: Card[];
-  /** Called once for every answer given */
+  /** Called with the first answer to each card - repeats are not reported */
   onAnswer: (card: Card, correct: boolean) => void;
   /** Called once when the last question has been answered */
   onLessonFinished: () => void;
@@ -20,45 +26,46 @@ export default function Lesson({
   onLessonFinished,
   onDone,
 }: LessonProps) {
-  const [questions, setQuestions] = useState(() => makeLesson(cards));
-  // Which question is on screen, counting from 0
-  const [index, setIndex] = useState(0);
-  // The answer chosen for this question, or null while still choosing
+  // The rules for what comes next are in quiz.ts
+  const [lesson, setLesson] = useState(() => startLesson(cards));
+  // The answer chosen for the question on screen, or null while choosing
   const [picked, setPicked] = useState<Card | null>(null);
-  const [score, setScore] = useState(0);
 
   function pick(option: Card) {
-    const correct = isCorrect(questions[index], option);
+    const question = lesson.queue[0];
     setPicked(option);
-    if (correct) {
-      setScore(score + 1);
+    // Saved progress counts the first answer to each card only: a right
+    // answer on a repeat comes straight after seeing the answer
+    if (isFirstTry(lesson, question.card)) {
+      onAnswer(question.card, isCorrect(question, option));
     }
-    onAnswer(questions[index].card, correct);
   }
 
   function next() {
-    if (index + 1 === questions.length) {
+    // Continue only appears after an answer, so this is just a safeguard
+    if (picked === null) return;
+    const after = afterAnswer(lesson, isCorrect(lesson.queue[0], picked), cards);
+    if (isFinished(after)) {
       onLessonFinished();
     }
-    setIndex(index + 1);
+    setLesson(after);
     setPicked(null);
   }
 
   function restart() {
-    setQuestions(makeLesson(cards));
-    setIndex(0);
+    setLesson(startLesson(cards));
     setPicked(null);
-    setScore(0);
   }
 
-  if (index >= questions.length) {
+  if (isFinished(lesson)) {
     return (
       <section className="lesson">
         <div className="lesson-done">
           <h2>Lesson complete</h2>
           <p className="score">
-            {score} / {questions.length}
+            {lesson.score} / {lesson.total}
           </p>
+          <p>right on the first try</p>
         </div>
         <div className="lesson-actions">
           <button className="primary" onClick={restart}>
@@ -70,10 +77,12 @@ export default function Lesson({
     );
   }
 
-  const question = questions[index];
+  const question = lesson.queue[0];
   const card = question.card;
-  // A question counts as done in the progress bar once it is answered
-  const answered = index + (picked === null ? 0 : 1);
+  const repeat = !isFirstTry(lesson, card);
+  // Cards answered right, including this one as soon as it is: the bar
+  // only moves forward on a right answer
+  const done = lesson.done + (picked !== null && isCorrect(question, picked) ? 1 : 0);
 
   return (
     <section className="lesson">
@@ -85,18 +94,19 @@ export default function Lesson({
           className="progress-bar"
           role="progressbar"
           aria-valuemin={0}
-          aria-valuemax={questions.length}
-          aria-valuenow={answered}
+          aria-valuemax={lesson.total}
+          aria-valuenow={done}
         >
-          <div style={{ width: `${(answered / questions.length) * 100}%` }} />
+          <div style={{ width: `${(done / lesson.total) * 100}%` }} />
         </div>
         <span>
-          {index + 1}/{questions.length}
+          {done}/{lesson.total}
         </span>
       </header>
 
       {picked === null ? (
         <>
+          {repeat && <p className="repeat">Try again</p>}
           <h2 className="question">Which card is this?</h2>
           {/* A figure ties the credit to the artwork, for screen readers too */}
           <figure className="artwork">

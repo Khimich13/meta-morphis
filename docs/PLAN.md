@@ -28,6 +28,7 @@ Each brick ends with something I can see and use.
 | 6c | Portrait only: installed Android app stays upright; a sideways phone shows "Turn your phone upright" | No sideways layout on a phone | Done |
 | 6d | A start screen in place of the card list: streak, cards seen, Start lesson; the card list moves behind a "See all cards" link | A start screen that fits one screen | Done |
 | 6e | Show each card in the printing whose artwork appears on the most regular printings, the same printing in the question and after answering | Familiar artworks, and a full card that matches the question | Done |
+| 6f | A missed card comes back at the end of the lesson, as a new question, until it is answered right; the score and saved progress count first tries only | Every lesson ends with every card answered right | Done |
 | 7 | Refresh the card data automatically once a day | New cards appear without me doing anything | Done |
 | 7b | Faster app updates: reload into a new version as soon as it is downloaded, but never during a lesson, and check for one whenever the installed app comes back to the foreground. Today a new version arrives one visit late; card data is not affected | A new version within seconds of opening the app | Done |
 | 7c | Keep the card database between daily runs on GitHub, so the 50 artwork searches and the card data are only fetched again when they are 30 days old | Fewer requests to Scryfall | Done |

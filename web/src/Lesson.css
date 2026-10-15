@@ -38,6 +38,12 @@
   flex: 1;
 }
 
+.repeat {
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #d64545;
+}
+
 .question {
   font-size: 1.2rem;
 }
