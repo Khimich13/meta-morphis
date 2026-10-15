@@ -79,7 +79,38 @@ body {
 
 .card-progress {
   font-size: 0.8rem;
-  opacity: 0.7;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 4px 6px;
+}
+
+/* How well a card is known: New, Learning, Known, and Tricky as an extra
+   warning. The word carries the meaning; the color only adds to it. */
+.label {
+  display: inline-block;
+  padding: 1px 8px;
+  border: 1.5px solid;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.label.new {
+  color: #3b82f6;
+}
+
+.label.learning {
+  color: #d69e2e;
+}
+
+.label.known {
+  color: #2e9e5b;
+}
+
+.label.tricky {
+  color: #d64545;
 }
 
 button {

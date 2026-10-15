@@ -22,6 +22,37 @@ const TOP_BOX = BOX_WAIT_DAYS.length - 1;
 /** From this box on, a card counts as known */
 export const KNOWN_BOX = 3;
 
+/** How well a card is known, as shown to the player */
+export type Knowledge = 'new' | 'learning' | 'known';
+
+export interface CardStatus {
+  knowledge: Knowledge;
+  /** Often answered wrongly - shown as an extra warning */
+  tricky: boolean;
+  /** First answers given to the card so far, and how many were wrong */
+  answers: number;
+  wrong: number;
+}
+
+/** A card counts as tricky once it has this many answers... */
+export const TRICKY_MIN_ANSWERS = 3;
+/** ...and at least this share of them were wrong */
+export const TRICKY_WRONG_SHARE = 0.4;
+
+/** Turns a card's saved record (undefined if never asked) into its labels */
+export function cardStatus(record: CardProgress | undefined): CardStatus {
+  if (record === undefined) {
+    return { knowledge: 'new', tricky: false, answers: 0, wrong: 0 };
+  }
+  const answers = record.right + record.wrong;
+  return {
+    knowledge: record.box >= KNOWN_BOX ? 'known' : 'learning',
+    tricky: answers >= TRICKY_MIN_ANSWERS && record.wrong / answers >= TRICKY_WRONG_SHARE,
+    answers,
+    wrong: record.wrong,
+  };
+}
+
 export interface Progress {
   /** Raise this when the shape changes, so old saved data can be recognized */
   version: 2;

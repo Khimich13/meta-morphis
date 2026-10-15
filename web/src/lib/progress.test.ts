@@ -3,6 +3,8 @@ import { expect, test } from 'vitest';
 import {
   addDays,
   BOX_WAIT_DAYS,
+  type CardProgress,
+  cardStatus,
   dueCount,
   EMPTY_PROGRESS,
   localDay,
@@ -189,4 +191,32 @@ test('parseProgress gives empty progress for missing or damaged text', () => {
     EMPTY_PROGRESS,
   );
   expect(parseProgress('{"version": 1, "cards": null}', TODAY)).toEqual(EMPTY_PROGRESS);
+});
+
+function record(right: number, wrong: number, box: number): CardProgress {
+  return { right, wrong, box, due: TODAY };
+}
+
+test('cardStatus: a card never asked is new', () => {
+  expect(cardStatus(undefined)).toEqual({ knowledge: 'new', tricky: false, answers: 0, wrong: 0 });
+});
+
+test('cardStatus: learning below box 3, known from box 3', () => {
+  expect(cardStatus(record(1, 0, 0)).knowledge).toBe('learning');
+  expect(cardStatus(record(2, 0, 2)).knowledge).toBe('learning');
+  expect(cardStatus(record(3, 0, 3)).knowledge).toBe('known');
+  expect(cardStatus(record(9, 0, 5)).knowledge).toBe('known');
+});
+
+test('cardStatus: tricky needs three answers and 40% of them wrong', () => {
+  // Two answers, both wrong: too few to judge
+  expect(cardStatus(record(0, 2, 0)).tricky).toBe(false);
+  // 2 wrong of 5 is exactly 40%
+  expect(cardStatus(record(3, 2, 1)).tricky).toBe(true);
+  // 1 wrong of 4 is 25%
+  expect(cardStatus(record(3, 1, 2)).tricky).toBe(false);
+  // Known now, but with a poor history: still tricky
+  expect(cardStatus(record(5, 5, 3))).toEqual({
+    knowledge: 'known', tricky: true, answers: 10, wrong: 5,
+  });
 });

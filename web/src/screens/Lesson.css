@@ -38,10 +38,15 @@
   flex: 1;
 }
 
-.repeat {
-  font-size: 0.85rem;
-  font-weight: bold;
-  color: #d64545;
+/* "Try again", "New card", "Tricky card" above the artwork. The
+   colors come from .label in App.css */
+.lesson-bar + .label {
+  align-self: flex-start;
+}
+
+.missed-note {
+  font-size: 0.9rem;
+  opacity: 0.8;
 }
 
 .question {

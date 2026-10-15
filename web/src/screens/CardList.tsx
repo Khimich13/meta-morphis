@@ -1,5 +1,5 @@
 import { type Card, formatLabel } from '../lib/cards';
-import type { CardProgress, Progress } from '../lib/progress';
+import { type CardProgress, cardStatus, type Progress } from '../lib/progress';
 
 interface CardListProps {
   format: string;
@@ -27,9 +27,7 @@ export default function CardList({ format, cards, progress, onBack }: CardListPr
               loading="lazy"
               crossOrigin="anonymous"
             />
-            <span className="card-progress">
-              {describe(progress.cards[card.oracle_id])}
-            </span>
+            <CardRecord record={progress.cards[card.oracle_id]} />
           </li>
         ))}
       </ul>
@@ -37,7 +35,19 @@ export default function CardList({ format, cards, progress, onBack }: CardListPr
   );
 }
 
-function describe(card: CardProgress | undefined): string {
-  if (card === undefined) return 'new';
-  return `${card.right} of ${card.right + card.wrong} right`;
+/** A card's labels and record, e.g. "Learning · Tricky · 3 of 6 right" */
+function CardRecord({ record }: { record: CardProgress | undefined }) {
+  const status = cardStatus(record);
+  const names = { new: 'New', learning: 'Learning', known: 'Known' };
+  return (
+    <span className="card-progress">
+      <span className={`label ${status.knowledge}`}>{names[status.knowledge]}</span>
+      {status.tricky && <span className="label tricky">Tricky</span>}
+      {record !== undefined && (
+        <span>
+          {record.right} of {status.answers} right
+        </span>
+      )}
+    </span>
+  );
 }

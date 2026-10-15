@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import type { Card } from '../lib/cards';
-import { localDay, type Progress } from '../lib/progress';
+import { cardStatus, type Knowledge, localDay, type Progress } from '../lib/progress';
 import {
   afterAnswer,
   isCorrect,
@@ -84,6 +84,8 @@ export default function Lesson({
   const question = lesson.queue[0];
   const card = question.card;
   const repeat = !isFirstTry(lesson, card);
+  // Read from the saved progress, so after an answer it includes it
+  const status = cardStatus(progress.cards[card.oracle_id]);
   // Cards answered right, including this one as soon as it is: the bar
   // only moves forward on a right answer
   const done = lesson.done + (picked !== null && isCorrect(question, picked) ? 1 : 0);
@@ -110,7 +112,7 @@ export default function Lesson({
 
       {picked === null ? (
         <>
-          {repeat && <p className="repeat">Try again</p>}
+          <QuestionLabel repeat={repeat} knowledge={status.knowledge} tricky={status.tricky} />
           <h2 className="question">Which card is this?</h2>
           {/* A figure ties the credit to the artwork, for screen readers too */}
           <figure className="artwork">
@@ -136,20 +138,50 @@ export default function Lesson({
                 The full card shows its own artist and copyright. */}
             <img src={card.images[0]} alt={card.name} crossOrigin="anonymous" />
           </div>
-          <Feedback card={card} picked={picked} onContinue={next} />
+          <Feedback
+            card={card}
+            picked={picked}
+            missedNote={
+              status.tricky
+                ? `You've missed this card ${status.wrong} of ${status.answers} times`
+                : null
+            }
+            onContinue={next}
+          />
         </>
       )}
     </section>
   );
 }
 
+/**
+ * One label above the artwork, the most useful one: a repeat says so
+ * first, then a card never seen before, then one often missed.
+ */
+function QuestionLabel({
+  repeat,
+  knowledge,
+  tricky,
+}: {
+  repeat: boolean;
+  knowledge: Knowledge;
+  tricky: boolean;
+}) {
+  if (repeat) return <p className="label tricky">Try again</p>;
+  if (knowledge === 'new') return <p className="label new">New card</p>;
+  if (tricky) return <p className="label tricky">Tricky card</p>;
+  return null;
+}
+
 interface FeedbackProps {
   card: Card;
   picked: Card;
+  /** Shown after a wrong answer to a card that is often missed */
+  missedNote: string | null;
   onContinue: () => void;
 }
 
-function Feedback({ card, picked, onContinue }: FeedbackProps) {
+function Feedback({ card, picked, missedNote, onContinue }: FeedbackProps) {
   const correct = picked.oracle_id === card.oracle_id;
   return (
     <div className={correct ? 'feedback correct' : 'feedback wrong'}>
@@ -162,6 +194,7 @@ function Feedback({ card, picked, onContinue }: FeedbackProps) {
             <p className="verdict">✗ Not quite</p>
             <p>You picked {picked.name}</p>
             <p>It was {card.name}</p>
+            {missedNote && <p className="missed-note">{missedNote}</p>}
           </>
         )}
       </div>
