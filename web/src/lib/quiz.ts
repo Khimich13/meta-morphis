@@ -3,9 +3,12 @@
 // so it can be tested without a browser.
 
 import type { Card } from './cards';
+import { isDue, type Progress } from './progress';
 
 export const LESSON_LENGTH = 10;
 export const OPTION_COUNT = 4;
+/** At most this many cards never seen before in a lesson, when others are waiting */
+export const NEW_PER_LESSON = 3;
 
 export interface Question {
   /** The card being asked about */
@@ -38,13 +41,44 @@ export function makeQuestion(
   return { card, options: shuffle([card, ...wrong], random) };
 }
 
-export function makeLesson(
+/**
+ * The cards a lesson asks about, from what the player knows:
+ *   1. cards due for review, the most overdue first;
+ *   2. up to NEW_PER_LESSON cards never seen before;
+ *   3. if there is still room, seen cards not due yet, the soonest first;
+ *   4. if there is still room (the first lessons), more new cards.
+ * The chosen cards are shuffled, so reviews and new cards are mixed.
+ */
+export function chooseLessonCards(
   allCards: readonly Card[],
+  progress: Progress,
+  today: string,
   random: Random = Math.random,
-): Question[] {
-  return shuffle(allCards, random)
-    .slice(0, LESSON_LENGTH)
-    .map((card) => makeQuestion(card, allCards, random));
+): Card[] {
+  // Shuffled first, so cards that tie in the sorting below come in a
+  // different order each time
+  const cards = shuffle(allCards, random);
+  const unseen = cards.filter((card) => progress.cards[card.oracle_id] === undefined);
+  // Each seen card with its saved record, soonest due date first
+  const seen = cards
+    .flatMap((card) => {
+      const record = progress.cards[card.oracle_id];
+      return record === undefined ? [] : [{ card, record }];
+    })
+    .sort((a, b) => a.record.due.localeCompare(b.record.due));
+  const due = seen.filter(({ record }) => isDue(record, today)).map(({ card }) => card);
+  const ahead = seen.filter(({ record }) => !isDue(record, today)).map(({ card }) => card);
+
+  const chosen = due.slice(0, LESSON_LENGTH);
+  const fill = (from: Card[], most: number) => {
+    const room = Math.min(most, LESSON_LENGTH - chosen.length);
+    const add = from.filter((card) => !chosen.includes(card)).slice(0, room);
+    chosen.push(...add);
+  };
+  fill(unseen, NEW_PER_LESSON);
+  fill(ahead, LESSON_LENGTH);
+  fill(unseen, LESSON_LENGTH);
+  return shuffle(chosen, random);
 }
 
 export function isCorrect(question: Question, picked: Card): boolean {
@@ -71,9 +105,13 @@ export interface LessonState {
 
 export function startLesson(
   allCards: readonly Card[],
+  progress: Progress,
+  today: string,
   random: Random = Math.random,
 ): LessonState {
-  const queue = makeLesson(allCards, random);
+  const queue = chooseLessonCards(allCards, progress, today, random).map((card) =>
+    makeQuestion(card, allCards, random),
+  );
   return { queue, total: queue.length, done: 0, missed: [], score: 0 };
 }
 

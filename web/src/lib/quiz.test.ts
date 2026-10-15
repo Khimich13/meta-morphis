@@ -1,15 +1,17 @@
 import { expect, test } from 'vitest';
 
 import type { Card } from './cards';
+import { EMPTY_PROGRESS, type Progress, recordAnswer } from './progress';
 import {
   afterAnswer,
+  chooseLessonCards,
   isCorrect,
   isFinished,
   isFirstTry,
   LESSON_LENGTH,
   type LessonState,
-  makeLesson,
   makeQuestion,
+  NEW_PER_LESSON,
   OPTION_COUNT,
   type Random,
   shuffle,
@@ -70,20 +72,84 @@ test('the correct option is not always in the same place', () => {
   expect(places.size).toBe(OPTION_COUNT);
 });
 
+const TODAY = '2026-10-15';
+
+function start(seed: number, progress: Progress = EMPTY_PROGRESS): LessonState {
+  return startLesson(CARDS, progress, TODAY, seeded(seed));
+}
+
+/** Progress in which each listed card was answered on `day` */
+function answered(day: string, correct: boolean, ...cards: Card[]): Progress {
+  return cards.reduce(
+    (progress, card) => recordAnswer(progress, card.oracle_id, correct, day),
+    EMPTY_PROGRESS,
+  );
+}
+
+function ids(cards: Card[]): string[] {
+  return cards.map((card) => card.oracle_id).sort();
+}
+
 test('a lesson asks about ten different cards', () => {
   for (const seed of SEEDS) {
-    const lesson = makeLesson(CARDS, seeded(seed));
-
-    expect(lesson).toHaveLength(LESSON_LENGTH);
-    const asked = lesson.map((question) => question.card.oracle_id);
+    const lesson = start(seed);
+    const asked = lesson.queue.map((question) => question.card.oracle_id);
     expect(new Set(asked).size).toBe(LESSON_LENGTH);
   }
 });
 
-test('lessons differ from each other', () => {
-  const first = makeLesson(CARDS, seeded(1)).map((q) => q.card.oracle_id);
-  const second = makeLesson(CARDS, seeded(2)).map((q) => q.card.oracle_id);
+test('first lessons differ from each other', () => {
+  const first = start(1).queue.map((q) => q.card.oracle_id);
+  const second = start(2).queue.map((q) => q.card.oracle_id);
   expect(first).not.toEqual(second);
+});
+
+test('cards due for review come first, then up to three new ones', () => {
+  // Twelve cards missed today, so all due now
+  const missed = CARDS.slice(0, 12);
+  const chosen = chooseLessonCards(CARDS, answered(TODAY, false, ...missed), TODAY, seeded(1));
+  // More due cards than room: no new cards at all
+  expect(chosen.every((card) => missed.includes(card))).toBe(true);
+
+  // Only five due: those five, three new, and two answered right but
+  // not due yet - the soonest first
+  const fiveDue = answered(TODAY, false, ...CARDS.slice(0, 5));
+  let progress = fiveDue;
+  for (const [i, card] of CARDS.slice(5, 9).entries()) {
+    // Due in 1, 1, 3 and 3 days
+    progress = recordAnswer(progress, card.oracle_id, true, TODAY);
+    if (i >= 2) progress = recordAnswer(progress, card.oracle_id, true, '2026-10-16');
+  }
+  const mix = chooseLessonCards(CARDS, progress, TODAY, seeded(2));
+  expect(mix).toHaveLength(LESSON_LENGTH);
+  const unseen = mix.filter((card) => progress.cards[card.oracle_id] === undefined);
+  expect(unseen).toHaveLength(NEW_PER_LESSON);
+  expect(ids(mix.filter((card) => CARDS.slice(0, 5).includes(card)))).toEqual(
+    ids(CARDS.slice(0, 5)),
+  );
+  // The two cards due tomorrow, not the two due in three days
+  expect(ids(mix.filter((card) => CARDS.slice(5, 9).includes(card)))).toEqual(
+    ids(CARDS.slice(5, 7)),
+  );
+});
+
+test('the most overdue cards come first when not all fit', () => {
+  let progress = EMPTY_PROGRESS;
+  // Fifteen cards, each missed on a different earlier day
+  for (const [i, card] of CARDS.slice(0, 15).entries()) {
+    progress = recordAnswer(progress, card.oracle_id, false, `2026-10-${String(i + 1).padStart(2, '0')}`);
+  }
+  const chosen = chooseLessonCards(CARDS, progress, TODAY, seeded(3));
+  expect(ids(chosen)).toEqual(ids(CARDS.slice(0, LESSON_LENGTH)));
+});
+
+test('with few cards seen, the lesson is filled with new ones', () => {
+  const progress = answered(TODAY, true, CARDS[0], CARDS[1]);
+  const chosen = chooseLessonCards(CARDS, progress, TODAY, seeded(4));
+  expect(chosen).toHaveLength(LESSON_LENGTH);
+  // The two seen cards are practised ahead; eight new cards fill the rest
+  expect(chosen).toContain(CARDS[0]);
+  expect(chosen).toContain(CARDS[1]);
 });
 
 test('isCorrect compares cards by id', () => {
@@ -97,7 +163,7 @@ function onScreen(lesson: LessonState): Card {
 }
 
 test('a new lesson has ten cards to do and nothing done yet', () => {
-  const lesson = startLesson(CARDS, seeded(1));
+  const lesson = startLesson(CARDS, EMPTY_PROGRESS, TODAY, seeded(1));
   expect(lesson.queue).toHaveLength(LESSON_LENGTH);
   expect(lesson.total).toBe(LESSON_LENGTH);
   expect(lesson.done).toBe(0);
@@ -106,7 +172,7 @@ test('a new lesson has ten cards to do and nothing done yet', () => {
 });
 
 test('a right answer finishes the card and counts toward the score', () => {
-  const lesson = startLesson(CARDS, seeded(1));
+  const lesson = startLesson(CARDS, EMPTY_PROGRESS, TODAY, seeded(1));
   const after = afterAnswer(lesson, true, CARDS, seeded(2));
 
   expect(after.queue).toEqual(lesson.queue.slice(1));
@@ -115,7 +181,7 @@ test('a right answer finishes the card and counts toward the score', () => {
 });
 
 test('a missed card comes back at the end as a new question', () => {
-  const lesson = startLesson(CARDS, seeded(1));
+  const lesson = startLesson(CARDS, EMPTY_PROGRESS, TODAY, seeded(1));
   const missed = onScreen(lesson);
   const after = afterAnswer(lesson, false, CARDS, seeded(2));
 
@@ -132,7 +198,7 @@ test('a missed card comes back at the end as a new question', () => {
 });
 
 test('a card right only on a repeat does not count toward the score', () => {
-  let lesson = startLesson(CARDS, seeded(1));
+  let lesson = startLesson(CARDS, EMPTY_PROGRESS, TODAY, seeded(1));
   const card = onScreen(lesson);
   lesson = afterAnswer(lesson, false, CARDS, seeded(2));
   // Answer the other nine right, which brings the missed card back
@@ -148,7 +214,7 @@ test('a card right only on a repeat does not count toward the score', () => {
 });
 
 test('a card keeps coming back until it is answered right', () => {
-  let lesson = startLesson(CARDS, seeded(1));
+  let lesson = startLesson(CARDS, EMPTY_PROGRESS, TODAY, seeded(1));
   const card = onScreen(lesson);
   // Miss it, then answer everything else right, three times over
   for (let round = 0; round < 3; round++) {
@@ -167,7 +233,7 @@ test('a card keeps coming back until it is answered right', () => {
 test('any mix of answers ends with every card done', () => {
   for (const seed of SEEDS) {
     const random = seeded(seed);
-    let lesson = startLesson(CARDS, random);
+    let lesson = startLesson(CARDS, EMPTY_PROGRESS, TODAY, random);
     let steps = 0;
     while (!isFinished(lesson)) {
       // Wrong about a third of the time

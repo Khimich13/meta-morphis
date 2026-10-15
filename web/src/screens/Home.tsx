@@ -1,5 +1,5 @@
 import { type Card, formatLabel } from '../lib/cards';
-import { localDay, type Progress, streak } from '../lib/progress';
+import { dueCount, localDay, type Progress, streak } from '../lib/progress';
 import './Home.css';
 
 interface HomeProps {
@@ -65,10 +65,12 @@ export default function Home({
 }
 
 function Stats({ cards, progress }: { cards: Card[]; progress: Progress }) {
-  const days = streak(progress, localDay());
+  const today = localDay();
+  const days = streak(progress, today);
   // Only cards in today's list count: one that left the list keeps its
   // saved numbers but is no longer shown
   const seen = cards.filter((card) => card.oracle_id in progress.cards).length;
+  const due = dueCount(progress, cards.map((card) => card.oracle_id), today);
 
   return (
     <div className="home-middle">
@@ -90,6 +92,11 @@ function Stats({ cards, progress }: { cards: Card[]; progress: Progress }) {
         </div>
         <p>
           {seen} of {cards.length} cards seen
+        </p>
+        <p className="due">
+          {due === 0
+            ? 'No cards to review today'
+            : `${due} ${due === 1 ? 'card' : 'cards'} to review today`}
         </p>
       </div>
     </div>

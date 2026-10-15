@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import type { Card } from '../lib/cards';
+import { localDay, type Progress } from '../lib/progress';
 import {
   afterAnswer,
   isCorrect,
@@ -12,6 +13,8 @@ import './Lesson.css';
 
 interface LessonProps {
   cards: Card[];
+  /** Decides which cards the lesson asks about */
+  progress: Progress;
   /** Called with the first answer to each card - repeats are not reported */
   onAnswer: (card: Card, correct: boolean) => void;
   /** Called once when the last question has been answered */
@@ -22,12 +25,13 @@ interface LessonProps {
 
 export default function Lesson({
   cards,
+  progress,
   onAnswer,
   onLessonFinished,
   onDone,
 }: LessonProps) {
   // The rules for what comes next are in quiz.ts
-  const [lesson, setLesson] = useState(() => startLesson(cards));
+  const [lesson, setLesson] = useState(() => startLesson(cards, progress, localDay()));
   // The answer chosen for the question on screen, or null while choosing
   const [picked, setPicked] = useState<Card | null>(null);
 
@@ -53,7 +57,7 @@ export default function Lesson({
   }
 
   function restart() {
-    setLesson(startLesson(cards));
+    setLesson(startLesson(cards, progress, localDay()));
     setPicked(null);
   }
 

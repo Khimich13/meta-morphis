@@ -53,8 +53,9 @@ export default function App() {
     return (
       <Lesson
         cards={cards}
+        progress={progress}
         onAnswer={(card, correct) =>
-          setProgress((before) => recordAnswer(before, card.oracle_id, correct))
+          setProgress((before) => recordAnswer(before, card.oracle_id, correct, localDay()))
         }
         onLessonFinished={() =>
           setProgress((before) => recordLesson(before, localDay()))
