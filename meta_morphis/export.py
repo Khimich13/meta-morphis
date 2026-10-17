@@ -3,6 +3,7 @@
 Run with: uv run python -m meta_morphis.export
 """
 import json
+import logging
 import sqlite3
 from pathlib import Path
 from typing import TypedDict
@@ -13,6 +14,8 @@ from meta_morphis.db.init_db import init_db
 from meta_morphis.meta.service import get_meta_cards
 from meta_morphis.models.card import Card
 from meta_morphis.scryfall.service import fetch_cards, get_display_printing
+
+log = logging.getLogger(__name__)
 
 
 class ExportCard(TypedDict):
@@ -71,7 +74,7 @@ def build_export(format_name: str, cards: list[Card]) -> ExportFile:
     for card in cards:
         built = build_card(card)
         if built is None:
-            print(f"Leaving out '{card.name}' - no oracle id, picture or artist, "
+            log.warning(f"Leaving out '{card.name}' - no oracle id, picture or artist, "
                   "or pictures of different printings")
             continue
         exported.append(built)
@@ -102,11 +105,13 @@ def export_format(conn: sqlite3.Connection, format_name: str, out_dir: Path) -> 
     return write_export(data, out_dir)
 
 def main() -> None:
+    # Show this package's progress and warnings, one plain line each
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     with get_connection() as conn:
         init_db(conn)
         for format_name in config.EXPORT_FORMATS:
             path = export_format(conn, format_name, config.EXPORT_DIR)
-            print(f"Wrote {path}")
+            log.info(f"Wrote {path}")
 
 if __name__ == "__main__":
     main()

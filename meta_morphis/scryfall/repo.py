@@ -1,4 +1,5 @@
 import json
+import logging
 import sqlite3
 import time
 from typing import Any
@@ -6,6 +7,8 @@ from typing import Any
 from meta_morphis import config
 from meta_morphis.models.card import Card
 from meta_morphis.utils.text import normalize_name
+
+log = logging.getLogger(__name__)
 
 
 def get_card_from_cache(conn: sqlite3.Connection, name: str) -> Card | None:
@@ -61,7 +64,7 @@ def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> None:
     alias_key = normalize_name(alias)
     card_key = normalize_name(card_name)
     if not _claim_alias(c, alias_key, card_key):
-        print(f"Alias '{alias_key}' already belongs to another card - not claimed by '{card_key}'")
+        log.warning(f"Alias '{alias_key}' already belongs to another card - not claimed by '{card_key}'")
 
 def save_cards_to_cache(conn: sqlite3.Connection, cards: list[Card]) -> None:
     c = conn.cursor()
@@ -99,7 +102,7 @@ def save_cards_to_cache(conn: sqlite3.Connection, cards: list[Card]) -> None:
         for face in card.faces:
             face_key = normalize_name(face.name)
             if not _claim_alias(c, face_key, key):
-                print(f"Alias '{face_key}' already belongs to another card - not claimed by '{key}'")
+                log.warning(f"Alias '{face_key}' already belongs to another card - not claimed by '{key}'")
 
 def record_bad_name_attempt(conn: sqlite3.Connection, name: str) -> None:
     key = normalize_name(name)

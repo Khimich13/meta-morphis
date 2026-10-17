@@ -1,3 +1,4 @@
+import logging
 import time
 
 from meta_morphis import config
@@ -24,6 +25,8 @@ def choose_format() -> str:
         time.sleep(2)
 
 def main() -> None:
+    # Show the library's progress and warnings as plain lines
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     with get_connection() as conn:
         init_db(conn)
 

@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from pytest import CaptureFixture, MonkeyPatch
+from pytest import LogCaptureFixture, MonkeyPatch
 
 from meta_morphis import config
 from meta_morphis.models.card import Card
@@ -163,7 +163,7 @@ def test_fetch_updates_for_outdated_renamed_card_not_also_unrecognized(conn: sql
 
 # A batch that couldn't be reached must be reported, not silently dropped
 def test_fetch_updates_for_outdated_reports_unreachable_batch(
-    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: LogCaptureFixture
 ) -> None:
     outdated = [_card("Counterspell"), _card("Duress")]
 
@@ -176,9 +176,8 @@ def test_fetch_updates_for_outdated_reports_unreachable_batch(
 
     assert updates == []
     assert unrecognized == outdated
-    captured = capsys.readouterr()
-    assert "2 outdated card" in captured.out
-    assert "unreachable" in captured.out
+    assert "2 outdated card" in caplog.text
+    assert "unreachable" in caplog.text
 
 def test_fetch_cards(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
     fresh = MetaEntry(
@@ -248,7 +247,7 @@ def test_fetch_cards_raises(conn: sqlite3.Connection) -> None:
 # Make sure that when more than 75 cards requested and any of the batch calls
 # fails, the caller will be notified
 def test_fetch_cards_reports_unreachable_missing_batch(
-    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: LogCaptureFixture
 ) -> None:
 
     fresh_meta = MetaEntry(name="Duress", rank=1, percent=10, avg_copies=2)
@@ -267,11 +266,10 @@ def test_fetch_cards_reports_unreachable_missing_batch(
     result = fetch_cards(conn, [fresh_meta, missing_meta])
 
     assert result == [_card("Duress")]
-    captured = capsys.readouterr()
-    assert "1 missing card" in captured.out
-    assert "unreachable" in captured.out
+    assert "1 missing card" in caplog.text
+    assert "unreachable" in caplog.text
 
-def test_process_batch_request(conn: sqlite3.Connection, monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]) -> None:
+def test_process_batch_request(conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: LogCaptureFixture) -> None:
     raw: dict[str, Any] = {"object": []}
 
     monkeypatch.setattr(
@@ -280,13 +278,13 @@ def test_process_batch_request(conn: sqlite3.Connection, monkeypatch: MonkeyPatc
     )
 
     assert _process_batch_request(conn, raw) == ([], [])
-    captured = capsys.readouterr()
-    assert "Scryfall error: no data received" in captured.out
+    assert "Scryfall error: no data received" in caplog.text
 
+    # Start fresh, so the next check proves a second message was logged
+    caplog.clear()
     raw = {"data": []}
     assert _process_batch_request(conn, raw) == ([], [])
-    captured = capsys.readouterr()
-    assert "Scryfall error: no data received" in captured.out
+    assert "Scryfall error: no data received" in caplog.text
 
     raw = {
         "data": [
@@ -311,7 +309,7 @@ def test_process_batch_request(conn: sqlite3.Connection, monkeypatch: MonkeyPatc
     )
 
 def test_process_batch_request_accepts_fuzzy_match_with_different_name(
-    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: LogCaptureFixture
 ) -> None:
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.record_bad_name_attempt",
@@ -330,8 +328,7 @@ def test_process_batch_request_accepts_fuzzy_match_with_different_name(
     result = _process_batch_request(conn, raw)
 
     assert result == ([_card("Snapcaster Mage", card_id="1")], [])
-    captured = capsys.readouterr()
-    assert "Bad name" not in captured.out
+    assert "Bad name" not in caplog.text
 
     # The exact spelling that was searched for gets its own alias
     # too, not just the canonical name it resolved to.
@@ -342,7 +339,7 @@ def test_process_batch_request_accepts_fuzzy_match_with_different_name(
 # If a bad response is not confirmed that it's a genuine "doesn't exist"
 # than it shouldn't go to the 7-day card_lookup_failures ban list
 def test_process_batch_request_does_not_record_failure_on_outage(
-    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: LogCaptureFixture
 ) -> None:
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.record_bad_name_attempt",
@@ -362,9 +359,8 @@ def test_process_batch_request_does_not_record_failure_on_outage(
     result = _process_batch_request(conn, raw)
 
     assert result == ([], ["Counterspell"])
-    captured = capsys.readouterr()
-    assert "Bad name" not in captured.out
-    assert "Counterspell" in captured.out
+    assert "Bad name" not in caplog.text
+    assert "Counterspell" in caplog.text
 
 # Split cards are looked up by their lookup_name ("Wear"), not Goldfish's
 # full "A // B" name - that's what gets queued and sent to Scryfall

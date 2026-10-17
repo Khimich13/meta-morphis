@@ -1,3 +1,4 @@
+import logging
 import sqlite3
 from typing import Any
 
@@ -20,6 +21,8 @@ from .repo import (
     should_skip_lookup,
 )
 
+log = logging.getLogger(__name__)
+
 
 def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[Card]:
     output: list[Card] = []
@@ -28,25 +31,25 @@ def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[Card]:
     output.extend(fresh)
 
     if outdated:
-        print("Trying to fetch outdated names...")
+        log.info("Trying to fetch outdated names...")
         updates, unrecognized = _fetch_updates_for_outdated(conn, outdated)
 
         with conn:
             save_cards_to_cache(conn, updates)
-        print(f"{len(updates)} outdated cards were refreshed successfully")
+        log.info(f"{len(updates)} outdated cards were refreshed successfully")
         output.extend(updates)
 
         if unrecognized:
-            print(f"{len(unrecognized)} outdated cards were not found in Scryfall and was not refreshed")
+            log.warning(f"{len(unrecognized)} outdated cards were not found in Scryfall and were not refreshed")
             output.extend(unrecognized)
 
     if missing:
-        print("Trying to fetch missing names...")
+        log.info("Trying to fetch missing names...")
         for batch_names in chunked(missing, config.SCRYFALL_BATCH_SIZE_LIMIT):
             try:
                 raw = fetch_batch(batch_names)
             except RequestUnavailable as e:
-                print(f"Could not fetch {len(batch_names)} missing card(s), Scryfall was unreachable ({e}) - will retry next run")
+                log.warning(f"Could not fetch {len(batch_names)} missing card(s), Scryfall was unreachable ({e}) - will retry next run")
                 continue
             if raw:
                 cards, _ = _process_batch_request(conn, raw)
@@ -54,7 +57,7 @@ def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[Card]:
                     save_cards_to_cache(conn, cards)
                 output.extend(cards)
             else:
-                print(f"Could not fetch {len(batch_names)} missing card(s) - no data received")
+                log.warning(f"Could not fetch {len(batch_names)} missing card(s) - no data received")
 
     if not output:
         raise RuntimeError("No cards have been fetched either from Scryfall or from cache")
@@ -77,7 +80,7 @@ def get_display_printing(conn: sqlite3.Connection, card: Card) -> Card:
     try:
         printings = search_printings(card.oracle_id)
     except RequestUnavailable as e:
-        print(f"Could not choose a printing for '{card.name}', Scryfall was unreachable ({e})")
+        log.warning(f"Could not choose a printing for '{card.name}', Scryfall was unreachable ({e})")
         return cached or card
 
     chosen = choose_printing(printings or [])
@@ -134,7 +137,7 @@ def _fetch_updates_for_outdated(conn: sqlite3.Connection, outdated: list[Card]) 
         try:
             raw = fetch_batch(batch_names)
         except RequestUnavailable as e:
-            print(f"Could not refresh {len(batch_names)} outdated card(s), Scryfall was unreachable ({e}) - will retry next run")
+            log.warning(f"Could not refresh {len(batch_names)} outdated card(s), Scryfall was unreachable ({e}) - will retry next run")
             unresolved_names.update(batch_names)
             continue
         if raw:
@@ -142,7 +145,7 @@ def _fetch_updates_for_outdated(conn: sqlite3.Connection, outdated: list[Card]) 
             updates.extend(cards)
             unresolved_names.update(unresolved)
         else:
-            print(f"Could not refresh {len(batch_names)} outdated card(s) - no data received")
+            log.warning(f"Could not refresh {len(batch_names)} outdated card(s) - no data received")
             unresolved_names.update(batch_names)
 
     unrecognized = [card for card in outdated if card.name in unresolved_names]
@@ -152,7 +155,7 @@ def _to_card(raw: dict[str, Any]) -> Card | None:
     try:
         return Card.from_raw(raw)
     except KeyError as e:
-        print(f"Skipping malformed card from Scryfall, missing field {e}")
+        log.warning(f"Skipping malformed card from Scryfall, missing field {e}")
         return None
 
 def _process_batch_request(conn: sqlite3.Connection, raw: dict[str, Any]) -> tuple[list[Card], list[str]]:
@@ -179,7 +182,7 @@ def _process_batch_request(conn: sqlite3.Connection, raw: dict[str, Any]) -> tup
             try:
                 fetched = fetch_single(name)
             except RequestUnavailable as e:
-                print(f"Could not verify '{name}', Scryfall was unreachable ({e}) - will retry next run")
+                log.warning(f"Could not verify '{name}', Scryfall was unreachable ({e}) - will retry next run")
                 unresolved_names.append(name)
                 continue
             card = _to_card(fetched) if fetched else None
@@ -197,12 +200,12 @@ def _process_batch_request(conn: sqlite3.Connection, raw: dict[str, Any]) -> tup
                         save_cards_to_cache(conn, [card])
                         add_alias(conn, name, card.name)
             else:
-                print(f"Bad name - {name} saved to card_lookup_failures")
+                log.warning(f"Bad name - {name} saved to card_lookup_failures")
                 with conn:
                     record_bad_name_attempt(conn, name)
                 unresolved_names.append(name)
 
     if not cards:
-        print("Scryfall error: no data received")
+        log.warning("Scryfall error: no data received")
 
     return cards, unresolved_names

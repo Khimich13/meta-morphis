@@ -1,3 +1,4 @@
+import logging
 import sqlite3
 
 from meta_morphis import config
@@ -11,6 +12,8 @@ from .repo import (
 )
 from .scraper import scrape_meta_cards
 
+log = logging.getLogger(__name__)
+
 
 def get_meta_cards(conn: sqlite3.Connection, format_name: str) -> list[MetaEntry]:
     # Validated before the cache check, so an unknown format always fails
@@ -22,18 +25,18 @@ def get_meta_cards(conn: sqlite3.Connection, format_name: str) -> list[MetaEntry
         raise ValueError(f"Unknown format {format_name!r}, expected one of: {known}")
 
     if not should_refresh_meta(conn, format_name):
-        print("Using cached meta data\n")
+        log.info("Using cached meta data")
         return get_meta_from_cache(conn, format_name)
 
-    print("Refreshing meta data from MTGGoldfish...\n")
+    log.info("Refreshing meta data from MTGGoldfish...")
 
     meta = scrape_meta_cards(url)
 
     if not meta:
-        print("Failed fetching data from MTGGoldfish...\n")
+        log.warning("Failed fetching data from MTGGoldfish...")
         cached = get_meta_from_cache(conn, format_name)
         if cached:
-            print("Using cached meta data instead\n")
+            log.warning("Using cached meta data instead")
             return cached
         raise RuntimeError("Program has failed to find meta info!")
 

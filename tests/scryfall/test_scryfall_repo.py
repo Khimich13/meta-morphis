@@ -91,7 +91,7 @@ def test_save_cards_to_cache(conn: sqlite3.Connection) -> None:
     }
 
 def test_save_cards_to_cache_face_alias_first_claim_wins(
-    conn: sqlite3.Connection, capsys: pytest.CaptureFixture[str]
+    conn: sqlite3.Connection, caplog: pytest.LogCaptureFixture
 ) -> None:
     # "Fire" is a real face name shared by two
     # distinct real cards, Fire // Ice and Start // Fire. INSERT OR
@@ -120,8 +120,7 @@ def test_save_cards_to_cache_face_alias_first_claim_wins(
     assert card is not None
     assert card.name == "Fire // Ice"
 
-    captured = capsys.readouterr()
-    assert "already belongs to another card" in captured.out
+    assert "already belongs to another card" in caplog.text
 
     # Both cards remain independently reachable by their own canonical
     # names and their unambiguous face names.
