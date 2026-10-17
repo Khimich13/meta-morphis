@@ -1,4 +1,4 @@
-import { type Card, formatLabel } from '../lib/cards';
+import { type Card, formatLabel, LIST_OLD_AFTER_DAYS, listAgeDays } from '../lib/cards';
 import { dueCount, localDay, type Progress, streak } from '../lib/progress';
 import './Home.css';
 
@@ -8,6 +8,8 @@ interface HomeProps {
   cards: Card[] | null;
   /** The card list could not be loaded */
   failed: boolean;
+  /** When the list of most played cards was last fetched, if known */
+  listUpdated: string | undefined;
   progress: Progress;
   /** How many card pictures are saved for offline use, out of how many */
   pictures: { saved: number; total: number };
@@ -19,6 +21,7 @@ export default function Home({
   format,
   cards,
   failed,
+  listUpdated,
   progress,
   pictures,
   onStartLesson,
@@ -30,6 +33,8 @@ export default function Home({
         <h1>MetaMorphis</h1>
         <p>{formatLabel(format)}</p>
       </header>
+
+      <OldListBanner listUpdated={listUpdated} />
 
       {failed ? (
         <p className="home-middle">
@@ -100,6 +105,21 @@ function Stats({ cards, progress }: { cards: Card[]; progress: Progress }) {
         </p>
       </div>
     </div>
+  );
+}
+
+/**
+ * Shown when the list of most played cards hasn't been updated for a
+ * while, which means fetching it has been failing
+ */
+function OldListBanner({ listUpdated }: { listUpdated: string | undefined }) {
+  const days = listAgeDays(listUpdated);
+  if (days === null || days <= LIST_OLD_AFTER_DAYS) return null;
+  return (
+    <p className="old-list" role="status">
+      ⚠ The card list was last updated {days} days ago, so it may not match the
+      current meta.
+    </p>
   );
 }
 

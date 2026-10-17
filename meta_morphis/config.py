@@ -51,8 +51,12 @@ SCRYFALL_RATE_LIMIT_COOLDOWN = 30.0
 # An export with fewer usable cards than this fails instead of writing
 # the file, so a failed fetch can't publish an empty or half-empty page.
 EXPORT_MIN_CARDS = 45
-# Meta older than this is flagged stale in the manifest
-EXPORT_STALE_AFTER = 2 * _DAY
+# An MTGGoldfish list older than this makes the export fail, so a lasting
+# breakage of the scraper fails the daily run and GitHub reports it,
+# instead of the old list being published day after day. A short outage
+# still publishes the slightly older list. Keep in step with
+# LIST_OLD_AFTER_DAYS in web/src/lib/cards.ts, which shows a banner.
+EXPORT_STALE_AFTER = 3 * _DAY
 
 # Database
 PROJECT_ROOT = Path(__file__).resolve().parents[1]

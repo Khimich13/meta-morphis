@@ -18,6 +18,8 @@ type Screen = 'home' | 'lesson' | 'cards';
 export default function App() {
   // null until the card list has arrived
   const [cards, setCards] = useState<Card[] | null>(null);
+  // When the list of most played cards was last fetched, if the file says
+  const [listUpdated, setListUpdated] = useState<string | undefined>(undefined);
   const [failed, setFailed] = useState(false);
   const [screen, setScreen] = useState<Screen>('home');
   // Read from the browser's storage once, when the app starts
@@ -28,7 +30,10 @@ export default function App() {
   // Runs once, after the page first appears
   useEffect(() => {
     loadCards(FORMAT)
-      .then(setCards)
+      .then((file) => {
+        setCards(file.cards);
+        setListUpdated(file.list_updated);
+      })
       .catch(() => setFailed(true));
   }, []);
 
@@ -71,6 +76,7 @@ export default function App() {
 
   return (
     <Home
+      listUpdated={listUpdated}
       format={FORMAT}
       cards={cards}
       failed={failed}

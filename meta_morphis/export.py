@@ -5,12 +5,15 @@ Run with: uv run python -m meta_morphis.export
 import json
 import logging
 import sqlite3
+import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TypedDict
 
 from meta_morphis import config
 from meta_morphis.db.connection import get_connection
 from meta_morphis.db.init_db import init_db
+from meta_morphis.meta.repo import get_meta_timestamp
 from meta_morphis.meta.service import get_meta_cards
 from meta_morphis.models.card import Card
 from meta_morphis.scryfall.service import fetch_cards, get_display_printing
@@ -31,6 +34,9 @@ class ExportCard(TypedDict):
 
 class ExportFile(TypedDict):
     format: str
+    # When the list of most played cards was last fetched from MTGGoldfish,
+    # in UTC, e.g. "2026-10-17T19:18:03Z" - the app warns when it gets old
+    list_updated: str
     cards: list[ExportCard]
 
 
@@ -69,7 +75,7 @@ def build_card(card: Card) -> ExportCard | None:
         "artist": front.artist,
     }
 
-def build_export(format_name: str, cards: list[Card]) -> ExportFile:
+def build_export(format_name: str, cards: list[Card], list_updated: str) -> ExportFile:
     exported: list[ExportCard] = []
     for card in cards:
         built = build_card(card)
@@ -81,7 +87,7 @@ def build_export(format_name: str, cards: list[Card]) -> ExportFile:
 
     # Sorted so the file doesn't reshuffle between runs
     exported.sort(key=lambda c: c["name"])
-    return {"format": format_name, "cards": exported}
+    return {"format": format_name, "list_updated": list_updated, "cards": exported}
 
 def write_export(data: ExportFile, out_dir: Path) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -94,9 +100,10 @@ def write_export(data: ExportFile, out_dir: Path) -> Path:
 
 def export_format(conn: sqlite3.Connection, format_name: str, out_dir: Path) -> Path:
     meta = get_meta_cards(conn, format_name)
+    list_updated = _check_list_age(conn, format_name)
     # The printing each card is shown with - see scryfall/artwork.py
     cards = [get_display_printing(conn, card) for card in fetch_cards(conn, meta)]
-    data = build_export(format_name, cards)
+    data = build_export(format_name, cards, list_updated)
     if len(data["cards"]) < config.EXPORT_MIN_CARDS:
         raise RuntimeError(
             f"Only {len(data['cards'])} usable cards for {format_name}, "
@@ -106,6 +113,22 @@ def export_format(conn: sqlite3.Connection, format_name: str, out_dir: Path) -> 
     count = len(data["cards"])
     log.info(f"Wrote {path}: {count} {'card' if count == 1 else 'cards'}")
     return path
+
+def _check_list_age(conn: sqlite3.Connection, format_name: str) -> str:
+    """When the MTGGoldfish list was last fetched, as UTC text. Fails if
+    that is longer ago than EXPORT_STALE_AFTER - see config.py.
+    """
+    fetched = get_meta_timestamp(conn, format_name)
+    if fetched is None:
+        raise RuntimeError(f"The {format_name} list was never fetched from MTGGoldfish")
+    age = int(time.time()) - fetched
+    if age > config.EXPORT_STALE_AFTER:
+        raise RuntimeError(
+            f"The {format_name} list was last fetched from MTGGoldfish "
+            f"{age // (24 * 60 * 60)} days ago - not publishing it. "
+            "The warnings above say why fetching failed."
+        )
+    return datetime.fromtimestamp(fetched, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 def main() -> None:
     # Show this package's progress and warnings, one plain line each

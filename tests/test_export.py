@@ -29,6 +29,14 @@ def _raw(name: str, oracle_id: str = "oid", **extra: Any) -> dict[str, Any]:
         **extra,
     }
 
+# 2026-10-17T19:18:03Z, as Unix time
+FETCHED = 1792264683
+
+def _list_fetched(monkeypatch: MonkeyPatch, fetched: int | None, now: int = FETCHED + 60) -> None:
+    """The MTGGoldfish list was fetched at `fetched`, and it is `now`"""
+    monkeypatch.setattr("meta_morphis.export.get_meta_timestamp", lambda conn, name: fetched)
+    monkeypatch.setattr("meta_morphis.export.time.time", lambda: now)
+
 def test_build_card_single_faced() -> None:
     card = Card.from_raw(_raw("Hydroblast", oracle_id="b94c0336"))
     assert build_card(card) == {
@@ -98,7 +106,7 @@ def test_build_export_sorts_by_name_and_skips_unusable_cards() -> None:
         Card.from_raw({"id": "2", "oracle_id": "x", "name": "No Picture"}),
         Card.from_raw(_raw("Hydroblast", oracle_id="h")),
     ]
-    data = build_export("pauper", cards)
+    data = build_export("pauper", cards, "2026-10-17T19:18:03Z")
     assert data["format"] == "pauper"
     assert [c["name"] for c in data["cards"]] == ["Hydroblast", "Pyroblast"]
 
@@ -111,6 +119,7 @@ def test_export_format_writes_the_file(
     meta = [MetaEntry(name="Lórien Revealed", rank=1)]
     cards = [Card.from_raw(_raw("Lórien Revealed", oracle_id="l"))]
     monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, name: meta)
+    _list_fetched(monkeypatch, FETCHED)
     monkeypatch.setattr("meta_morphis.export.fetch_cards", lambda conn, meta: cards)
     monkeypatch.setattr("meta_morphis.export.get_display_printing", lambda conn, card: card)
     monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 1)
@@ -125,6 +134,7 @@ def test_export_format_writes_the_file(
     assert "Lórien Revealed" in text
     assert json.loads(text) == {
         "format": "pauper",
+        "list_updated": "2026-10-17T19:18:03Z",
         "cards": [{
             "oracle_id": "l",
             "name": "Lórien Revealed",
@@ -140,6 +150,7 @@ def test_export_format_fails_with_too_few_cards(
 ) -> None:
     cards = [Card.from_raw(_raw("Hydroblast", oracle_id="h"))]
     monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, name: [])
+    _list_fetched(monkeypatch, FETCHED)
     monkeypatch.setattr("meta_morphis.export.fetch_cards", lambda conn, meta: cards)
     monkeypatch.setattr("meta_morphis.export.get_display_printing", lambda conn, card: card)
     monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 2)
@@ -158,6 +169,7 @@ def test_export_format_uses_the_chosen_printing(
                             "artist": "Christopher Moeller",
                             "image_uris": {"grid": "grid/m10.webp", "art": "art/m10.webp"}})
     monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, name: [])
+    _list_fetched(monkeypatch, FETCHED)
     monkeypatch.setattr("meta_morphis.export.fetch_cards", lambda conn, meta: [default])
     monkeypatch.setattr("meta_morphis.export.get_display_printing", lambda conn, card: chosen)
     monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 1)
@@ -168,3 +180,37 @@ def test_export_format_uses_the_chosen_printing(
     assert card["images"] == ["grid/m10.webp"]
     assert card["art"] == "art/m10.webp"
     assert card["artist"] == "Christopher Moeller"
+
+@pytest.mark.parametrize("age_days, publishes", [(2, True), (3, True), (4, False)])
+def test_export_format_refuses_an_old_list(
+    conn: sqlite3.Connection,
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+    age_days: int,
+    publishes: bool,
+) -> None:
+    # A list this old means fetching it has failed for days: fail the run,
+    # so GitHub reports it, rather than publish the old list again
+    cards = [Card.from_raw(_raw("Hydroblast", oracle_id="h"))]
+    monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, name: [])
+    monkeypatch.setattr("meta_morphis.export.fetch_cards", lambda conn, meta: cards)
+    monkeypatch.setattr("meta_morphis.export.get_display_printing", lambda conn, card: card)
+    monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 1)
+    _list_fetched(monkeypatch, FETCHED, now=FETCHED + age_days * 24 * 60 * 60)
+
+    if publishes:
+        export_format(conn, "pauper", tmp_path)
+        assert (tmp_path / "pauper.json").exists()
+    else:
+        with pytest.raises(RuntimeError, match="4 days ago - not publishing"):
+            export_format(conn, "pauper", tmp_path)
+        assert not (tmp_path / "pauper.json").exists()
+
+def test_export_format_fails_without_any_list(
+    conn: sqlite3.Connection, tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, name: [])
+    _list_fetched(monkeypatch, None)
+
+    with pytest.raises(RuntimeError, match="never fetched"):
+        export_format(conn, "pauper", tmp_path)

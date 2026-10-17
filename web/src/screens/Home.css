@@ -79,3 +79,10 @@
 .due {
   font-weight: bold;
 }
+
+.old-list {
+  padding: 8px 12px;
+  border: 2px solid #d69e2e;
+  border-radius: 12px;
+  font-size: 0.9rem;
+}

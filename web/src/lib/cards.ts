@@ -15,16 +15,35 @@ export interface Card {
 
 export interface CardFile {
   format: string;
+  /**
+   * When the list of most played cards was last fetched from MTGGoldfish,
+   * in UTC. Missing in files written before it was added.
+   */
+  list_updated?: string;
   cards: Card[];
 }
 
-export async function loadCards(format: string): Promise<Card[]> {
+export async function loadCards(format: string): Promise<CardFile> {
   const response = await fetch(`data/${format}.json`);
   if (!response.ok) {
     throw new Error(`Could not load ${format}.json (HTTP ${response.status})`);
   }
-  const file: CardFile = await response.json();
-  return file.cards;
+  return response.json();
+}
+
+/**
+ * A list older than this is shown with a warning. Keep in step with
+ * EXPORT_STALE_AFTER in meta_morphis/config.py: from then on the daily
+ * update stops publishing, so the list the app has gets no newer.
+ */
+export const LIST_OLD_AFTER_DAYS = 3;
+
+/** Whole days since the list was fetched, or null if the file doesn't say */
+export function listAgeDays(listUpdated: string | undefined, now: Date = new Date()): number | null {
+  if (listUpdated === undefined) return null;
+  const fetched = Date.parse(listUpdated);
+  if (Number.isNaN(fetched)) return null;
+  return Math.floor((now.getTime() - fetched) / (24 * 60 * 60 * 1000));
 }
 
 /** A format's name for showing on screen: "pauper" → "Pauper" */
