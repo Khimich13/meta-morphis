@@ -1,3 +1,4 @@
+import logging
 import sqlite3
 import time
 from pathlib import Path
@@ -10,7 +11,7 @@ from meta_morphis.meta.repo import (
     save_meta_to_cache,
     update_meta_timestamp,
 )
-from meta_morphis.meta.service import get_meta_cards
+from meta_morphis.meta.service import get_meta_cards, list_changes
 from meta_morphis.models.meta import MetaEntry
 
 
@@ -198,3 +199,61 @@ def test_get_meta_cards_commits_scraped_meta(db_file: Path, monkeypatch: MonkeyP
 
     assert [m.name for m in cached] == ["Lightning Bolt"]
     assert abs(time.time() - last_updated) < 60
+
+def _entries(*names: str) -> list[MetaEntry]:
+    return [MetaEntry(name, rank, 0, 0) for rank, name in enumerate(names, start=1)]
+
+def test_list_changes_names_cards_that_entered_and_left() -> None:
+    before = _entries("Hydroblast", "Ponder", "Lightning Bolt")
+    after = _entries("Hydroblast", "Guttersnipe", "Lightning Bolt", "Writhing Chrysalis")
+
+    assert list_changes(before, after) == (["Guttersnipe", "Writhing Chrysalis"], ["Ponder"])
+
+def test_list_changes_ignores_spelling_and_order() -> None:
+    before = _entries("Lorien Revealed", "Hydroblast")
+    after = _entries("Hydroblast", "Lórien Revealed")
+
+    assert list_changes(before, after) == ([], [])
+
+def _refresh(monkeypatch: MonkeyPatch, saved: list[MetaEntry], scraped: list[MetaEntry]) -> None:
+    monkeypatch.setattr("meta_morphis.meta.service.should_refresh_meta", lambda conn, fmt: True)
+    monkeypatch.setattr(
+        "meta_morphis.meta.service.config.GOLDFISH_FORMAT_URLS", {"pauper": "http://fake-url"}
+    )
+    monkeypatch.setattr("meta_morphis.meta.service.scrape_meta_cards", lambda url: scraped)
+    monkeypatch.setattr("meta_morphis.meta.service.get_meta_from_cache", lambda conn, fmt: saved)
+    monkeypatch.setattr("meta_morphis.meta.service.save_meta_to_cache", lambda conn, meta, fmt: None)
+    monkeypatch.setattr("meta_morphis.meta.service.update_meta_timestamp", lambda conn, fmt: None)
+
+def test_refresh_logs_cards_that_entered_and_left(
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO)
+    _refresh(monkeypatch, _entries("Hydroblast", "Ponder"), _entries("Hydroblast", "Guttersnipe"))
+
+    get_meta_cards(conn, "pauper")
+
+    assert "1 card entered the pauper list: Guttersnipe" in caplog.text
+    assert "1 card left the pauper list: Ponder" in caplog.text
+
+def test_refresh_logs_an_unchanged_list(
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO)
+    _refresh(monkeypatch, _entries("Hydroblast"), _entries("Hydroblast"))
+
+    get_meta_cards(conn, "pauper")
+
+    assert "The pauper list did not change" in caplog.text
+
+def test_first_refresh_logs_no_changes(
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    # Nothing saved yet: every card would count as "entered", which says nothing
+    caplog.set_level(logging.INFO)
+    _refresh(monkeypatch, [], _entries("Hydroblast", "Ponder"))
+
+    get_meta_cards(conn, "pauper")
+
+    assert "entered" not in caplog.text
+    assert "did not change" not in caplog.text

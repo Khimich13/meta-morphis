@@ -1,4 +1,5 @@
 import json
+import logging
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -102,7 +103,10 @@ def test_build_export_sorts_by_name_and_skips_unusable_cards() -> None:
     assert [c["name"] for c in data["cards"]] == ["Hydroblast", "Pyroblast"]
 
 def test_export_format_writes_the_file(
-    conn: sqlite3.Connection, tmp_path: Path, monkeypatch: MonkeyPatch
+    conn: sqlite3.Connection,
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     meta = [MetaEntry(name="Lórien Revealed", rank=1)]
     cards = [Card.from_raw(_raw("Lórien Revealed", oracle_id="l"))]
@@ -111,9 +115,11 @@ def test_export_format_writes_the_file(
     monkeypatch.setattr("meta_morphis.export.get_display_printing", lambda conn, card: card)
     monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 1)
 
+    caplog.set_level(logging.INFO)
     path = export_format(conn, "pauper", tmp_path / "data")
 
     assert path == tmp_path / "data" / "pauper.json"
+    assert f"Wrote {path}: 1 card" in caplog.text
     text = path.read_text(encoding="utf-8")
     # Written as real characters, not \u escapes
     assert "Lórien Revealed" in text

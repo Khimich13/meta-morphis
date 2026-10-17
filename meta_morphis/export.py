@@ -102,7 +102,10 @@ def export_format(conn: sqlite3.Connection, format_name: str, out_dir: Path) -> 
             f"Only {len(data['cards'])} usable cards for {format_name}, "
             f"expected at least {config.EXPORT_MIN_CARDS} - not writing the file"
         )
-    return write_export(data, out_dir)
+    path = write_export(data, out_dir)
+    count = len(data["cards"])
+    log.info(f"Wrote {path}: {count} {'card' if count == 1 else 'cards'}")
+    return path
 
 def main() -> None:
     # Show this package's progress and warnings, one plain line each
@@ -110,8 +113,7 @@ def main() -> None:
     with get_connection() as conn:
         init_db(conn)
         for format_name in config.EXPORT_FORMATS:
-            path = export_format(conn, format_name, config.EXPORT_DIR)
-            log.info(f"Wrote {path}")
+            export_format(conn, format_name, config.EXPORT_DIR)
 
 if __name__ == "__main__":
     main()

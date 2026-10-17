@@ -41,6 +41,15 @@ def main() -> None:
 if __name__ == "__main__":
     main()
 
-# TODO: Clean debugging print messages
 # TODO: Add an option to pick the format
 # TODO: Think about how to monetize the app in the future
+# TODO: Add commander
+# TODO: Change the background to deal with the color of the cards
+# TODO: Add sound effects?
+# TODO: Add voice naming the cards?
+# TODO: Make a better game icon
+# TODO: Improve design
+# TODO: What to do with this file (main.py)?
+# TODO: Show user what cards entered the meta and which left
+# TODO: Inform user of bans / unbans
+# TODO: Ask Claude about the current database structure. Does it make sense to have a db in the backend now?
