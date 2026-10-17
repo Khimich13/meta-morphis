@@ -8,7 +8,7 @@ import pytest
 from pytest import MonkeyPatch
 
 from meta_morphis import config
-from meta_morphis.export import build_card, build_export, export_format
+from meta_morphis.export import build_card, build_export, export_all, export_format
 from meta_morphis.models.card import Card
 from meta_morphis.models.meta import MetaEntry
 
@@ -214,3 +214,43 @@ def test_export_format_fails_without_any_list(
 
     with pytest.raises(RuntimeError, match="never fetched"):
         export_format(conn, "pauper", tmp_path)
+
+def test_export_all_keeps_going_when_one_format_fails(
+    conn: sqlite3.Connection, tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    # Modern was exported before and now fails; Standard never worked
+    (tmp_path / "modern.json").write_text('{"old": true}', encoding="utf-8")
+
+    def fake_export(conn: sqlite3.Connection, format_name: str, out_dir: Path) -> Path:
+        if format_name in ("modern", "standard"):
+            raise RuntimeError("MTGGoldfish's page changed")
+        path = out_dir / f"{format_name}.json"
+        path.write_text("{}", encoding="utf-8")
+        return path
+
+    monkeypatch.setattr("meta_morphis.export.export_format", fake_export)
+
+    failed = export_all(conn, ["pauper", "modern", "standard", "pioneer"], tmp_path)
+
+    assert failed == ["modern", "standard"]
+    # The formats after the failed ones were still written
+    assert (tmp_path / "pioneer.json").exists()
+    # Modern keeps its old file
+    assert json.loads((tmp_path / "modern.json").read_text(encoding="utf-8")) == {"old": True}
+    # Standard has no file, so the app isn't offered it
+    formats = json.loads((tmp_path / "formats.json").read_text(encoding="utf-8"))
+    assert formats == {"formats": ["pauper", "modern", "pioneer"]}
+
+def test_export_all_reports_no_failures(
+    conn: sqlite3.Connection, tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    def fake_export(conn: sqlite3.Connection, format_name: str, out_dir: Path) -> Path:
+        path = out_dir / f"{format_name}.json"
+        path.write_text("{}", encoding="utf-8")
+        return path
+
+    monkeypatch.setattr("meta_morphis.export.export_format", fake_export)
+
+    assert export_all(conn, ["pauper", "pioneer"], tmp_path) == []
+    formats = json.loads((tmp_path / "formats.json").read_text(encoding="utf-8"))
+    assert formats == {"formats": ["pauper", "pioneer"]}

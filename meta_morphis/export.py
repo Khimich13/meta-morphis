@@ -32,6 +32,11 @@ class ExportCard(TypedDict):
     artist: str
 
 
+class FormatsFile(TypedDict):
+    # The formats the app can offer: those with a card file
+    formats: list[str]
+
+
 class ExportFile(TypedDict):
     format: str
     # When the list of most played cards was last fetched from MTGGoldfish,
@@ -130,13 +135,49 @@ def _check_list_age(conn: sqlite3.Connection, format_name: str) -> str:
         )
     return datetime.fromtimestamp(fetched, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-def main() -> None:
+def export_all(conn: sqlite3.Connection, format_names: list[str], out_dir: Path) -> list[str]:
+    """Exports each format on its own: one that fails keeps the file it
+    had, and the others are still written. Then writes formats.json.
+    Returns the formats that failed.
+    """
+    failed: list[str] = []
+    for format_name in format_names:
+        try:
+            export_format(conn, format_name, out_dir)
+        except Exception:
+            # With the full error, so the log says why
+            log.exception(f"Could not export {format_name} - keeping its previous file, if any")
+            failed.append(format_name)
+
+    write_formats(out_dir, format_names)
+    return failed
+
+def write_formats(out_dir: Path, format_names: list[str]) -> Path:
+    """Lists the formats that have a card file, new or kept from before -
+    a format that has never been exported isn't offered.
+    """
+    out_dir.mkdir(parents=True, exist_ok=True)
+    available = [name for name in format_names if (out_dir / f"{name}.json").exists()]
+    data: FormatsFile = {"formats": available}
+    path = out_dir / "formats.json"
+    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    return path
+
+def main() -> int:
+    """Exit code 1 if any format failed. The files that could be written
+    are still there, so the daily run can publish them and then report
+    the failure.
+    """
     # Show this package's progress and warnings, one plain line each
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     with get_connection() as conn:
         init_db(conn)
-        for format_name in config.EXPORT_FORMATS:
-            export_format(conn, format_name, config.EXPORT_DIR)
+        failed = export_all(conn, config.EXPORT_FORMATS, config.EXPORT_DIR)
+
+    if failed:
+        log.error(f"Failed to export: {', '.join(failed)}")
+        return 1
+    return 0
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -62,6 +62,7 @@ EXPORT_STALE_AFTER = 3 * _DAY
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = Path(os.environ.get("META_MORPHIS_DB") or PROJECT_ROOT / "data" / "cards.db")
 
-# Web app data: one <format>.json per format, read by the app
+# Web app data: one <format>.json per format, read by the app, and
+# formats.json listing the formats that have one
 EXPORT_DIR = PROJECT_ROOT / "web" / "public" / "data"
-EXPORT_FORMATS = ["pauper"]
+EXPORT_FORMATS = list(GOLDFISH_FORMAT_URLS)
