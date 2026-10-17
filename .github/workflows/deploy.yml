@@ -35,17 +35,21 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Keep the card database between runs, so data that is still fresh
-      # (Scryfall's card data and artwork choices, for 30 days) isn't
-      # fetched again every day. Each successful run saves the data/
-      # folder under its own name; the next run restores the newest one.
-      # If nothing is saved yet, the export simply starts empty.
-      - name: Restore the card database
-        uses: actions/cache@v6
+      # Keep the card database and the exported card files between runs.
+      # The database means data that is still fresh (Scryfall's card data
+      # and artwork choices, for 30 days) isn't fetched again every day;
+      # the card files let a format that fails today keep publishing its
+      # last good list. Each run saves under its own name; the next run
+      # restores the newest. If nothing is saved yet, the export starts
+      # empty.
+      - name: Restore the card data
+        uses: actions/cache/restore@v6
         with:
-          path: data
-          key: card-database-${{ github.run_id }}
-          restore-keys: card-database-
+          path: |
+            data
+            web/public/data
+          key: card-data-${{ github.run_id }}
+          restore-keys: card-data-
 
       # The card data is not in git, so create it here
       - uses: astral-sh/setup-uv@v10.3.0
@@ -54,8 +58,35 @@ jobs:
           # new uv release can't change the build unnoticed. Update the two
           # together.
           version: "0.12.7"
+      # A format that fails keeps its previous file and the run carries
+      # on, so the other formats are still published; the last step below
+      # then marks the run as failed, so GitHub reports it.
       - name: Export card data
+        id: export
+        continue-on-error: true
         run: uv run --no-dev python -m meta_morphis.export
+
+      # Saved even when a format failed: the formats that worked have
+      # fresh data worth keeping, and the failed one kept its old file
+      - name: Save the card data
+        if: always()
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            data
+            web/public/data
+          key: card-data-${{ github.run_id }}
+
+      # Never publish an app with no cards, for example when the export
+      # failed completely and nothing was saved from earlier runs
+      - name: Check there is card data to publish
+        run: |
+          python3 -c "
+          import json, sys
+          formats = json.load(open('web/public/data/formats.json'))['formats']
+          print('Publishing:', ', '.join(formats))
+          sys.exit(0 if formats else 'No format has card data - not publishing')
+          "
 
       - uses: actions/setup-node@v7
         with:
@@ -75,3 +106,12 @@ jobs:
           path: web/dist
       - id: deployment
         uses: actions/deploy-pages@v5
+
+      # Everything that worked is published by now; mark the run as failed
+      # if a format couldn't be exported, so GitHub emails about it. The
+      # export step's log says which format and why.
+      - name: Report formats that failed to export
+        if: steps.export.outcome == 'failure'
+        run: |
+          echo "::error::A format could not be exported - see the Export card data step"
+          exit 1
