@@ -47,10 +47,14 @@ export default defineConfig({
         // The app itself: saved on the first visit, then always served
         // from the saved copy
         globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+        // Take charge of the page already open on the very first visit,
+        // so its downloads are saved for offline use from then on
+        clientsClaim: true,
         runtimeCaching: [
           {
-            // The card list: fresh from the network when there is one,
-            // otherwise the copy saved last time
+            // The card files: fresh from the network when there is one,
+            // otherwise the copy saved last time. The cache name must
+            // match DATA_CACHE in src/lib/offline.ts, which also fills it.
             urlPattern: /\/data\/[^/]+\.json$/,
             handler: 'NetworkFirst',
             options: { cacheName: 'card-data', networkTimeoutSeconds: 3 },

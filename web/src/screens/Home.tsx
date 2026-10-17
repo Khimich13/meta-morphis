@@ -8,6 +8,9 @@ interface HomeProps {
   cards: Card[] | null;
   /** The card list could not be loaded */
   failed: boolean;
+  /** A format that did load, to go back to after a failure */
+  fallbackFormat: string | null;
+  onChooseFormat: (format: string) => void;
   /** When the list of most played cards was last fetched, if known */
   listUpdated: string | undefined;
   progress: Progress;
@@ -15,32 +18,38 @@ interface HomeProps {
   pictures: { saved: number; total: number };
   onStartLesson: () => void;
   onSeeCards: () => void;
+  onChangeFormat: () => void;
 }
 
 export default function Home({
   format,
   cards,
   failed,
+  fallbackFormat,
+  onChooseFormat,
   listUpdated,
   progress,
   pictures,
   onStartLesson,
   onSeeCards,
+  onChangeFormat,
 }: HomeProps) {
   return (
     <main className="home">
       <header className="home-title">
         <h1>MetaMorphis</h1>
-        <p>{formatLabel(format)}</p>
+        <p>
+          {formatLabel(format)} ·{' '}
+          <button className="link" onClick={onChangeFormat}>
+            Change
+          </button>
+        </p>
       </header>
 
       <OldListBanner listUpdated={listUpdated} />
 
       {failed ? (
-        <p className="home-middle">
-          Could not load the card list. Create it with{' '}
-          <code>uv run python -m meta_morphis.export</code> and reload.
-        </p>
+        <LoadFailed format={format} fallback={fallbackFormat} onChoose={onChooseFormat} />
       ) : cards === null ? (
         <p className="home-middle">Loading…</p>
       ) : (
@@ -104,6 +113,38 @@ function Stats({ cards, progress }: { cards: Card[]; progress: Progress }) {
             : `${due} ${due === 1 ? 'card' : 'cards'} to review today`}
         </p>
       </div>
+    </div>
+  );
+}
+
+function LoadFailed({
+  format,
+  fallback,
+  onChoose,
+}: {
+  format: string;
+  fallback: string | null;
+  onChoose: (format: string) => void;
+}) {
+  // The browser's own idea of the connection: false means surely offline
+  const offline = !navigator.onLine;
+  return (
+    <div className="home-middle load-failed" role="status">
+      {offline ? (
+        <>
+          <p>
+            <strong>{formatLabel(format)} isn't on this device yet.</strong>
+          </p>
+          <p>Connect to the internet to download it.</p>
+        </>
+      ) : (
+        <p>Couldn't load {formatLabel(format)}. Try again later.</p>
+      )}
+      {fallback !== null && (
+        <button className="primary" onClick={() => onChoose(fallback)}>
+          Back to {formatLabel(fallback)}
+        </button>
+      )}
     </div>
   );
 }

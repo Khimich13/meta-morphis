@@ -2,46 +2,89 @@ import { useEffect, useState } from 'react';
 
 import './App.css';
 import { type Card, loadCards } from './lib/cards';
-import { savePictures } from './lib/offline';
+import { loadFormats, startFormat } from './lib/formats';
+import { saveCardFile, savePictures } from './lib/offline';
 import { localDay, recordAnswer, recordLesson } from './lib/progress';
-import { loadProgress, saveProgress } from './lib/storage';
+import { loadFormat, loadProgress, saveFormat, saveProgress } from './lib/storage';
 import { useAppUpdate } from './lib/update';
 import CardList from './screens/CardList';
+import Formats from './screens/Formats';
 import Home from './screens/Home';
 import Lesson from './screens/Lesson';
 
-const FORMAT = 'pauper';
-
 /** Which screen is showing */
-type Screen = 'home' | 'lesson' | 'cards';
+type Screen = 'home' | 'lesson' | 'cards' | 'formats';
 
 export default function App() {
-  // null until the card list has arrived
-  const [cards, setCards] = useState<Card[] | null>(null);
-  // When the list of most played cards was last fetched, if the file says
-  const [listUpdated, setListUpdated] = useState<string | undefined>(undefined);
-  const [failed, setFailed] = useState(false);
-  const [screen, setScreen] = useState<Screen>('home');
   // Read from the browser's storage once, when the app starts
   const [progress, setProgress] = useState(loadProgress);
+  // The chosen format; null until the player has chosen one
+  const [format, setFormat] = useState(() =>
+    startFormat(loadFormat(), Object.keys(progress.cards).length > 0),
+  );
+  // The last format whose cards loaded; the way back when a new one fails
+  const [lastLoaded, setLastLoaded] = useState(loadFormat);
+  // The formats that have card data; null until loaded
+  const [formats, setFormats] = useState<string[] | null>(null);
+  const [formatsFailed, setFormatsFailed] = useState(false);
+  // The chosen format's cards; null until they have arrived
+  const [cards, setCards] = useState<Card[] | null>(null);
+  // When that format's list was last fetched, if the file says
+  const [listUpdated, setListUpdated] = useState<string | undefined>(undefined);
+  const [failed, setFailed] = useState(false);
+  const [screen, setScreen] = useState<Screen>(format === null ? 'formats' : 'home');
   // How many card pictures are saved on the device, out of how many
   const [pictures, setPictures] = useState({ saved: 0, total: 0 });
 
-  // Runs once, after the page first appears
+  // Runs once: the formats to choose from
   useEffect(() => {
-    loadCards(FORMAT)
-      .then((file) => {
-        setCards(file.cards);
-        setListUpdated(file.list_updated);
-      })
-      .catch(() => setFailed(true));
+    loadFormats()
+      .then(setFormats)
+      .catch(() => setFormatsFailed(true));
   }, []);
 
-  // Once the card list is here, save its pictures for offline use
+  // Runs whenever the chosen format changes: load its cards
   useEffect(() => {
-    if (cards !== null) {
-      savePictures(cards, (saved, total) => setPictures({ saved, total }));
-    }
+    if (format === null) return;
+    // A switch before the file arrives makes this load stale: its result
+    // must not replace the newer format's cards
+    let stale = false;
+    setCards(null);
+    setFailed(false);
+    loadCards(format)
+      .then((file) => {
+        if (stale) return;
+        setCards(file.cards);
+        setListUpdated(file.list_updated);
+        // Remembered only once it has loaded, so the app never reopens
+        // on a format it can't show
+        saveFormat(format);
+        setLastLoaded(format);
+        saveCardFile(format);
+      })
+      .catch(() => {
+        if (!stale) setFailed(true);
+      });
+    // React runs this before the effect runs again for the next format
+    return () => {
+      stale = true;
+    };
+  }, [format]);
+
+  // Once a format's cards are here, save their pictures for offline use;
+  // a format switch stops the saving for the old one
+  useEffect(() => {
+    if (cards === null) return;
+    let stopped = false;
+    setPictures({ saved: 0, total: 0 });
+    savePictures(
+      cards,
+      (saved, total) => setPictures({ saved, total }),
+      () => stopped,
+    );
+    return () => {
+      stopped = true;
+    };
   }, [cards]);
 
   // Switch to a newly published version of the app, but never mid-lesson
@@ -53,6 +96,23 @@ export default function App() {
   }, [progress]);
 
   const goHome = () => setScreen('home');
+
+  function chooseFormat(chosen: string) {
+    setFormat(chosen);
+    setScreen('home');
+  }
+
+  if (format === null || screen === 'formats') {
+    return (
+      <Formats
+        formats={formats}
+        failed={formatsFailed}
+        current={format}
+        onChoose={chooseFormat}
+        onBack={format === null ? null : goHome}
+      />
+    );
+  }
 
   if (cards !== null && screen === 'lesson') {
     return (
@@ -71,19 +131,22 @@ export default function App() {
   }
 
   if (cards !== null && screen === 'cards') {
-    return <CardList format={FORMAT} cards={cards} progress={progress} onBack={goHome} />;
+    return <CardList format={format} cards={cards} progress={progress} onBack={goHome} />;
   }
 
   return (
     <Home
       listUpdated={listUpdated}
-      format={FORMAT}
+      format={format}
       cards={cards}
       failed={failed}
+      fallbackFormat={lastLoaded !== format ? lastLoaded : null}
+      onChooseFormat={chooseFormat}
       progress={progress}
       pictures={pictures}
       onStartLesson={() => setScreen('lesson')}
       onSeeCards={() => setScreen('cards')}
+      onChangeFormat={() => setScreen('formats')}
     />
   );
 }
