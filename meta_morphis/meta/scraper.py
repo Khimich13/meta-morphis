@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Callable
 from typing import TypeVar
 
@@ -7,6 +8,8 @@ from bs4.element import Tag
 from meta_morphis import config
 from meta_morphis.models.meta import MetaEntry
 from meta_morphis.utils.http import RequestUnavailable, request_with_retries
+
+log = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
@@ -26,18 +29,25 @@ def scrape_meta_cards(url: str) -> list[MetaEntry] | None:
             url=url,
             headers=config.GOLDFISH_HEADERS
         )
-    except RequestUnavailable:
+    except RequestUnavailable as e:
+        log.warning(f"MTGGoldfish could not be reached ({e})")
         return None
     if not raw:
+        log.warning(f"MTGGoldfish has no page at {url}")
         return None
 
     result = _parse_meta_table(raw)
     if result is None:
+        # The reason was logged by _parse_meta_table
         return None
 
     meta, skipped_count = result
 
     if skipped_count > config.GOLDFISH_BAD_ROWS_LIMIT:
+        log.warning(
+            f"{skipped_count} rows of MTGGoldfish's table could not be read "
+            f"(more than {config.GOLDFISH_BAD_ROWS_LIMIT}) - its page may have changed"
+        )
         return None
 
     return meta
@@ -72,10 +82,12 @@ def _parse_meta_table(html: str) -> tuple[list[MetaEntry], int] | None:
     table = soup.select_one("table.table-staples")
 
     if not table:
+        log.warning("MTGGoldfish's page has no card table - its layout may have changed")
         return None
 
     columns = _locate_columns(table)
     if columns is None:
+        log.warning("MTGGoldfish's card table is missing a column - its layout may have changed")
         return None
 
     required_cols = max(columns.values()) + 1

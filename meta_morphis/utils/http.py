@@ -1,8 +1,12 @@
+import logging
 import math
 import time
 from typing import Any
+from urllib.parse import urlsplit
 
 import requests
+
+log = logging.getLogger(__name__)
 
 # Persists across separate calls (not just retries within one call), so
 # min_delay actually paces consecutive requests. A caller like
@@ -45,6 +49,8 @@ def request_with_retries(
 
     global _last_request_time
     used_retry_after = False
+    # Just the server's name, for the messages below
+    host = urlsplit(url).netloc
 
     for attempt in range(max_retries):
         if used_retry_after:
@@ -72,7 +78,9 @@ def request_with_retries(
                 raise RequestUnavailable(
                     f"network error after {max_retries} attempts: {e}"
                 ) from e
-            time.sleep(backoff_base * (2 ** attempt))
+            delay = backoff_base * (2 ** attempt)
+            log.warning(f"Network error reaching {host} ({e}), retrying in {delay:g} s")
+            time.sleep(delay)
             continue
 
         status = response.status_code
@@ -108,6 +116,8 @@ def request_with_retries(
             if attempt + 1 == max_retries:
                 raise RequestUnavailable(f"rate limited after {max_retries} attempts")
 
+            # Worth seeing: a client that keeps getting 429s can be blocked
+            log.warning(f"Rate limited by {host}, waiting {delay:g} s")
             time.sleep(delay)
             used_retry_after = True
             continue
@@ -119,6 +129,7 @@ def request_with_retries(
                     f"server error {status} after {max_retries} attempts"
                 )
             delay = backoff_base * (2 ** attempt)
+            log.warning(f"Server error {status} from {host}, retrying in {delay:g} s")
             time.sleep(delay)
             continue
 

@@ -1,6 +1,7 @@
 from typing import Any
 
 import pytest
+from pytest import LogCaptureFixture
 from pytest import MonkeyPatch
 
 from meta_morphis.utils.http import RequestUnavailable, request_with_retries
@@ -413,3 +414,19 @@ def test_request_unexpected_status_raises(monkeypatch: MonkeyPatch) -> None:
 
     with pytest.raises(RequestUnavailable):
         request_with_retries("GET", "http://fake", max_retries=3)
+# Retries and waits are logged: a client that keeps getting 429s can be
+# blocked, so they should be visible in the daily run's log
+def test_request_logs_rate_limits_and_retries(
+    monkeypatch: MonkeyPatch, caplog: LogCaptureFixture
+) -> None:
+    responses = [
+        FakeResponse(429, "rate", headers={"Retry-After": "2"}),
+        FakeResponse(503, "busy"),
+        FakeResponse(200, "OK"),
+    ]
+    monkeypatch.setattr("requests.request", lambda *args, **kwargs: responses.pop(0))
+    monkeypatch.setattr("time.sleep", lambda x: None)
+
+    assert request_with_retries("GET", "https://api.example.com/x", max_retries=3) == "OK"
+    assert "Rate limited by api.example.com, waiting 2 s" in caplog.text
+    assert "Server error 503 from api.example.com, retrying in 1 s" in caplog.text

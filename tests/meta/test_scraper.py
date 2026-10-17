@@ -1,5 +1,6 @@
 from typing import Any
 
+import pytest
 from pytest import MonkeyPatch
 
 from meta_morphis import config
@@ -299,3 +300,28 @@ def test_scrape_meta_cards_rejects_page_over_bad_rows_limit(monkeypatch: MonkeyP
         result = scrape_meta_cards("http://fake-url")
 
         assert (result is not None) is expected_ok, f"{bad_rows} bad rows"
+
+# Each way of failing says why, so a failed daily run shows whether to
+# wait (site unreachable) or fix the scraper (page layout changed)
+@pytest.mark.parametrize("html, expected", [
+    ("<html><body>No table here</body></html>", "no card table"),
+    (_table("", header="<thead><tr><th class='col-card'></th></tr></thead>"), "missing a column"),
+    (_table("<tr><td>?</td><td>?</td></tr>" * (config.GOLDFISH_BAD_ROWS_LIMIT + 1)),
+     "rows of MTGGoldfish's table could not be read"),
+])
+def test_scrape_meta_cards_logs_why_it_failed(
+    monkeypatch: MonkeyPatch, caplog: pytest.LogCaptureFixture, html: str, expected: str
+) -> None:
+    monkeypatch.setattr("requests.request", lambda *args, **kwargs: FakeResponse(200, html))
+
+    assert scrape_meta_cards("http://fake-url") is None
+    assert expected in caplog.text
+
+def test_scrape_meta_cards_logs_unreachable_site(
+    monkeypatch: MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setattr("requests.request", lambda *args, **kwargs: FakeResponse(500))
+    monkeypatch.setattr("time.sleep", lambda x: None)
+
+    assert scrape_meta_cards("http://fake-url") is None
+    assert "MTGGoldfish could not be reached" in caplog.text
