@@ -88,17 +88,12 @@
   container-type: size;
 }
 
-.picture img {
+.picture .card-picture {
   /* Exactly the card's size: the full width of the box, or less if the
      height runs out first (the height is 680/488 of the width). Because
-     the picture's box matches the card, the rounded corners below land
-     on the card's own corners. */
+     the picture's box matches the card, its rounded corners land on the
+     card's own corners. */
   width: min(100cqw, 100cqh * 488 / 680);
-  height: auto;
-  aspect-ratio: 488 / 680;
-  /* Real cards have rounded corners; this hides the scan's background
-     in them, as on the card list */
-  border-radius: 4.75% / 3.5%;
 }
 
 .credit {

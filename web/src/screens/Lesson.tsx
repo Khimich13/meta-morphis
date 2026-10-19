@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import type { Card } from '../lib/cards';
 import { cardStatus, type Knowledge, localDay, type Progress } from '../lib/progress';
+import CardPicture from './CardPicture';
 import {
   afterAnswer,
   isCorrect,
@@ -134,9 +135,9 @@ export default function Lesson({
       ) : (
         <>
           <div className="picture">
-            {/* Only the front: two sides would each be too small to read.
+            {/* One side at a time, which a double-faced card can turn over.
                 The full card shows its own artist and copyright. */}
-            <img src={card.images[0]} alt={card.name} crossOrigin="anonymous" />
+            <CardPicture key={card.oracle_id} card={card} />
           </div>
           <Feedback
             card={card}

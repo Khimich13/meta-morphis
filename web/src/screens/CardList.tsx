@@ -1,5 +1,6 @@
 import { type Card, formatLabel } from '../lib/cards';
 import { type CardProgress, cardStatus, type Progress } from '../lib/progress';
+import CardPicture from './CardPicture';
 
 interface CardListProps {
   format: string;
@@ -19,14 +20,7 @@ export default function CardList({ format, cards, progress, onBack }: CardListPr
         {cards.map((card) => (
           <li key={card.oracle_id}>
             <span>{card.name}</span>
-            {/* Card pictures are shown as they are: never stretched, covered or dimmed */}
-            {/* crossOrigin lets the saved copy of the picture be used */}
-            <img
-              src={card.images[0]}
-              alt={card.name}
-              loading="lazy"
-              crossOrigin="anonymous"
-            />
+            <CardPicture card={card} lazy />
             <CardRecord record={progress.cards[card.oracle_id]} />
           </li>
         ))}

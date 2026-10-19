@@ -1,0 +1,72 @@
+/* The card's two sides are stacked; turning the card is a 3D rotation of
+   the pair around its vertical axis, so the back comes into view. */
+.card-picture {
+  position: relative;
+  perspective: 1200px;
+}
+
+.card-sides {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.4s ease-in-out;
+}
+
+.card-sides.flipped {
+  transform: rotateY(180deg);
+}
+
+.card-side {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* A card's proportions, so nothing jumps while pictures load */
+  aspect-ratio: 488 / 680;
+  /* Real cards have rounded corners; this hides the scan's background in them */
+  border-radius: 4.75% / 3.5%;
+  /* Each side is invisible from behind, so only the one facing you shows */
+  backface-visibility: hidden;
+}
+
+/* The back starts turned away, lying exactly behind the front */
+.card-back {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg);
+}
+
+/* Round and see-through, over the right part of the artwork: the area of
+   a card with the least writing on every frame, and far from the artist
+   name and copyright at the bottom */
+.flip {
+  --size: 48px;
+  position: absolute;
+  top: 30%;
+  right: 8%;
+  width: var(--size);
+  height: var(--size);
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 25%);
+  color: rgb(255 255 255 / 55%);
+  font-size: calc(var(--size) * 0.55);
+  line-height: 1;
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+
+/* Easy to find once pointed at or reached with the keyboard */
+.flip:hover,
+.flip:focus-visible {
+  background: rgb(0 0 0 / 70%);
+  color: rgb(255 255 255 / 85%);
+}
+
+/* The device asks for less motion: turn instantly */
+@media (prefers-reduced-motion: reduce) {
+  .card-sides {
+    transition: none;
+  }
+}
