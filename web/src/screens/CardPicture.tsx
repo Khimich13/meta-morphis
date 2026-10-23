@@ -24,6 +24,8 @@ export default function CardPicture({ card, lazy = false }: CardPictureProps) {
   const [showingBack, setShowingBack] = useState(false);
   const [enlarged, setEnlarged] = useState(false);
   const flip = () => setShowingBack(!showingBack);
+  // Only a double-faced card gets the 3D settings - see CardPicture.css
+  const pictureClass = card.images.length > 1 ? 'card-picture two-sided' : 'card-picture';
 
   // Enlarging is offered only when the large view would make the card
   // noticeably bigger - see lib/enlarge.ts. Checked again whenever the
@@ -67,7 +69,7 @@ export default function CardPicture({ card, lazy = false }: CardPictureProps) {
 
   return (
     <>
-      <div className="card-picture" ref={picture}>
+      <div className={pictureClass} ref={picture}>
         {canEnlarge ? (
           <button
             className="enlarge"
@@ -83,7 +85,7 @@ export default function CardPicture({ card, lazy = false }: CardPictureProps) {
       </div>
       {enlarged && (
         <Enlarged onClose={close}>
-          <div className="card-picture">
+          <div className={pictureClass}>
             <CardSides card={card} showingBack={showingBack} lazy={false} />
             <FlipButton card={card} showingBack={showingBack} onFlip={flip} />
           </div>

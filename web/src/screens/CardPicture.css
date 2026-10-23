@@ -2,17 +2,10 @@
    the pair around its vertical axis, so the back comes into view. */
 .card-picture {
   position: relative;
-  perspective: 1200px;
 }
 
 .card-sides {
   position: relative;
-  transform-style: preserve-3d;
-  transition: transform 0.4s ease-in-out;
-}
-
-.card-sides.flipped {
-  transform: rotateY(180deg);
 }
 
 .card-side {
@@ -23,7 +16,27 @@
   aspect-ratio: 488 / 680;
   /* Real cards have rounded corners; this hides the scan's background in them */
   border-radius: 4.75% / 3.5%;
-  /* Each side is invisible from behind, so only the one facing you shows */
+}
+
+/* The 3D settings below are for double-faced cards only. Each puts a
+   picture on its own drawing layer, and with dozens of such layers in
+   the card list, Chrome sometimes failed to redraw pictures after the
+   grid changed its number of columns. */
+.card-picture.two-sided {
+  perspective: 1200px;
+}
+
+.two-sided .card-sides {
+  transform-style: preserve-3d;
+  transition: transform 0.4s ease-in-out;
+}
+
+.two-sided .card-sides.flipped {
+  transform: rotateY(180deg);
+}
+
+/* Each side is invisible from behind, so only the one facing you shows */
+.two-sided .card-side {
   backface-visibility: hidden;
 }
 
