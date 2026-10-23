@@ -79,7 +79,8 @@
 
 /* The device asks for less motion: turn instantly */
 @media (prefers-reduced-motion: reduce) {
-  .card-sides {
+  /* As specific as the rule that sets the turn, or that rule would win */
+  .two-sided .card-sides {
     transition: none;
   }
 }
@@ -127,6 +128,38 @@
 
 .enlarged::backdrop {
   background: rgb(0 0 0 / 85%);
+}
+
+/* Opening: the dark background fades in while the card fades in and
+   grows from 90% to its full size. @starting-style gives the values the
+   dialog starts from the moment it appears; browsers without it show
+   the card at once. Closing is instant. */
+.enlarged[open],
+.enlarged[open]::backdrop {
+  transition: opacity 0.4s ease-out;
+}
+
+.enlarged[open] .card-picture {
+  transition: transform 0.4s ease-out;
+}
+
+@starting-style {
+  .enlarged[open],
+  .enlarged[open]::backdrop {
+    opacity: 0;
+  }
+
+  .enlarged[open] .card-picture {
+    transform: scale(0.9);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .enlarged[open],
+  .enlarged[open]::backdrop,
+  .enlarged[open] .card-picture {
+    transition: none;
+  }
 }
 
 .enlarged .card-picture {
