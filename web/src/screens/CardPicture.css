@@ -70,3 +70,65 @@
     transition: none;
   }
 }
+
+/* The small picture is a button that opens the large view. It drops the
+   look of an ordinary button and shows only the card. */
+.enlarge {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: 4.75% / 3.5%;
+  background: none;
+  cursor: zoom-in;
+}
+
+/* The large view: the whole screen, dimmed, with the card in the middle */
+.enlarged {
+  box-sizing: border-box;
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: calc(56px + env(safe-area-inset-top)) 16px
+    calc(16px + env(safe-area-inset-bottom));
+  border: none;
+  background: transparent;
+  /* The card is sized to fit, so nothing here ever needs scrolling. The
+     browser would otherwise show a scrollbar for a moment while a card
+     turns over, since the 3D turn briefly makes its near edge larger,
+     and the scrollbar would push everything sideways. */
+  overflow: hidden;
+}
+
+/* Only while open: a closed dialog must stay hidden */
+.enlarged[open] {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.enlarged::backdrop {
+  background: rgb(0 0 0 / 85%);
+}
+
+.enlarged .card-picture {
+  /* As large as fits: the full width, or less if the height runs out
+     first (a card is 680/488 times as tall as it is wide) */
+  width: min(100%, (100dvh - 72px) * 488 / 680);
+}
+
+.enlarged .flip {
+  --size: 56px;
+}
+
+.enlarged .close {
+  position: absolute;
+  top: calc(8px + env(safe-area-inset-top));
+  right: 8px;
+  border: none;
+  color: #fff;
+  font-size: 1.5rem;
+}

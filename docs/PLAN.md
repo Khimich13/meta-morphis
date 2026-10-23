@@ -35,6 +35,7 @@ New features get a row. Fixes and adjustments to an existing brick are recorded 
 | 6h | Labels for how well each card is known: New, Learning, Known, and Tricky for often-missed cards, shown in the lesson, after a wrong answer and in the card list | Which cards I know and which I struggle with | Done |
 | 6i | Pick the format: Pauper, Premodern, Pioneer, Standard or Modern; each is exported on its own, and the app remembers the last one that loaded | Lessons for the format I play | Done |
 | 6j | Flip double-faced cards: a see-through round button over the artwork turns the card over with a short 3D turn, after answering and in the card list | The back side of a double-faced card | Done |
+| 6k | Tap a card to see it as large as the screen allows; close with ✕, a tap outside, Esc or the back gesture; double-faced cards keep their flip button | A card I can read in full | Done |
 | 7 | Refresh the card data automatically once a day | New cards appear without me doing anything | Done |
 | 7b | Faster app updates: reload into a new version as soon as it is downloaded, but never during a lesson, and check for one whenever the installed app comes back to the foreground. Today a new version arrives one visit late; card data is not affected | A new version within seconds of opening the app | Done |
 | 7c | Keep the card database between daily runs on GitHub, so the 50 artwork searches and the card data are only fetched again when they are 30 days old | Fewer requests to Scryfall | Done |

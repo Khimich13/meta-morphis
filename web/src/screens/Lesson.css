@@ -88,7 +88,8 @@
   container-type: size;
 }
 
-.picture .card-picture {
+/* Only the picture itself, not the enlarged one opened from it */
+.picture > .card-picture {
   /* Exactly the card's size: the full width of the box, or less if the
      height runs out first (the height is 680/488 of the width). Because
      the picture's box matches the card, its rounded corners land on the
