@@ -33,8 +33,11 @@ class ExportCard(TypedDict):
 
 
 class FormatsFile(TypedDict):
-    # The formats the app can offer: those with a card file
+    # The formats the app can offer: those whose "all" list has a file
     formats: list[str]
+    # For each of those formats, the lists that have a file, e.g.
+    # {"pauper": ["all", "creatures", "spells", "lands"]}
+    lists: dict[str, list[str]]
 
 
 class ExportFile(TypedDict):
@@ -103,16 +106,29 @@ def write_export(data: ExportFile, out_dir: Path) -> Path:
     )
     return path
 
+def is_basic_land(card: Card) -> bool:
+    """Plains, Snow-Covered Island, Wastes and so on: "Basic" is a word of
+    their type line before the dash, e.g. "Basic Snow Land — Island".
+    Asking which card a basic land's artwork belongs to teaches nothing.
+    """
+    return "Basic" in card.type_line.split("—")[0].split()
+
 def export_format(conn: sqlite3.Connection, format_name: str, out_dir: Path) -> Path:
+    """Exports one list; format_name is its name, e.g. "pauper-lands" -
+    see list_name in config.py."""
     meta = get_meta_cards(conn, format_name)
     list_updated = _check_list_age(conn, format_name)
+    cards = [card for card in fetch_cards(conn, meta) if not is_basic_land(card)]
     # The printing each card is shown with - see scryfall/artwork.py
-    cards = get_display_printings(conn, fetch_cards(conn, meta))
+    cards = get_display_printings(conn, cards)
     data = build_export(format_name, cards, list_updated)
-    if len(data["cards"]) < config.EXPORT_MIN_CARDS:
+    minimum = (
+        config.EXPORT_MIN_LANDS if format_name.endswith("-lands") else config.EXPORT_MIN_CARDS
+    )
+    if len(data["cards"]) < minimum:
         raise RuntimeError(
             f"Only {len(data['cards'])} usable cards for {format_name}, "
-            f"expected at least {config.EXPORT_MIN_CARDS} - not writing the file"
+            f"expected at least {minimum} - not writing the file"
         )
     path = write_export(data, out_dir)
     count = len(data["cards"])
@@ -135,30 +151,45 @@ def _check_list_age(conn: sqlite3.Connection, format_name: str) -> str:
         )
     return datetime.fromtimestamp(fetched, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-def export_all(conn: sqlite3.Connection, format_names: list[str], out_dir: Path) -> list[str]:
-    """Exports each format on its own: one that fails keeps the file it
-    had, and the others are still written. Then writes formats.json.
-    Returns the formats that failed.
+def export_all(
+    conn: sqlite3.Connection, formats: list[str], kinds: list[str], out_dir: Path
+) -> list[str]:
+    """Exports each list of each format on its own: one that fails keeps
+    the file it had, and the others are still written. Then writes
+    formats.json. Returns the lists that failed.
     """
     failed: list[str] = []
-    for format_name in format_names:
-        try:
-            export_format(conn, format_name, out_dir)
-        except Exception:
-            # With the full error, so the log says why
-            log.exception(f"Could not export {format_name} - keeping its previous file, if any")
-            failed.append(format_name)
+    for format_name in formats:
+        for kind in kinds:
+            name = config.list_name(format_name, kind)
+            try:
+                export_format(conn, name, out_dir)
+            except Exception:
+                # With the full error, so the log says why
+                log.exception(f"Could not export {name} - keeping its previous file, if any")
+                failed.append(name)
 
-    write_formats(out_dir, format_names)
+    write_formats(out_dir, formats, kinds)
     return failed
 
-def write_formats(out_dir: Path, format_names: list[str]) -> Path:
-    """Lists the formats that have a card file, new or kept from before -
-    a format that has never been exported isn't offered.
+def write_formats(out_dir: Path, formats: list[str], kinds: list[str]) -> Path:
+    """Lists what has a card file, new or kept from before - a list that
+    has never been exported isn't offered, and a format only once its
+    "all" list has a file.
     """
     out_dir.mkdir(parents=True, exist_ok=True)
-    available = [name for name in format_names if (out_dir / f"{name}.json").exists()]
-    data: FormatsFile = {"formats": available}
+    lists = {
+        format_name: [
+            kind for kind in kinds
+            if (out_dir / f"{config.list_name(format_name, kind)}.json").exists()
+        ]
+        for format_name in formats
+    }
+    available = [name for name in formats if "all" in lists[name]]
+    data: FormatsFile = {
+        "formats": available,
+        "lists": {name: lists[name] for name in available},
+    }
     path = out_dir / "formats.json"
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
     return path
@@ -172,7 +203,9 @@ def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     with get_connection() as conn:
         init_db(conn)
-        failed = export_all(conn, config.EXPORT_FORMATS, config.EXPORT_DIR)
+        failed = export_all(
+            conn, config.GOLDFISH_FORMATS, config.GOLDFISH_LISTS, config.EXPORT_DIR
+        )
 
     if failed:
         log.error(f"Failed to export: {', '.join(failed)}")

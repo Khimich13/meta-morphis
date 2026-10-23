@@ -20,9 +20,9 @@ def get_meta_cards(conn: sqlite3.Connection, format_name: str) -> list[MetaEntry
     # Validated before the cache check, so an unknown format always fails
     # the same way - otherwise it depended on the database: a leftover
     # cache row for it was served silently, and no row meant a bare KeyError.
-    url = config.GOLDFISH_FORMAT_URLS.get(format_name)
+    url = config.GOLDFISH_LIST_URLS.get(format_name)
     if url is None:
-        known = ", ".join(config.GOLDFISH_FORMAT_URLS)
+        known = ", ".join(config.GOLDFISH_LIST_URLS)
         raise ValueError(f"Unknown format {format_name!r}, expected one of: {known}")
 
     if not should_refresh_meta(conn, format_name):

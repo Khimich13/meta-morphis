@@ -1,6 +1,7 @@
 import json
 import logging
 import sqlite3
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -8,7 +9,13 @@ import pytest
 from pytest import MonkeyPatch
 
 from meta_morphis import config
-from meta_morphis.export import build_card, build_export, export_all, export_format
+from meta_morphis.export import (
+    build_card,
+    build_export,
+    export_all,
+    export_format,
+    is_basic_land,
+)
 from meta_morphis.models.card import Card
 from meta_morphis.models.meta import MetaEntry
 
@@ -215,42 +222,94 @@ def test_export_format_fails_without_any_list(
     with pytest.raises(RuntimeError, match="never fetched"):
         export_format(conn, "pauper", tmp_path)
 
-def test_export_all_keeps_going_when_one_format_fails(
-    conn: sqlite3.Connection, tmp_path: Path, monkeypatch: MonkeyPatch
-) -> None:
-    # Modern was exported before and now fails; Standard never worked
-    (tmp_path / "modern.json").write_text('{"old": true}', encoding="utf-8")
-
-    def fake_export(conn: sqlite3.Connection, format_name: str, out_dir: Path) -> Path:
-        if format_name in ("modern", "standard"):
+def _fake_export(
+    fails: tuple[str, ...] = (),
+) -> Callable[[sqlite3.Connection, str, Path], Path]:
+    """export_format that writes an empty file, or fails for the named lists"""
+    def fake_export(conn: sqlite3.Connection, name: str, out_dir: Path) -> Path:
+        if name in fails:
             raise RuntimeError("MTGGoldfish's page changed")
-        path = out_dir / f"{format_name}.json"
+        path = out_dir / f"{name}.json"
         path.write_text("{}", encoding="utf-8")
         return path
+    return fake_export
 
-    monkeypatch.setattr("meta_morphis.export.export_format", fake_export)
+def test_export_all_keeps_going_when_one_list_fails(
+    conn: sqlite3.Connection, tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    # Modern's lands list was exported before and now fails; Standard's
+    # "all" list never worked
+    (tmp_path / "modern-lands.json").write_text('{"old": true}', encoding="utf-8")
+    monkeypatch.setattr(
+        "meta_morphis.export.export_format", _fake_export(("modern-lands", "standard"))
+    )
 
-    failed = export_all(conn, ["pauper", "modern", "standard", "pioneer"], tmp_path)
+    failed = export_all(conn, ["pauper", "modern", "standard"], ["all", "lands"], tmp_path)
 
-    assert failed == ["modern", "standard"]
-    # The formats after the failed ones were still written
-    assert (tmp_path / "pioneer.json").exists()
-    # Modern keeps its old file
-    assert json.loads((tmp_path / "modern.json").read_text(encoding="utf-8")) == {"old": True}
-    # Standard has no file, so the app isn't offered it
+    assert failed == ["modern-lands", "standard"]
+    # The lists after the failed ones were still written
+    assert (tmp_path / "standard-lands.json").exists()
+    # Modern keeps its old lands file
+    old = json.loads((tmp_path / "modern-lands.json").read_text(encoding="utf-8"))
+    assert old == {"old": True}
+    # Standard has no "all" list, so the app isn't offered the format
     formats = json.loads((tmp_path / "formats.json").read_text(encoding="utf-8"))
-    assert formats == {"formats": ["pauper", "modern", "pioneer"]}
+    assert formats == {
+        "formats": ["pauper", "modern"],
+        "lists": {"pauper": ["all", "lands"], "modern": ["all", "lands"]},
+    }
 
 def test_export_all_reports_no_failures(
     conn: sqlite3.Connection, tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
-    def fake_export(conn: sqlite3.Connection, format_name: str, out_dir: Path) -> Path:
-        path = out_dir / f"{format_name}.json"
-        path.write_text("{}", encoding="utf-8")
-        return path
+    monkeypatch.setattr("meta_morphis.export.export_format", _fake_export())
 
-    monkeypatch.setattr("meta_morphis.export.export_format", fake_export)
-
-    assert export_all(conn, ["pauper", "pioneer"], tmp_path) == []
+    assert export_all(conn, ["pauper"], ["all", "creatures"], tmp_path) == []
+    assert (tmp_path / "pauper-creatures.json").exists()
     formats = json.loads((tmp_path / "formats.json").read_text(encoding="utf-8"))
-    assert formats == {"formats": ["pauper", "pioneer"]}
+    assert formats == {"formats": ["pauper"], "lists": {"pauper": ["all", "creatures"]}}
+
+@pytest.mark.parametrize("type_line, basic", [
+    ("Basic Land — Mountain", True),
+    ("Basic Snow Land — Island", True),
+    ("Basic Land", True),  # Wastes
+    ("Land", False),
+    ("Snow Land", False),
+    ("Legendary Land", False),
+    ("Artifact Land", False),
+])
+def test_is_basic_land(type_line: str, basic: bool) -> None:
+    assert is_basic_land(Card.from_raw(_raw("Some Land", type_line=type_line))) is basic
+
+def test_export_format_leaves_out_basic_lands_and_needs_fewer_lands(
+    conn: sqlite3.Connection, tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    cards = [
+        Card.from_raw(_raw("Mountain", oracle_id="m", type_line="Basic Land — Mountain")),
+        Card.from_raw(_raw("Bojuka Bog", oracle_id="b", type_line="Land")),
+    ]
+    monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, name: [])
+    _list_fetched(monkeypatch, FETCHED)
+    monkeypatch.setattr("meta_morphis.export.fetch_cards", lambda conn, meta: cards)
+    monkeypatch.setattr("meta_morphis.export.get_display_printings", lambda conn, cards: cards)
+    # One card left: enough for a lands list here, too few for any other
+    monkeypatch.setattr(config, "EXPORT_MIN_LANDS", 1)
+    monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 2)
+
+    path = export_format(conn, "pauper-lands", tmp_path)
+
+    written = json.loads(path.read_text(encoding="utf-8"))["cards"]
+    assert [card["name"] for card in written] == ["Bojuka Bog"]
+    with pytest.raises(RuntimeError, match="expected at least 2"):
+        export_format(conn, "pauper-creatures", tmp_path)
+
+def test_list_names_and_addresses() -> None:
+    assert config.list_name("pauper", "all") == "pauper"
+    assert config.list_name("pauper", "lands") == "pauper-lands"
+    assert config.GOLDFISH_LIST_URLS["pauper"] == (
+        "https://www.mtggoldfish.com/format-staples/pauper/full/all"
+    )
+    assert config.GOLDFISH_LIST_URLS["modern-creatures"] == (
+        "https://www.mtggoldfish.com/format-staples/modern/full/creatures"
+    )
+    assert len(config.GOLDFISH_LIST_URLS) == 20

@@ -36,7 +36,7 @@ def test_get_meta_cards_scraper_success(conn: sqlite3.Connection, monkeypatch: M
     )
 
     monkeypatch.setattr(
-        "meta_morphis.meta.service.config.GOLDFISH_FORMAT_URLS",
+        "meta_morphis.meta.service.config.GOLDFISH_LIST_URLS",
         {"pauper": "http://fake-url"}
     )
 
@@ -69,7 +69,7 @@ def test_get_meta_cards_saves_rows_with_unparseable_fields(conn: sqlite3.Connect
         lambda conn, fmt: True
     )
     monkeypatch.setattr(
-        "meta_morphis.meta.service.config.GOLDFISH_FORMAT_URLS",
+        "meta_morphis.meta.service.config.GOLDFISH_LIST_URLS",
         {"pauper": "http://fake-url"}
     )
     monkeypatch.setattr(
@@ -97,7 +97,7 @@ def test_get_meta_cards_scraper_returns_empty_list_uses_cache(conn: sqlite3.Conn
         lambda conn, fmt: True
     )
     monkeypatch.setattr(
-        "meta_morphis.meta.service.config.GOLDFISH_FORMAT_URLS",
+        "meta_morphis.meta.service.config.GOLDFISH_LIST_URLS",
         {"pauper": "http://fake-url"}
     )
     monkeypatch.setattr(
@@ -117,7 +117,7 @@ def test_get_meta_cards_scraper_fail_uses_cache(conn: sqlite3.Connection, monkey
     )
 
     monkeypatch.setattr(
-        "meta_morphis.meta.service.config.GOLDFISH_FORMAT_URLS",
+        "meta_morphis.meta.service.config.GOLDFISH_LIST_URLS",
         {"pauper": "http://fake-url"}
     )
 
@@ -142,7 +142,7 @@ def test_get_meta_cards_scraper_fail_and_no_cache(conn: sqlite3.Connection, monk
     )
 
     monkeypatch.setattr(
-        "meta_morphis.meta.service.config.GOLDFISH_FORMAT_URLS",
+        "meta_morphis.meta.service.config.GOLDFISH_LIST_URLS",
         {"pauper": "http://fake-url"}
     )
 
@@ -218,7 +218,7 @@ def test_list_changes_ignores_spelling_and_order() -> None:
 def _refresh(monkeypatch: MonkeyPatch, saved: list[MetaEntry], scraped: list[MetaEntry]) -> None:
     monkeypatch.setattr("meta_morphis.meta.service.should_refresh_meta", lambda conn, fmt: True)
     monkeypatch.setattr(
-        "meta_morphis.meta.service.config.GOLDFISH_FORMAT_URLS", {"pauper": "http://fake-url"}
+        "meta_morphis.meta.service.config.GOLDFISH_LIST_URLS", {"pauper": "http://fake-url"}
     )
     monkeypatch.setattr("meta_morphis.meta.service.scrape_meta_cards", lambda url: scraped)
     monkeypatch.setattr("meta_morphis.meta.service.get_meta_from_cache", lambda conn, fmt: saved)

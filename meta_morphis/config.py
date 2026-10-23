@@ -4,12 +4,25 @@ from pathlib import Path
 _DAY = 24 * 60 * 60
 
 # MTGGoldfish
-GOLDFISH_FORMAT_URLS = {
-    "pauper": "https://www.mtggoldfish.com/format-staples/pauper/full/all",
-    "premodern": "https://www.mtggoldfish.com/format-staples/premodern/full/all",
-    "pioneer": "https://www.mtggoldfish.com/format-staples/pioneer/full/all",
-    "standard": "https://www.mtggoldfish.com/format-staples/standard/full/all",
-    "modern": "https://www.mtggoldfish.com/format-staples/modern/full/all",
+GOLDFISH_FORMATS = ["pauper", "premodern", "pioneer", "standard", "modern"]
+# Each format's most played cards: "all" is creatures and spells
+# together (no lands), and the others are each kind on its own
+GOLDFISH_LISTS = ["all", "creatures", "spells", "lands"]
+
+
+def list_name(format_name: str, kind: str) -> str:
+    """The name a list is cached and exported under: the format's own
+    name for "all", as before the other lists existed, e.g. "pauper",
+    and "pauper-creatures" for the others.
+    """
+    return format_name if kind == "all" else f"{format_name}-{kind}"
+
+
+GOLDFISH_LIST_URLS = {
+    list_name(format_name, kind):
+        f"https://www.mtggoldfish.com/format-staples/{format_name}/full/{kind}"
+    for format_name in GOLDFISH_FORMATS
+    for kind in GOLDFISH_LISTS
 }
 GOLDFISH_HEADERS = {
     "User-Agent": "meta-morphis (https://github.com/Khimich13/meta-morphis)",
@@ -56,6 +69,10 @@ SCRYFALL_RATE_LIMIT_COOLDOWN = 30.0
 # An export with fewer usable cards than this fails instead of writing
 # the file, so a failed fetch can't publish an empty or half-empty page.
 EXPORT_MIN_CARDS = 45
+# The same for a lands list, which loses its basic lands: up to 12 of
+# them (Plains, Island, Swamp, Mountain, Forest and Wastes, each also
+# snow-covered), plus a small margin
+EXPORT_MIN_LANDS = 35
 # An MTGGoldfish list older than this makes the export fail, so a lasting
 # breakage of the scraper fails the daily run and GitHub reports it,
 # instead of the old list being published day after day. A short outage
@@ -70,4 +87,3 @@ DB_PATH = Path(os.environ.get("META_MORPHIS_DB") or PROJECT_ROOT / "data" / "car
 # Web app data: one <format>.json per format, read by the app, and
 # formats.json listing the formats that have one
 EXPORT_DIR = PROJECT_ROOT / "web" / "public" / "data"
-EXPORT_FORMATS = list(GOLDFISH_FORMAT_URLS)
