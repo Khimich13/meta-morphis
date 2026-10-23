@@ -1,20 +1,25 @@
 import { type Card, formatLabel } from '../lib/cards';
+import { LIST_LABELS, type Selection } from '../lib/formats';
 import { type CardProgress, cardStatus, type Progress } from '../lib/progress';
 import CardPicture from './CardPicture';
 
 interface CardListProps {
-  format: string;
+  selection: Selection;
   cards: Card[];
   progress: Progress;
   onBack: () => void;
 }
 
-export default function CardList({ format, cards, progress, onBack }: CardListProps) {
+export default function CardList({ selection, cards, progress, onBack }: CardListProps) {
+  // "Most played in Pauper", or "Most played creatures in Pauper"
+  const what = selection.kind === 'all' ? '' : `${LIST_LABELS[selection.kind].toLowerCase()} `;
   return (
     <main className="card-list">
       <header className="card-list-bar">
         <button onClick={onBack}>← Back</button>
-        <h1>Most played in {formatLabel(format)}</h1>
+        <h1>
+          Most played {what}in {formatLabel(selection.format)}
+        </h1>
       </header>
       <ul className="card-grid">
         {cards.map((card) => (

@@ -2,10 +2,27 @@ import { useEffect, useState } from 'react';
 
 import './App.css';
 import { type Card, loadCards } from './lib/cards';
-import { loadFormats, startFormat } from './lib/formats';
+import {
+  type FormatsFile,
+  kindFor,
+  listFile,
+  listsOf,
+  type ListKind,
+  loadFormats,
+  type Selection,
+  startFormat,
+  startKind,
+} from './lib/formats';
 import { saveCardFile, savePictures } from './lib/offline';
 import { localDay, recordAnswer, recordLesson } from './lib/progress';
-import { loadFormat, loadProgress, saveFormat, saveProgress } from './lib/storage';
+import {
+  loadFormat,
+  loadList,
+  loadProgress,
+  saveFormat,
+  saveList,
+  saveProgress,
+} from './lib/storage';
 import { useAppUpdate } from './lib/update';
 import CardList from './screens/CardList';
 import Formats from './screens/Formats';
@@ -22,10 +39,16 @@ export default function App() {
   const [format, setFormat] = useState(() =>
     startFormat(loadFormat(), Object.keys(progress.cards).length > 0),
   );
-  // The last format whose cards loaded; the way back when a new one fails
-  const [lastLoaded, setLastLoaded] = useState(loadFormat);
-  // The formats that have card data; null until loaded
-  const [formats, setFormats] = useState<string[] | null>(null);
+  // The chosen list of that format: all, creatures, spells or lands
+  const [kind, setKind] = useState<ListKind>(() => startKind(loadList()));
+  // The last format and list whose cards loaded; the way back when a new
+  // one fails
+  const [lastLoaded, setLastLoaded] = useState<Selection | null>(() => {
+    const saved = loadFormat();
+    return saved === null ? null : { format: saved, kind: startKind(loadList()) };
+  });
+  // The formats and lists that have card data; null until loaded
+  const [formats, setFormats] = useState<FormatsFile | null>(null);
   const [formatsFailed, setFormatsFailed] = useState(false);
   // The chosen format's cards; null until they have arrived
   const [cards, setCards] = useState<Card[] | null>(null);
@@ -43,33 +66,40 @@ export default function App() {
       .catch(() => setFormatsFailed(true));
   }, []);
 
-  // Runs whenever the chosen format changes: load its cards
+  // The lists the chosen format offers, once known. A chosen kind of list
+  // the format lacks (say, after switching format) means its overall list.
+  const offered = formats !== null && format !== null ? listsOf(formats, format) : null;
+  const shownKind = offered === null ? kind : kindFor(kind, offered);
+
+  // Runs whenever the chosen format or list changes: load its cards
   useEffect(() => {
     if (format === null) return;
+    const selection: Selection = { format, kind: shownKind };
     // A switch before the file arrives makes this load stale: its result
-    // must not replace the newer format's cards
+    // must not replace the newer list's cards
     let stale = false;
     setCards(null);
     setFailed(false);
-    loadCards(format)
+    loadCards(listFile(selection))
       .then((file) => {
         if (stale) return;
         setCards(file.cards);
         setListUpdated(file.list_updated);
         // Remembered only once it has loaded, so the app never reopens
-        // on a format it can't show
+        // on a list it can't show
         saveFormat(format);
-        setLastLoaded(format);
-        saveCardFile(format);
+        saveList(shownKind);
+        setLastLoaded(selection);
+        saveCardFile(listFile(selection));
       })
       .catch(() => {
         if (!stale) setFailed(true);
       });
-    // React runs this before the effect runs again for the next format
+    // React runs this before the effect runs again for the next list
     return () => {
       stale = true;
     };
-  }, [format]);
+  }, [format, shownKind]);
 
   // Once a format's cards are here, save their pictures for offline use;
   // a format switch stops the saving for the old one
@@ -102,10 +132,15 @@ export default function App() {
     setScreen('home');
   }
 
+  function choose(selection: Selection) {
+    setFormat(selection.format);
+    setKind(selection.kind);
+  }
+
   if (format === null || screen === 'formats') {
     return (
       <Formats
-        formats={formats}
+        formats={formats === null ? null : formats.formats}
         failed={formatsFailed}
         current={format}
         onChoose={chooseFormat}
@@ -131,17 +166,31 @@ export default function App() {
   }
 
   if (cards !== null && screen === 'cards') {
-    return <CardList format={format} cards={cards} progress={progress} onBack={goHome} />;
+    return (
+      <CardList
+        selection={{ format, kind: shownKind }}
+        cards={cards}
+        progress={progress}
+        onBack={goHome}
+      />
+    );
   }
 
   return (
     <Home
       listUpdated={listUpdated}
-      format={format}
+      selection={{ format, kind: shownKind }}
+      offered={offered}
+      onChooseKind={setKind}
       cards={cards}
       failed={failed}
-      fallbackFormat={lastLoaded !== format ? lastLoaded : null}
-      onChooseFormat={chooseFormat}
+      fallback={
+        lastLoaded !== null &&
+        (lastLoaded.format !== format || lastLoaded.kind !== shownKind)
+          ? lastLoaded
+          : null
+      }
+      onChooseFallback={choose}
       progress={progress}
       pictures={pictures}
       onStartLesson={() => setScreen('lesson')}

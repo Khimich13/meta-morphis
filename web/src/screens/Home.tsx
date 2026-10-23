@@ -1,16 +1,25 @@
 import { type Card, formatLabel, LIST_OLD_AFTER_DAYS, listAgeDays } from '../lib/cards';
+import {
+  LIST_LABELS,
+  type ListKind,
+  type Selection,
+  selectionLabel,
+} from '../lib/formats';
 import { dueCount, localDay, type Progress, streak } from '../lib/progress';
 import './Home.css';
 
 interface HomeProps {
-  format: string;
+  selection: Selection;
+  /** The lists the format offers; null while not known yet */
+  offered: ListKind[] | null;
+  onChooseKind: (kind: ListKind) => void;
   /** null while the card list is still loading */
   cards: Card[] | null;
   /** The card list could not be loaded */
   failed: boolean;
-  /** A format that did load, to go back to after a failure */
-  fallbackFormat: string | null;
-  onChooseFormat: (format: string) => void;
+  /** A format and list that did load, to go back to after a failure */
+  fallback: Selection | null;
+  onChooseFallback: (selection: Selection) => void;
   /** When the list of most played cards was last fetched, if known */
   listUpdated: string | undefined;
   progress: Progress;
@@ -22,11 +31,13 @@ interface HomeProps {
 }
 
 export default function Home({
-  format,
+  selection,
+  offered,
+  onChooseKind,
   cards,
   failed,
-  fallbackFormat,
-  onChooseFormat,
+  fallback,
+  onChooseFallback,
   listUpdated,
   progress,
   pictures,
@@ -39,17 +50,21 @@ export default function Home({
       <header className="home-title">
         <h1>MetaMorphis</h1>
         <p>
-          {formatLabel(format)} ·{' '}
+          {formatLabel(selection.format)} ·{' '}
           <button className="link" onClick={onChangeFormat}>
             Change
           </button>
         </p>
       </header>
 
+      {offered !== null && offered.length > 1 && (
+        <ListChoice offered={offered} current={selection.kind} onChoose={onChooseKind} />
+      )}
+
       <OldListBanner listUpdated={listUpdated} />
 
       {failed ? (
-        <LoadFailed format={format} fallback={fallbackFormat} onChoose={onChooseFormat} />
+        <LoadFailed selection={selection} fallback={fallback} onChoose={onChooseFallback} />
       ) : cards === null ? (
         <p className="home-middle">Loading…</p>
       ) : (
@@ -117,14 +132,40 @@ function Stats({ cards, progress }: { cards: Card[]; progress: Progress }) {
   );
 }
 
+/** All · Creatures · Spells · Lands: which list of the format to learn */
+function ListChoice({
+  offered,
+  current,
+  onChoose,
+}: {
+  offered: ListKind[];
+  current: ListKind;
+  onChoose: (kind: ListKind) => void;
+}) {
+  return (
+    <div className="list-choice" role="group" aria-label="Cards to learn">
+      {offered.map((kind) => (
+        <button
+          key={kind}
+          className={kind === current ? 'current' : ''}
+          aria-pressed={kind === current}
+          onClick={() => onChoose(kind)}
+        >
+          {LIST_LABELS[kind]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function LoadFailed({
-  format,
+  selection,
   fallback,
   onChoose,
 }: {
-  format: string;
-  fallback: string | null;
-  onChoose: (format: string) => void;
+  selection: Selection;
+  fallback: Selection | null;
+  onChoose: (selection: Selection) => void;
 }) {
   // The browser's own idea of the connection: false means surely offline
   const offline = !navigator.onLine;
@@ -133,16 +174,16 @@ function LoadFailed({
       {offline ? (
         <>
           <p>
-            <strong>{formatLabel(format)} isn't on this device yet.</strong>
+            <strong>{selectionLabel(selection)} isn't on this device yet.</strong>
           </p>
           <p>Connect to the internet to download it.</p>
         </>
       ) : (
-        <p>Couldn't load {formatLabel(format)}. Try again later.</p>
+        <p>Couldn't load {selectionLabel(selection)}. Try again later.</p>
       )}
       {fallback !== null && (
         <button className="primary" onClick={() => onChoose(fallback)}>
-          Back to {formatLabel(fallback)}
+          Back to {selectionLabel(fallback)}
         </button>
       )}
     </div>

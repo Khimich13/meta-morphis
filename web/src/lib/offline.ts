@@ -19,15 +19,15 @@ export function pictureUrls(cards: readonly Card[]): string[] {
 export const DATA_CACHE = 'card-data';
 
 /**
- * Saves a format's card file and the list of formats on the device. The
+ * Saves a card file and the list of formats on the device. The
  * service worker saves them too when it handles their download, but on
  * the very first visit the page loads them before the service worker
  * has started, and they would be missing offline.
  */
-export async function saveCardFile(format: string): Promise<void> {
+export async function saveCardFile(file: string): Promise<void> {
   if (!('caches' in window)) return;
   const cache = await caches.open(DATA_CACHE);
-  for (const path of ['data/formats.json', `data/${format}.json`]) {
+  for (const path of ['data/formats.json', `data/${file}.json`]) {
     try {
       // The same full address the app asks for, so the service worker finds it
       await cache.add(new URL(path, window.location.href));

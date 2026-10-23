@@ -37,6 +37,7 @@ New features get a row. Fixes and adjustments to an existing brick are recorded 
 | 6j | Flip double-faced cards: a see-through round button over the artwork turns the card over with a short 3D turn, after answering and in the card list | The back side of a double-faced card | Done |
 | 6k | Tap a card to see it as large as the screen allows; close with ✕, a tap outside, Esc or the back gesture; double-faced cards keep their flip button | A card I can read in full | Done |
 | 6l | Hear a card's name: a speaker button after answering, and on the enlarged card, using the device's own voices | A card's name read aloud | Done |
+| 6m | Learn a format's creatures, spells or lands separately, as MTGGoldfish lists them, without basic lands; chosen on the start screen | Lessons on just the lands, creatures or spells | Done |
 | 7 | Refresh the card data automatically once a day | New cards appear without me doing anything | Done |
 | 7b | Faster app updates: reload into a new version as soon as it is downloaded, but never during a lesson, and check for one whenever the installed app comes back to the foreground. Today a new version arrives one visit late; card data is not affected | A new version within seconds of opening the app | Done |
 | 7c | Keep the card database between daily runs on GitHub, so the 50 artwork searches and the card data are only fetched again when they are 30 days old | Fewer requests to Scryfall | Done |

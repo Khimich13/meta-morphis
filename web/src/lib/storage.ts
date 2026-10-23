@@ -42,3 +42,22 @@ export function saveFormat(format: string): void {
     // Not remembered: the player is asked again next time
   }
 }
+
+const LIST_KEY = 'meta-morphis-list';
+
+/** The list kind ("all", "creatures"...) chosen last time, or null */
+export function loadList(): string | null {
+  try {
+    return localStorage.getItem(LIST_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function saveList(kind: string): void {
+  try {
+    localStorage.setItem(LIST_KEY, kind);
+  } catch {
+    // Not remembered: the overall list is used next time
+  }
+}

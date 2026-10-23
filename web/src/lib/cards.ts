@@ -23,10 +23,11 @@ export interface CardFile {
   cards: Card[];
 }
 
-export async function loadCards(format: string): Promise<CardFile> {
-  const response = await fetch(`data/${format}.json`);
+/** Loads a card file, named as listFile in formats.ts names it */
+export async function loadCards(file: string): Promise<CardFile> {
+  const response = await fetch(`data/${file}.json`);
   if (!response.ok) {
-    throw new Error(`Could not load ${format}.json (HTTP ${response.status})`);
+    throw new Error(`Could not load ${file}.json (HTTP ${response.status})`);
   }
   return response.json();
 }

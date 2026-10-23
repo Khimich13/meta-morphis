@@ -96,3 +96,31 @@
 .load-failed {
   gap: 12px;
 }
+
+/* All · Creatures · Spells · Lands: one connected row of four */
+.list-choice {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  border: 2px solid currentColor;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.list-choice button {
+  min-height: 40px;
+  padding: 0 4px;
+  border: none;
+  border-radius: 0;
+  font-size: 0.9rem;
+}
+
+.list-choice button + button {
+  border-left: 2px solid currentColor;
+}
+
+/* The chosen one: filled, so it reads as selected without the color too */
+.list-choice .current {
+  background: #2e9e5b;
+  color: #fff;
+  font-weight: bold;
+}
