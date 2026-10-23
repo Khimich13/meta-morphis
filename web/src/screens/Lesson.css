@@ -138,6 +138,16 @@
   font-weight: bold;
 }
 
+/* The speaker button sits in the line of text, after the card's name */
+.say {
+  min-height: 0;
+  padding: 0 4px;
+  border: none;
+  font-size: 1em;
+  line-height: 1;
+  vertical-align: baseline;
+}
+
 .lesson .primary {
   width: 100%;
 }

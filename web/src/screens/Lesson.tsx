@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import type { Card } from '../lib/cards';
 import { cardStatus, type Knowledge, localDay, type Progress } from '../lib/progress';
+import { canSpeak, sayName } from '../lib/speech';
 import CardPicture from './CardPicture';
 import {
   afterAnswer,
@@ -174,6 +175,16 @@ function QuestionLabel({
   return null;
 }
 
+/** Reads the name aloud; nothing in a browser that can't speak */
+function SayButton({ name }: { name: string }) {
+  if (!canSpeak()) return null;
+  return (
+    <button className="say" aria-label={`Say ${name}`} onClick={() => sayName(name)}>
+      🔊
+    </button>
+  );
+}
+
 interface FeedbackProps {
   card: Card;
   picked: Card;
@@ -189,12 +200,16 @@ function Feedback({ card, picked, missedNote, onContinue }: FeedbackProps) {
       {/* role="status" makes screen readers announce the result */}
       <div role="status">
         {correct ? (
-          <p className="verdict">✓ Correct: {card.name}</p>
+          <p className="verdict">
+            ✓ Correct: {card.name} <SayButton name={card.name} />
+          </p>
         ) : (
           <>
             <p className="verdict">✗ Not quite</p>
             <p>You picked {picked.name}</p>
-            <p>It was {card.name}</p>
+            <p>
+              It was {card.name} <SayButton name={card.name} />
+            </p>
             {missedNote && <p className="missed-note">{missedNote}</p>}
           </>
         )}

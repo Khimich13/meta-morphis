@@ -1,7 +1,8 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 
-import type { Card } from '../lib/cards';
+import { type Card, visibleName } from '../lib/cards';
 import { isWorthEnlarging } from '../lib/enlarge';
+import { canSpeak, sayName } from '../lib/speech';
 import './CardPicture.css';
 
 interface CardPictureProps {
@@ -88,6 +89,8 @@ export default function CardPicture({ card, lazy = false }: CardPictureProps) {
           <div className={pictureClass}>
             <CardSides card={card} showingBack={showingBack} lazy={false} />
             <FlipButton card={card} showingBack={showingBack} onFlip={flip} />
+            {/* The name of the side showing, not both of a double-faced card */}
+            <SayOnCard name={visibleName(card, showingBack)} />
           </div>
         </Enlarged>
       )}
@@ -144,11 +147,39 @@ function FlipButton({
   if (card.images.length < 2) return null;
   return (
     <button
-      className="flip"
+      className="card-button flip"
       aria-label={showingBack ? 'Flip to see the front' : 'Flip to see the back'}
       onClick={onFlip}
     >
       ↻
+    </button>
+  );
+}
+
+/**
+ * Reads the card's name aloud; only in the large view, where there is
+ * room for it. Nothing in a browser that can't speak.
+ */
+function SayOnCard({ name }: { name: string }) {
+  if (!canSpeak()) return null;
+  return (
+    <button
+      className="card-button say-on-card"
+      aria-label={`Say ${name}`}
+      onClick={() => sayName(name)}
+    >
+      {/* A drawn speaker rather than an emoji, so it takes the button's
+          see-through color like the flip symbol does */}
+      <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+        <path d="M3 9v6h4l5 5V4L7 9H3z" />
+        <path
+          d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+      </svg>
     </button>
   );
 }

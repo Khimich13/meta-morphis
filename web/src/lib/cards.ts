@@ -50,3 +50,15 @@ export function listAgeDays(listUpdated: string | undefined, now: Date = new Dat
 export function formatLabel(format: string): string {
   return format.charAt(0).toUpperCase() + format.slice(1);
 }
+
+/**
+ * The name of the side being looked at. A double-faced card's name is
+ * its two face names joined by " // ", in the same order as its two
+ * pictures. A split card has " // " in its name too, but both halves
+ * are printed on its one side, so it keeps its full name.
+ */
+export function visibleName(card: Card, showingBack: boolean): string {
+  const faces = card.name.split(' // ');
+  if (card.images.length < 2 || faces.length !== 2) return card.name;
+  return showingBack ? faces[1] : faces[0];
+}
