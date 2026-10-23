@@ -29,19 +29,21 @@ export default function CardList({ format, cards, progress, onBack }: CardListPr
   );
 }
 
-/** A card's labels and record, e.g. "Learning · Tricky · 3 of 6 right" */
+/** A card's labels, then its record below them, e.g. "3 of 6 right" */
 function CardRecord({ record }: { record: CardProgress | undefined }) {
   const status = cardStatus(record);
   const names = { new: 'New', learning: 'Learning', known: 'Known' };
   return (
-    <span className="card-progress">
-      <span className={`label ${status.knowledge}`}>{names[status.knowledge]}</span>
-      {status.tricky && <span className="label tricky">Tricky</span>}
+    <div className="card-progress">
+      <div className="card-labels">
+        <span className={`label ${status.knowledge}`}>{names[status.knowledge]}</span>
+        {status.tricky && <span className="label tricky">Tricky</span>}
+      </div>
       {record !== undefined && (
-        <span>
+        <p className="card-record">
           {record.right} of {status.answers} right
-        </span>
+        </p>
       )}
-    </span>
+    </div>
   );
 }
