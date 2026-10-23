@@ -92,6 +92,8 @@
   max-width: none;
   max-height: none;
   margin: 0;
+  /* The sizes here and below are also in src/lib/enlarge.ts, which
+     decides whether enlarging is offered: change them together */
   padding: calc(56px + env(safe-area-inset-top)) 16px
     calc(16px + env(safe-area-inset-bottom));
   border: none;

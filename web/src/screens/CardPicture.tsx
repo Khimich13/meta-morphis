@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 import type { Card } from '../lib/cards';
+import { isWorthEnlarging } from '../lib/enlarge';
 import './CardPicture.css';
 
 interface CardPictureProps {
@@ -11,7 +12,7 @@ interface CardPictureProps {
 
 /**
  * A card's full picture. Tapping it shows the card as large as the screen
- * allows. A double-faced card also gets a round button over its artwork
+ * allows, when that is noticeably larger than it is already shown. A double-faced card also gets a round button over its artwork
  * that turns it over to the back and back again, in both sizes.
  *
  * Card pictures are shown as they are: never stretched or dimmed. The
@@ -23,6 +24,30 @@ export default function CardPicture({ card, lazy = false }: CardPictureProps) {
   const [showingBack, setShowingBack] = useState(false);
   const [enlarged, setEnlarged] = useState(false);
   const flip = () => setShowingBack(!showingBack);
+
+  // Enlarging is offered only when the large view would make the card
+  // noticeably bigger - see lib/enlarge.ts. Checked again whenever the
+  // card or the screen changes size.
+  const picture = useRef<HTMLDivElement>(null);
+  const [canEnlarge, setCanEnlarge] = useState(false);
+  useEffect(() => {
+    const element = picture.current;
+    if (element === null) return;
+    const check = () =>
+      setCanEnlarge(
+        isWorthEnlarging(element.offsetWidth, window.innerWidth, window.innerHeight),
+      );
+    check();
+    // The card's own size, e.g. a lesson column that narrows
+    const observer = new ResizeObserver(check);
+    observer.observe(element);
+    // The screen's size, which sets the large view's size
+    window.addEventListener('resize', check);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', check);
+    };
+  }, []);
 
   // The phone's back gesture should close the large view, not leave the
   // app. Opening it adds a step to the browser's history; every way of
@@ -42,14 +67,18 @@ export default function CardPicture({ card, lazy = false }: CardPictureProps) {
 
   return (
     <>
-      <div className="card-picture">
-        <button
-          className="enlarge"
-          aria-label={`Enlarge ${card.name}`}
-          onClick={open}
-        >
+      <div className="card-picture" ref={picture}>
+        {canEnlarge ? (
+          <button
+            className="enlarge"
+            aria-label={`Enlarge ${card.name}`}
+            onClick={open}
+          >
+            <CardSides card={card} showingBack={showingBack} lazy={lazy} />
+          </button>
+        ) : (
           <CardSides card={card} showingBack={showingBack} lazy={lazy} />
-        </button>
+        )}
         <FlipButton card={card} showingBack={showingBack} onFlip={flip} />
       </div>
       {enlarged && (
