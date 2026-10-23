@@ -13,6 +13,8 @@ def choose_printing(printings: list[dict[str, Any]]) -> dict[str, Any] | None:
     """
     by_artwork: dict[str, list[dict[str, Any]]] = {}
     for printing in printings:
+        if not is_regular_printing(printing):
+            continue
         artwork = _illustration_id(printing)
         if artwork is None or not _has_pictures(printing):
             continue
@@ -26,6 +28,25 @@ def choose_printing(printings: list[dict[str, Any]]) -> dict[str, Any] | None:
         key=lambda group: (-len(group), min(_released(p) for p in group)),
     )
     return max(most_printed, key=_released)
+
+def is_regular_printing(printing: dict[str, Any]) -> bool:
+    """The same rules as SCRYFALL_REGULAR_PRINTINGS in config.py, checked
+    on the printing's own data. Scryfall can silently drop filters from a
+    long query, so the search results are not trusted to follow them.
+    """
+    effects = printing.get("frame_effects") or []
+    return (
+        "paper" in (printing.get("games") or [])
+        and not printing.get("promo")
+        and not printing.get("digital")
+        and printing.get("border_color") not in ("gold", "borderless")
+        and not printing.get("oversized")
+        and printing.get("set_type") != "memorabilia"
+        and printing.get("frame") != "future"
+        and "showcase" not in effects
+        and "extendedart" not in effects
+        and not printing.get("full_art")
+    )
 
 def _illustration_id(printing: dict[str, Any]) -> str | None:
     # A double-faced card has an artwork per face; the front's is the

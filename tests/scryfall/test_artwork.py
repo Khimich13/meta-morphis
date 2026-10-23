@@ -1,6 +1,6 @@
 from typing import Any
 
-from meta_morphis.scryfall.artwork import choose_printing
+from meta_morphis.scryfall.artwork import choose_printing, is_regular_printing
 
 
 def _printing(set_code: str, released: str, artwork: str, **extra: Any) -> dict[str, Any]:
@@ -9,6 +9,7 @@ def _printing(set_code: str, released: str, artwork: str, **extra: Any) -> dict[
         "set": set_code,
         "released_at": released,
         "illustration_id": artwork,
+        "games": ["paper"],
         "image_uris": {"grid": f"{set_code}.webp", "art": f"{set_code}-art.webp"},
         **extra,
     }
@@ -63,6 +64,7 @@ def test_double_faced_cards_are_grouped_by_the_front_artwork() -> None:
             "id": f"id-{set_code}",
             "set": set_code,
             "released_at": released,
+            "games": ["paper"],
             "card_faces": [
                 {"illustration_id": front, "image_uris": {"grid": "front.webp"}},
                 {"illustration_id": "back", "image_uris": {"grid": "back.webp"}},
@@ -81,3 +83,33 @@ def test_nothing_to_choose_from() -> None:
     no_artwork = _printing("x", "2020-01-01", "a")
     del no_artwork["illustration_id"]
     assert choose_printing([no_artwork]) is None
+
+def test_regular_printing_rules() -> None:
+    regular = _printing("m10", "2009-07-17", "moeller")
+    assert is_regular_printing(regular)
+    specials: list[dict[str, Any]] = [
+        {"games": ["mtgo"]},
+        {"promo": True},
+        {"digital": True},
+        {"border_color": "gold"},
+        {"border_color": "borderless"},
+        {"oversized": True},
+        {"set_type": "memorabilia"},
+        {"frame": "future"},
+        {"frame_effects": ["showcase"]},
+        {"frame_effects": ["legendary", "extendedart"]},
+        {"full_art": True},
+    ]
+    for special in specials:
+        assert not is_regular_printing({**regular, **special}), special
+
+# Scryfall can silently drop filters from a long query, so special
+# printings may come back: they must not decide the artwork
+def test_special_printings_that_slip_through_are_ignored() -> None:
+    printings = [
+        _printing("m10", "2009-07-17", "moeller"),
+        _printing("olep", "1998-10-23", "foglio", oversized=True),
+        _printing("olep2", "1998-10-23", "foglio", oversized=True),
+        _printing("mb2", "2024-08-02", "meehan", frame="future"),
+    ]
+    assert _chosen_set(printings) == "m10"

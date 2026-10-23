@@ -255,17 +255,18 @@ def test_search_printings_follows_every_page(monkeypatch: MonkeyPatch) -> None:
 
     monkeypatch.setattr("requests.request", fake_get)
 
-    assert search_printings("oid") == [{"set": "lea"}, {"set": "m10"}]
+    assert search_printings(["a", "b"]) == [{"set": "lea"}, {"set": "m10"}]
     first_url, first_params = asked[0]
     assert first_url == config.SCRYFALL_SEARCH_URL
-    assert first_params["q"].startswith("oracleid:oid ")
+    # All the cards in one search, the filters applied to every one
+    assert first_params["q"].startswith("(oracleid:a or oracleid:b) ")
     assert config.SCRYFALL_REGULAR_PRINTINGS in first_params["q"]
     assert first_params["unique"] == "prints"
 
-def test_search_printings_no_match_is_none(monkeypatch: MonkeyPatch) -> None:
+def test_search_printings_no_match_is_empty(monkeypatch: MonkeyPatch) -> None:
     # Scryfall answers a search with no results with a 404
     monkeypatch.setattr("requests.request", lambda *a, **k: FakeResponse(404, {}))
-    assert search_printings("oid") is None
+    assert search_printings(["oid"]) == []
 
 def test_search_printings_missing_later_page_is_unavailable(monkeypatch: MonkeyPatch) -> None:
     # A first page that promises more, then a 404: the list would be
@@ -280,4 +281,4 @@ def test_search_printings_missing_later_page_is_unavailable(monkeypatch: MonkeyP
     monkeypatch.setattr("requests.request", fake_get)
 
     with pytest.raises(RequestUnavailable):
-        search_printings("oid")
+        search_printings(["oid"])

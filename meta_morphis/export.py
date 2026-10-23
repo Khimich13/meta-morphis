@@ -16,7 +16,7 @@ from meta_morphis.db.init_db import init_db
 from meta_morphis.meta.repo import get_meta_timestamp
 from meta_morphis.meta.service import get_meta_cards
 from meta_morphis.models.card import Card
-from meta_morphis.scryfall.service import fetch_cards, get_display_printing
+from meta_morphis.scryfall.service import fetch_cards, get_display_printings
 
 log = logging.getLogger(__name__)
 
@@ -107,7 +107,7 @@ def export_format(conn: sqlite3.Connection, format_name: str, out_dir: Path) -> 
     meta = get_meta_cards(conn, format_name)
     list_updated = _check_list_age(conn, format_name)
     # The printing each card is shown with - see scryfall/artwork.py
-    cards = [get_display_printing(conn, card) for card in fetch_cards(conn, meta)]
+    cards = get_display_printings(conn, fetch_cards(conn, meta))
     data = build_export(format_name, cards, list_updated)
     if len(data["cards"]) < config.EXPORT_MIN_CARDS:
         raise RuntimeError(

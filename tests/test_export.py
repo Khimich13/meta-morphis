@@ -121,7 +121,7 @@ def test_export_format_writes_the_file(
     monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, name: meta)
     _list_fetched(monkeypatch, FETCHED)
     monkeypatch.setattr("meta_morphis.export.fetch_cards", lambda conn, meta: cards)
-    monkeypatch.setattr("meta_morphis.export.get_display_printing", lambda conn, card: card)
+    monkeypatch.setattr("meta_morphis.export.get_display_printings", lambda conn, cards: cards)
     monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 1)
 
     caplog.set_level(logging.INFO)
@@ -152,7 +152,7 @@ def test_export_format_fails_with_too_few_cards(
     monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, name: [])
     _list_fetched(monkeypatch, FETCHED)
     monkeypatch.setattr("meta_morphis.export.fetch_cards", lambda conn, meta: cards)
-    monkeypatch.setattr("meta_morphis.export.get_display_printing", lambda conn, card: card)
+    monkeypatch.setattr("meta_morphis.export.get_display_printings", lambda conn, cards: cards)
     monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 2)
 
     with pytest.raises(RuntimeError, match="Only 1 usable cards"):
@@ -171,7 +171,7 @@ def test_export_format_uses_the_chosen_printing(
     monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, name: [])
     _list_fetched(monkeypatch, FETCHED)
     monkeypatch.setattr("meta_morphis.export.fetch_cards", lambda conn, meta: [default])
-    monkeypatch.setattr("meta_morphis.export.get_display_printing", lambda conn, card: chosen)
+    monkeypatch.setattr("meta_morphis.export.get_display_printings", lambda conn, cards: [chosen])
     monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 1)
 
     path = export_format(conn, "pauper", tmp_path)
@@ -194,7 +194,7 @@ def test_export_format_refuses_an_old_list(
     cards = [Card.from_raw(_raw("Hydroblast", oracle_id="h"))]
     monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, name: [])
     monkeypatch.setattr("meta_morphis.export.fetch_cards", lambda conn, meta: cards)
-    monkeypatch.setattr("meta_morphis.export.get_display_printing", lambda conn, card: card)
+    monkeypatch.setattr("meta_morphis.export.get_display_printings", lambda conn, cards: cards)
     monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 1)
     _list_fetched(monkeypatch, FETCHED, now=FETCHED + age_days * 24 * 60 * 60)
 

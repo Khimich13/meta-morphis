@@ -63,37 +63,63 @@ def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[Card]:
         raise RuntimeError("No cards have been fetched either from Scryfall or from cache")
     return output
 
-def get_display_printing(conn: sqlite3.Connection, card: Card) -> Card:
-    """The printing of `card` the app should show - see scryfall/artwork.py.
-    Falls back to the last choice, or to `card` itself, when Scryfall
-    can't help, so a card is never left out for lack of a choice.
+def get_display_printings(conn: sqlite3.Connection, cards: list[Card]) -> list[Card]:
+    """The printing of each card the app should show, in the same order -
+    see scryfall/artwork.py. A fresh saved choice is reused; the others
+    are chosen from printings fetched SCRYFALL_PRINTINGS_PER_SEARCH cards
+    at a time. Falls back to the last choice, or to the card itself, when
+    Scryfall can't help, so a card is never left out for lack of a choice.
     """
-    if not card.oracle_id:
-        return card
+    shown: dict[str, Card] = {}
+    cached: dict[str, Card] = {}
+    to_choose: list[str] = []
+    for card in cards:
+        oracle_id = card.oracle_id
+        if not oracle_id or oracle_id in shown or oracle_id in to_choose:
+            continue
+        saved = get_chosen_printing(conn, oracle_id)
+        # A choice "from the future" was saved by a clock that ran ahead -
+        # treat it as old rather than trusting it indefinitely
+        if saved and 0 <= saved.age <= config.SCRYFALL_REFRESH_RATE:
+            shown[oracle_id] = saved
+        else:
+            if saved:
+                cached[oracle_id] = saved
+            to_choose.append(oracle_id)
 
-    cached = get_chosen_printing(conn, card.oracle_id)
-    # A choice "from the future" was saved by a clock that ran ahead -
-    # treat it as old rather than trusting it indefinitely
-    if cached and 0 <= cached.age <= config.SCRYFALL_REFRESH_RATE:
-        return cached
+    for group in chunked(to_choose, config.SCRYFALL_PRINTINGS_PER_SEARCH):
+        try:
+            printings = search_printings(group)
+        except RequestUnavailable as e:
+            log.warning(
+                f"Could not choose printings for {len(group)} card(s), "
+                f"Scryfall was unreachable ({e})"
+            )
+            continue
 
-    try:
-        printings = search_printings(card.oracle_id)
-    except RequestUnavailable as e:
-        log.warning(f"Could not choose a printing for '{card.name}', Scryfall was unreachable ({e})")
-        return cached or card
+        # One search answers for the whole group: sort the printings back
+        # to their cards
+        by_card: dict[str, list[dict[str, Any]]] = {}
+        for printing in printings:
+            by_card.setdefault(printing.get("oracle_id", ""), []).append(printing)
 
-    chosen = choose_printing(printings or [])
-    if chosen is None:
-        return cached or card
-    try:
-        display = Card.from_raw(chosen)
-    except KeyError:
-        return cached or card
+        for oracle_id in group:
+            chosen = choose_printing(by_card.get(oracle_id, []))
+            if chosen is None:
+                continue
+            try:
+                display = Card.from_raw(chosen)
+            except KeyError:
+                continue
+            with conn:
+                save_chosen_printing(conn, oracle_id, chosen)
+            shown[oracle_id] = display
 
-    with conn:
-        save_chosen_printing(conn, card.oracle_id, chosen)
-    return display
+    # The fallbacks, for every card that got no new choice
+    return [
+        shown.get(card.oracle_id, cached.get(card.oracle_id, card)) if card.oracle_id else card
+        for card in cards
+    ]
 
 def _classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[list[Card], list[Card], list[str]]:
     fresh: list[Card] = []

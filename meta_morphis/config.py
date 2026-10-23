@@ -34,6 +34,11 @@ SCRYFALL_REGULAR_PRINTINGS = (
     "-st:memorabilia -frame:future -is:showcase -is:extendedart "
     "-is:fullart -is:borderless"
 )
+# Cards per printing search. Scryfall silently ignores the filters above
+# once a query gets too long: tested in October 2026, 15 cards per search
+# kept them and 20 did not, with no warning in the response. 10 leaves a
+# margin, and scryfall/artwork.py checks every printing again anyway.
+SCRYFALL_PRINTINGS_PER_SEARCH = 10
 SCRYFALL_HEADERS = {
     "User-Agent": "meta-morphis/0.1.0 (+https://github.com/Khimich13/meta-morphis)",
     "Accept": "application/json",
