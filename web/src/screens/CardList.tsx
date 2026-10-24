@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { type ReactNode, type RefObject, useEffect, useRef, useState } from 'react';
 
 import { type Card, formatLabel } from '../lib/cards';
 import { LIST_LABELS, type Selection } from '../lib/formats';
@@ -15,10 +15,13 @@ interface CardListProps {
 }
 
 /**
- * How the card in the large view arrived: opened, moved to from either
- * side, or bounced back after trying to move past either end of the list
+ * How many cards either side of the one in view hold their picture in the
+ * large view. A row holding all its cards' full-size pictures ran short
+ * of graphics memory while scrolling fast on a phone, and the browser
+ * dropped and redrew the cards, which showed as flicker. A flick moves
+ * one card at most, so the next card always has its picture in time.
  */
-type Arrival = 'opened' | 'from-right' | 'from-left' | 'bounce-next' | 'bounce-previous';
+const NEARBY = 2;
 
 export default function CardList({ selection, cards, progress, onBack }: CardListProps) {
   // "Most played in Pauper", or "Most played creatures in Pauper"
@@ -36,33 +39,29 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
     });
   }
 
-  // One large view for the whole list, which can move between its cards
+  // One large view for the whole list: a sideways row of every card,
+  // which the browser scrolls with the finger and settles on one card
   const large = useLargeView();
   const [index, setIndex] = useState(0);
-  const [arrival, setArrival] = useState<Arrival>('opened');
-  // Counts bounces, so a second bounce in a row replays the animation
-  const [bounces, setBounces] = useState(0);
+  const row = useRef<HTMLDivElement>(null);
 
   function open(position: number) {
     setIndex(position);
-    setArrival('opened');
     large.open();
   }
 
+  // The arrow keys and the buttons for a mouse: scroll to the neighbor
   function move(direction: Direction) {
+    const element = row.current;
     const target = step(index, direction, cards.length);
-    if (target === index) {
-      // At an end of the list: a short bounce shows there is nothing further
-      setArrival(direction === 'next' ? 'bounce-next' : 'bounce-previous');
-      setBounces(bounces + 1);
-      return;
-    }
-    // Swiping left brings the next card in from the right
-    setArrival(direction === 'next' ? 'from-right' : 'from-left');
-    setIndex(target);
+    if (element === null || target === index) return;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    element.scrollTo({
+      left: target * element.clientWidth,
+      behavior: reduceMotion ? 'auto' : 'smooth',
+    });
   }
 
-  const shown = cards[index];
 
   return (
     <main className="card-list">
@@ -87,29 +86,85 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
           </li>
         ))}
       </ul>
-      {large.isOpen && shown !== undefined && (
+      {large.isOpen && (
         <Enlarged
           onClose={large.close}
           onMove={move}
           hasPrevious={index > 0}
           hasNext={index < cards.length - 1}
         >
-          {/* Where in the list, which also shows when an end is reached */}
           <p className="position" aria-live="polite">
             {index + 1} / {cards.length}
           </p>
-          {/* A new key for each card, and for each bounce, makes it a new
-              element, so its animation plays again */}
-          <div key={`${shown.oracle_id}-${bounces}`} className={`arriving ${arrival}`}>
-            <LargeCard
-              card={shown}
-              showingBack={backs.has(shown.oracle_id)}
-              onFlip={() => flip(shown)}
-            />
-          </div>
+          <CardRow
+            rowRef={row}
+            startAt={index}
+            onSettle={setIndex}
+            count={cards.length}
+          >
+            {cards.map((card, position) => (
+              <div className="card-slide" key={card.oracle_id}>
+                {/* Only the cards near the one in view hold a picture; the
+                    others are empty slots of the same size */}
+                {Math.abs(position - index) <= NEARBY && (
+                  <LargeCard
+                    card={card}
+                    showingBack={backs.has(card.oracle_id)}
+                    onFlip={() => flip(card)}
+                  />
+                )}
+              </div>
+            ))}
+          </CardRow>
         </Enlarged>
       )}
     </main>
+  );
+}
+
+/**
+ * The sideways row of cards in the large view. The browser scrolls it with
+ * the finger, a trackpad or the code above, and scroll snapping (see
+ * CardPicture.css) brings it to rest exactly on one card; onSettle reports
+ * which. At either end, the phone's own edge effect shows there is no more.
+ */
+function CardRow({
+  rowRef,
+  startAt,
+  onSettle,
+  count,
+  children,
+}: {
+  rowRef: RefObject<HTMLDivElement | null>;
+  startAt: number;
+  onSettle: (position: number) => void;
+  count: number;
+  children: ReactNode;
+}) {
+  // Runs once, when the large view opens: start at the tapped card
+  useEffect(() => {
+    const element = rowRef.current;
+    if (element === null) return;
+    // The dialog must be open to have a size to scroll by; the large view
+    // opens it now if it hasn't yet
+    const dialog = element.closest('dialog');
+    if (dialog !== null && !dialog.open) dialog.showModal();
+    element.scrollLeft = startAt * element.clientWidth;
+    // Only the starting position: later changes come from scrolling
+  }, []);
+
+  return (
+    <div
+      className="card-row"
+      ref={rowRef}
+      onScroll={(event) => {
+        const element = event.currentTarget;
+        const position = Math.round(element.scrollLeft / element.clientWidth);
+        onSettle(Math.min(Math.max(position, 0), count - 1));
+      }}
+    >
+      {children}
+    </div>
   );
 }
 

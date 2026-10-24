@@ -16,6 +16,9 @@
   aspect-ratio: 488 / 680;
   /* Real cards have rounded corners; this hides the scan's background in them */
   border-radius: 4.75% / 3.5%;
+  /* A faint card shape while the picture loads, instead of a gap that
+     flashes when the picture appears */
+  background: rgb(128 128 128 / 20%);
 }
 
 /* The 3D settings below are for double-faced cards only. Each puts a
@@ -159,45 +162,50 @@
   }
 }
 
-/* A card in the card list's large view: it grows in when opened, and
-   slides in from the side it was swiped from */
-.arriving {
-  width: 100%;
+/* The card list's large view: a sideways row of every card, one screen
+   wide each. The browser scrolls it with the finger, so the card follows
+   the finger and the next one comes into view beside it; scroll snapping
+   brings it to rest exactly on one card. */
+.card-row {
   display: flex;
-  justify-content: center;
-}
-
-.arriving.opened {
+  /* Across the dialog's side margins, so a card slides off the screen's
+     edge rather than vanishing 16px before it */
+  width: 100vw;
+  margin: 0 -16px;
+  height: 100%;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  /* At either end: the phone's own edge effect, without passing the
+     scroll on to the page behind */
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  /* Sideways finger movements scroll the row; pinch-zoom still works */
+  touch-action: pan-x pinch-zoom;
   animation: card-grow 0.4s ease-out;
 }
 
-.arriving.from-right {
-  animation: card-from-right 0.25s ease-out;
+.card-row::-webkit-scrollbar {
+  display: none;
 }
 
-.arriving.from-left {
-  animation: card-from-left 0.25s ease-out;
+.card-slide {
+  flex: 0 0 100%;
+  /* Same height with or without a card in it - see NEARBY in CardList.tsx */
+  min-height: 100%;
+  box-sizing: border-box;
+  /* Keeps 32px between two cards while both are in view */
+  padding: 0 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  scroll-snap-align: center;
+  /* One card per flick, however hard */
+  scroll-snap-stop: always;
 }
 
-/* Swiped past an end: the card gives a little in that direction and
-   springs back */
-.arriving.bounce-next {
-  animation: card-bounce-next 0.3s ease-out;
-}
-
-.arriving.bounce-previous {
-  animation: card-bounce-previous 0.3s ease-out;
-}
-
-@keyframes card-bounce-next {
-  40% {
-    transform: translateX(-8%);
-  }
-}
-
-@keyframes card-bounce-previous {
-  40% {
-    transform: translateX(8%);
+@keyframes card-grow {
+  from {
+    transform: scale(0.9);
   }
 }
 
@@ -211,32 +219,6 @@
   line-height: 48px;
   color: rgb(255 255 255 / 85%);
   font-variant-numeric: tabular-nums;
-}
-
-@keyframes card-grow {
-  from {
-    transform: scale(0.9);
-  }
-}
-
-@keyframes card-from-right {
-  from {
-    transform: translateX(40%);
-    opacity: 0;
-  }
-}
-
-@keyframes card-from-left {
-  from {
-    transform: translateX(-40%);
-    opacity: 0;
-  }
-}
-
-/* The large view takes sideways finger movements itself, as swipes,
-   while still letting the page be pinch-zoomed */
-.enlarged {
-  touch-action: pinch-zoom;
 }
 
 /* ‹ and ›: only with a mouse or touchpad, since a touch screen can swipe
@@ -273,7 +255,7 @@
     transition: none;
   }
 
-  .arriving {
+  .card-row {
     animation: none;
   }
 }

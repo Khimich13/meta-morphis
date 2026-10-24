@@ -4,7 +4,7 @@ import { type Card, visibleName } from '../lib/cards';
 import { isWorthEnlarging } from '../lib/enlarge';
 import { useLargeView } from '../lib/largeView';
 import { canSpeak, sayName } from '../lib/speech';
-import { type Direction, swipeDirection } from '../lib/swipe';
+import type { Direction } from '../lib/swipe';
 import './CardPicture.css';
 
 interface CardPictureProps {
@@ -106,14 +106,17 @@ export function LargeCard({
   card,
   showingBack,
   onFlip,
+  lazy = false,
 }: {
   card: Card;
   showingBack: boolean;
   onFlip: () => void;
+  /** Load the picture only when it comes into view */
+  lazy?: boolean;
 }) {
   return (
     <div className={pictureClass(card)}>
-      <CardSides card={card} showingBack={showingBack} lazy={false} />
+      <CardSides card={card} showingBack={showingBack} lazy={lazy} />
       <FlipButton card={card} showingBack={showingBack} onFlip={onFlip} />
       {/* The name of the side showing, not both of a double-faced card */}
       <SayOnCard name={visibleName(card, showingBack)} />
@@ -140,6 +143,8 @@ function CardSides({
         src={front}
         alt={card.name}
         loading={lazy ? 'lazy' : undefined}
+        // Turned into pixels in the background, so scrolling never waits for it
+        decoding="async"
         crossOrigin="anonymous"
         aria-hidden={showingBack}
       />
@@ -149,6 +154,7 @@ function CardSides({
           src={back}
           alt={`${card.name}, back`}
           loading={lazy ? 'lazy' : undefined}
+          decoding="async"
           crossOrigin="anonymous"
           aria-hidden={!showingBack}
         />
@@ -223,10 +229,6 @@ interface EnlargedProps {
 
 export function Enlarged({ children, onClose, onMove, hasPrevious, hasNext }: EnlargedProps) {
   const dialog = useRef<HTMLDialogElement>(null);
-  // Where a finger or mouse went down, to recognize a swipe when it lifts
-  const pressed = useRef<{ x: number; y: number } | null>(null);
-  // A swipe ends with a click too; it must not count as a tap outside
-  const swiped = useRef(false);
 
   useEffect(() => {
     // Already open when React runs this a second time (StrictMode, in
@@ -243,32 +245,16 @@ export function Enlarged({ children, onClose, onMove, hasPrevious, hasNext }: En
         event.preventDefault();
         onClose();
       }}
-      onPointerDown={(event) => {
-        pressed.current = { x: event.clientX, y: event.clientY };
-        swiped.current = false;
-      }}
-      onPointerUp={(event) => {
-        const start = pressed.current;
-        pressed.current = null;
-        if (start === null || onMove === undefined) return;
-        const direction = swipeDirection(event.clientX - start.x, event.clientY - start.y);
-        if (direction !== null) {
-          swiped.current = true;
-          onMove(direction);
-        }
-      }}
       onKeyDown={(event) => {
         if (onMove === undefined) return;
-        if (event.key === 'ArrowRight') onMove('next');
-        if (event.key === 'ArrowLeft') onMove('previous');
+        if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+        // Instead of the browser's own small scroll step
+        event.preventDefault();
+        onMove(event.key === 'ArrowRight' ? 'next' : 'previous');
       }}
-      // A tap on the dimmed area lands on the dialog itself, not inside it
+      // A tap anywhere but on the card or a button counts as outside it
       onClick={(event) => {
-        if (swiped.current) {
-          swiped.current = false;
-          return;
-        }
-        if (event.target === event.currentTarget) onClose();
+        if (!(event.target as Element).closest('.card-picture, button')) onClose();
       }}
     >
       <button className="close" aria-label="Close" onClick={onClose}>
