@@ -143,7 +143,8 @@
   transition: opacity 0.4s ease-out;
 }
 
-.enlarged[open] .card-picture {
+/* A card shown on its own (after answering): it grows in */
+.enlarged[open] > .card-picture {
   transition: transform 0.4s ease-out;
 }
 
@@ -153,16 +154,127 @@
     opacity: 0;
   }
 
-  .enlarged[open] .card-picture {
+  .enlarged[open] > .card-picture {
     transform: scale(0.9);
+  }
+}
+
+/* A card in the card list's large view: it grows in when opened, and
+   slides in from the side it was swiped from */
+.arriving {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.arriving.opened {
+  animation: card-grow 0.4s ease-out;
+}
+
+.arriving.from-right {
+  animation: card-from-right 0.25s ease-out;
+}
+
+.arriving.from-left {
+  animation: card-from-left 0.25s ease-out;
+}
+
+/* Swiped past an end: the card gives a little in that direction and
+   springs back */
+.arriving.bounce-next {
+  animation: card-bounce-next 0.3s ease-out;
+}
+
+.arriving.bounce-previous {
+  animation: card-bounce-previous 0.3s ease-out;
+}
+
+@keyframes card-bounce-next {
+  40% {
+    transform: translateX(-8%);
+  }
+}
+
+@keyframes card-bounce-previous {
+  40% {
+    transform: translateX(8%);
+  }
+}
+
+/* "12 / 50" at the top, level with the close button */
+.enlarged .position {
+  position: absolute;
+  top: calc(8px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  line-height: 48px;
+  color: rgb(255 255 255 / 85%);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes card-grow {
+  from {
+    transform: scale(0.9);
+  }
+}
+
+@keyframes card-from-right {
+  from {
+    transform: translateX(40%);
+    opacity: 0;
+  }
+}
+
+@keyframes card-from-left {
+  from {
+    transform: translateX(-40%);
+    opacity: 0;
+  }
+}
+
+/* The large view takes sideways finger movements itself, as swipes,
+   while still letting the page be pinch-zoomed */
+.enlarged {
+  touch-action: pinch-zoom;
+}
+
+/* ‹ and ›: only with a mouse or touchpad, since a touch screen can swipe
+   and the buttons would cover part of the card */
+.enlarged .move {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .enlarged .move {
+    display: block;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    color: #fff;
+    font-size: 3rem;
+    line-height: 1;
+  }
+
+  .enlarged .previous {
+    left: 8px;
+  }
+
+  .enlarged .next {
+    right: 8px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .enlarged[open],
   .enlarged[open]::backdrop,
-  .enlarged[open] .card-picture {
+  .enlarged[open] > .card-picture {
     transition: none;
+  }
+
+  .arriving {
+    animation: none;
   }
 }
 

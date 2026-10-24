@@ -2,31 +2,50 @@ import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 import { type Card, visibleName } from '../lib/cards';
 import { isWorthEnlarging } from '../lib/enlarge';
+import { useLargeView } from '../lib/largeView';
 import { canSpeak, sayName } from '../lib/speech';
+import { type Direction, swipeDirection } from '../lib/swipe';
 import './CardPicture.css';
 
 interface CardPictureProps {
   card: Card;
   /** Load the picture only when it scrolls into view (long lists) */
   lazy?: boolean;
+  /**
+   * Which side shows, and how to turn it over, when the parent keeps
+   * track - the card list does, so its large view opens on the same
+   * side. Otherwise this picture keeps track itself.
+   */
+  showingBack?: boolean;
+  onFlip?: () => void;
+  /**
+   * Opens the parent's large view - the card list's, which can move
+   * between cards. Otherwise this picture opens its own.
+   */
+  onEnlarge?: () => void;
 }
 
 /**
  * A card's full picture. Tapping it shows the card as large as the screen
- * allows, when that is noticeably larger than it is already shown. A double-faced card also gets a round button over its artwork
- * that turns it over to the back and back again, in both sizes.
+ * allows, when that is noticeably larger than it is already shown. A
+ * double-faced card also gets a round button over its artwork that turns
+ * it over to the back and back again, in both sizes.
  *
  * Card pictures are shown as they are: never stretched or dimmed. The
  * button sits over the artwork, never over the artist name or the
  * copyright at the bottom of the card, which Scryfall asks to keep visible.
  */
-export default function CardPicture({ card, lazy = false }: CardPictureProps) {
-  // Shared by both sizes, so the large view opens on the side showing
-  const [showingBack, setShowingBack] = useState(false);
-  const [enlarged, setEnlarged] = useState(false);
-  const flip = () => setShowingBack(!showingBack);
-  // Only a double-faced card gets the 3D settings - see CardPicture.css
-  const pictureClass = card.images.length > 1 ? 'card-picture two-sided' : 'card-picture';
+export default function CardPicture({
+  card,
+  lazy = false,
+  showingBack: parentBack,
+  onFlip: parentFlip,
+  onEnlarge,
+}: CardPictureProps) {
+  const [ownBack, setOwnBack] = useState(false);
+  const showingBack = parentBack ?? ownBack;
+  const flip = parentFlip ?? (() => setOwnBack(!ownBack));
+  const large = useLargeView();
 
   // Enlarging is offered only when the large view would make the card
   // noticeably bigger - see lib/enlarge.ts. Checked again whenever the
@@ -52,30 +71,14 @@ export default function CardPicture({ card, lazy = false }: CardPictureProps) {
     };
   }, []);
 
-  // The phone's back gesture should close the large view, not leave the
-  // app. Opening it adds a step to the browser's history; every way of
-  // closing goes back one step, and the view closes when that happens.
-  function open() {
-    history.pushState({ enlarged: true }, '');
-    setEnlarged(true);
-  }
-  const close = () => history.back();
-
-  useEffect(() => {
-    if (!enlarged) return;
-    const onBack = () => setEnlarged(false);
-    window.addEventListener('popstate', onBack);
-    return () => window.removeEventListener('popstate', onBack);
-  }, [enlarged]);
-
   return (
     <>
-      <div className={pictureClass} ref={picture}>
+      <div className={pictureClass(card)} ref={picture}>
         {canEnlarge ? (
           <button
             className="enlarge"
             aria-label={`Enlarge ${card.name}`}
-            onClick={open}
+            onClick={onEnlarge ?? large.open}
           >
             <CardSides card={card} showingBack={showingBack} lazy={lazy} />
           </button>
@@ -84,17 +87,37 @@ export default function CardPicture({ card, lazy = false }: CardPictureProps) {
         )}
         <FlipButton card={card} showingBack={showingBack} onFlip={flip} />
       </div>
-      {enlarged && (
-        <Enlarged onClose={close}>
-          <div className={pictureClass}>
-            <CardSides card={card} showingBack={showingBack} lazy={false} />
-            <FlipButton card={card} showingBack={showingBack} onFlip={flip} />
-            {/* The name of the side showing, not both of a double-faced card */}
-            <SayOnCard name={visibleName(card, showingBack)} />
-          </div>
+      {large.isOpen && (
+        <Enlarged onClose={large.close}>
+          <LargeCard card={card} showingBack={showingBack} onFlip={flip} />
         </Enlarged>
       )}
     </>
+  );
+}
+
+/** Only a double-faced card gets the 3D settings - see CardPicture.css */
+function pictureClass(card: Card): string {
+  return card.images.length > 1 ? 'card-picture two-sided' : 'card-picture';
+}
+
+/** A card in the large view, with its flip and speaker buttons */
+export function LargeCard({
+  card,
+  showingBack,
+  onFlip,
+}: {
+  card: Card;
+  showingBack: boolean;
+  onFlip: () => void;
+}) {
+  return (
+    <div className={pictureClass(card)}>
+      <CardSides card={card} showingBack={showingBack} lazy={false} />
+      <FlipButton card={card} showingBack={showingBack} onFlip={onFlip} />
+      {/* The name of the side showing, not both of a double-faced card */}
+      <SayOnCard name={visibleName(card, showingBack)} />
+    </div>
   );
 }
 
@@ -189,8 +212,21 @@ function SayOnCard({ name }: { name: string }) {
  * keeps keyboard focus inside. Esc, the close button and a tap outside
  * the card all call onClose.
  */
-function Enlarged({ children, onClose }: { children: ReactNode; onClose: () => void }) {
+interface EnlargedProps {
+  children: ReactNode;
+  onClose: () => void;
+  /** Moving to another card, when there are others to move to */
+  onMove?: (direction: Direction) => void;
+  hasPrevious?: boolean;
+  hasNext?: boolean;
+}
+
+export function Enlarged({ children, onClose, onMove, hasPrevious, hasNext }: EnlargedProps) {
   const dialog = useRef<HTMLDialogElement>(null);
+  // Where a finger or mouse went down, to recognize a swipe when it lifts
+  const pressed = useRef<{ x: number; y: number } | null>(null);
+  // A swipe ends with a click too; it must not count as a tap outside
+  const swiped = useRef(false);
 
   useEffect(() => {
     // Already open when React runs this a second time (StrictMode, in
@@ -207,15 +243,52 @@ function Enlarged({ children, onClose }: { children: ReactNode; onClose: () => v
         event.preventDefault();
         onClose();
       }}
+      onPointerDown={(event) => {
+        pressed.current = { x: event.clientX, y: event.clientY };
+        swiped.current = false;
+      }}
+      onPointerUp={(event) => {
+        const start = pressed.current;
+        pressed.current = null;
+        if (start === null || onMove === undefined) return;
+        const direction = swipeDirection(event.clientX - start.x, event.clientY - start.y);
+        if (direction !== null) {
+          swiped.current = true;
+          onMove(direction);
+        }
+      }}
+      onKeyDown={(event) => {
+        if (onMove === undefined) return;
+        if (event.key === 'ArrowRight') onMove('next');
+        if (event.key === 'ArrowLeft') onMove('previous');
+      }}
       // A tap on the dimmed area lands on the dialog itself, not inside it
       onClick={(event) => {
+        if (swiped.current) {
+          swiped.current = false;
+          return;
+        }
         if (event.target === event.currentTarget) onClose();
       }}
     >
       <button className="close" aria-label="Close" onClick={onClose}>
         ✕
       </button>
+      {onMove !== undefined && hasPrevious && (
+        <button
+          className="move previous"
+          aria-label="Previous card"
+          onClick={() => onMove('previous')}
+        >
+          ‹
+        </button>
+      )}
       {children}
+      {onMove !== undefined && hasNext && (
+        <button className="move next" aria-label="Next card" onClick={() => onMove('next')}>
+          ›
+        </button>
+      )}
     </dialog>
   );
 }
