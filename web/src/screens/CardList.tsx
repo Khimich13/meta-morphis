@@ -18,8 +18,8 @@ interface CardListProps {
  * How many cards either side of the one in view hold their picture in the
  * large view. A row holding all its cards' full-size pictures ran short
  * of graphics memory while scrolling fast on a phone, and the browser
- * dropped and redrew the cards, which showed as flicker. A flick moves
- * one card at most, so the next card always has its picture in time.
+ * dropped and redrew the cards, which showed as flicker. While skimming
+ * fast, the slots further away show a card shape until the cards come near.
  */
 const NEARBY = 2;
 
@@ -105,13 +105,15 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
             {cards.map((card, position) => (
               <div className="card-slide" key={card.oracle_id}>
                 {/* Only the cards near the one in view hold a picture; the
-                    others are empty slots of the same size */}
-                {Math.abs(position - index) <= NEARBY && (
+                    others show a card shape of the same size */}
+                {Math.abs(position - index) <= NEARBY ? (
                   <LargeCard
                     card={card}
                     showingBack={backs.has(card.oracle_id)}
                     onFlip={() => flip(card)}
                   />
+                ) : (
+                  <div className="card-placeholder" />
                 )}
               </div>
             ))}

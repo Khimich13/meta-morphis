@@ -198,9 +198,18 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  /* A gentle swipe moves one card; a hard flick glides past several and
+     settles on the card it stops at */
   scroll-snap-align: center;
-  /* One card per flick, however hard */
-  scroll-snap-stop: always;
+}
+
+/* An empty slot while skimming fast: a faint card shape, the same as a
+   picture still loading, instead of a gap */
+.card-placeholder {
+  width: min(100%, (100dvh - 72px) * 488 / 680);
+  aspect-ratio: 488 / 680;
+  border-radius: 4.75% / 3.5%;
+  background: rgb(128 128 128 / 20%);
 }
 
 @keyframes card-grow {
