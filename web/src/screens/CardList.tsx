@@ -171,20 +171,27 @@ function CardRow({
   );
 }
 
-/** A card's labels, then its record below them, e.g. "3 of 6 right"; shown above the card */
+/**
+ * Shown above the card, all in one row (wrapping if the card is narrow):
+ * its knowledge labels, then its record as a label, e.g. "✓ 3/6" for 3 of
+ * 6 answered right
+ */
 function CardRecord({ record }: { record: CardProgress | undefined }) {
   const status = cardStatus(record);
   const names = { new: 'New', learning: 'Learning', known: 'Known' };
   return (
     <div className="card-progress">
-      <div className="card-labels">
-        <span className={`label ${status.knowledge}`}>{names[status.knowledge]}</span>
-        {status.tricky && <span className="label tricky">Tricky</span>}
-      </div>
+      <span className={`label ${status.knowledge}`}>{names[status.knowledge]}</span>
+      {status.tricky && <span className="label tricky">Tricky</span>}
       {record !== undefined && (
-        <p className="card-record">
-          {record.right} of {status.answers} right
-        </p>
+        // Screen readers say the full meaning rather than the symbols
+        <span
+          className="label record"
+          role="img"
+          aria-label={`${record.right} of ${status.answers} answered right`}
+        >
+          ✓ {record.right}/{status.answers}
+        </span>
       )}
     </div>
   );
