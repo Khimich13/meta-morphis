@@ -1,9 +1,9 @@
 import { useState } from 'react';
 
+import CardPicture from '../components/CardPicture';
 import type { Card } from '../lib/cards';
 import { cardStatus, type Knowledge, localDay, type Progress } from '../lib/progress';
 import { canSpeak, sayName } from '../lib/speech';
-import CardPicture from './CardPicture';
 import {
   afterAnswer,
   isCorrect,

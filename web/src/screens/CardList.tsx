@@ -1,11 +1,12 @@
 import { type ReactNode, type RefObject, useEffect, useRef, useState } from 'react';
 
+import CardPicture, { LargeCard } from '../components/CardPicture';
+import LargeView from '../components/LargeView';
 import { type Card, formatLabel } from '../lib/cards';
 import { LIST_LABELS, type Selection } from '../lib/formats';
 import { useLargeView } from '../lib/largeView';
 import { type CardProgress, cardStatus, type Progress } from '../lib/progress';
 import { type Direction, step } from '../lib/swipe';
-import CardPicture, { Enlarged, LargeCard } from './CardPicture';
 
 interface CardListProps {
   selection: Selection;
@@ -87,7 +88,7 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
         ))}
       </ul>
       {large.isOpen && (
-        <Enlarged
+        <LargeView
           onClose={large.close}
           onMove={move}
           hasPrevious={index > 0}
@@ -118,7 +119,7 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
               </div>
             ))}
           </CardRow>
-        </Enlarged>
+        </LargeView>
       )}
     </main>
   );
@@ -127,8 +128,9 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
 /**
  * The sideways row of cards in the large view. The browser scrolls it with
  * the finger, a trackpad or the code above, and scroll snapping (see
- * CardPicture.css) brings it to rest exactly on one card; onSettle reports
- * which. At either end, the phone's own edge effect shows there is no more.
+ * components/LargeView.css) brings it to rest exactly on one card;
+ * onSettle reports which. At either end, the phone's own edge effect shows
+ * there is no more.
  */
 function CardRow({
   rowRef,

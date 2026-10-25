@@ -4,7 +4,7 @@
 
 /**
  * The card's width in the large view, for a screen of this size. Must
- * match the .enlarged rules in screens/CardPicture.css: 16px at each
+ * match the .enlarged rules in components/LargeView.css: 16px at each
  * side, 72px of height for the close button and margins.
  */
 export function enlargedWidth(screenWidth: number, screenHeight: number): number {
