@@ -75,7 +75,7 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
       <ul className="card-grid">
         {cards.map((card, position) => (
           <li key={card.oracle_id}>
-            <span>{card.name}</span>
+            <CardRecord record={progress.cards[card.oracle_id]} />
             <CardPicture
               card={card}
               lazy
@@ -83,7 +83,6 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
               onFlip={() => flip(card)}
               onEnlarge={() => open(position)}
             />
-            <CardRecord record={progress.cards[card.oracle_id]} />
           </li>
         ))}
       </ul>
@@ -172,7 +171,7 @@ function CardRow({
   );
 }
 
-/** A card's labels, then its record below them, e.g. "3 of 6 right" */
+/** A card's labels, then its record below them, e.g. "3 of 6 right"; shown above the card */
 function CardRecord({ record }: { record: CardProgress | undefined }) {
   const status = cardStatus(record);
   const names = { new: 'New', learning: 'Learning', known: 'Known' };

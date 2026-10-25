@@ -44,22 +44,23 @@ body {
   gap: 16px;
 }
 
-/* Each card's name, picture and record are three rows of the grid
-   itself (subgrid), so the cards in a row share row heights: a name on
-   two lines makes the name row taller for the whole row, and all the
-   pictures in it still start at the same height. */
+/* Each card's record (its labels and "N of M right") and its picture are
+   two rows of the grid itself (subgrid), so the cards in a row share row
+   heights: a record on two lines makes the record row taller for the
+   whole row, and all the pictures in it still start at the same height.
+   The card's name is printed on the card, so it isn't repeated. */
 .card-grid li {
   display: grid;
-  grid-row: span 3;
+  grid-row: span 2;
   grid-template-rows: subgrid;
   row-gap: 6px;
   font-size: 0.9rem;
   text-align: center;
 }
 
-/* A one-line name sits right above its picture, with any extra space
-   above it */
-.card-grid li > span:first-child {
+/* A shorter record (a new card has labels only) sits right above its
+   picture, with any extra space above it */
+.card-grid li > .card-progress {
   align-self: end;
 }
 
@@ -74,7 +75,7 @@ body {
   opacity: 0.7;
 }
 
-/* Under each card: its labels on one line, its record on the next */
+/* Above each card: its labels on one line, its record on the next */
 .card-progress {
   display: flex;
   flex-direction: column;
