@@ -19,38 +19,57 @@ export interface CardProgress {
  */
 export const BOX_WAIT_DAYS = [0, 1, 3, 7, 16, 35];
 const TOP_BOX = BOX_WAIT_DAYS.length - 1;
-/** From this box on, a card counts as known */
-export const KNOWN_BOX = 3;
+/**
+ * How a card is doing, shown to the player as a label:
+ *   new   - never answered
+ *   fresh - fewer than JUDGE_FROM answers, too few to judge
+ *   poor  - POOR_WRONG_SHARE or more of its answers were wrong
+ *   good  - at least GOOD_SHARE of its answers were right
+ *   fair  - in between
+ */
+export type Standing = 'new' | 'fresh' | 'fair' | 'good' | 'poor';
 
-/** How well a card is known, as shown to the player */
-export type Knowledge = 'new' | 'learning' | 'known';
+export const STANDING_LABELS: Record<Standing, string> = {
+  new: 'New',
+  fresh: 'Fresh',
+  fair: 'Fair',
+  good: 'Good',
+  poor: 'Poor',
+};
 
-export interface CardStatus {
-  knowledge: Knowledge;
-  /** Often answered wrongly - shown as an extra warning */
-  tricky: boolean;
-  /** First answers given to the card so far, and how many were wrong */
-  answers: number;
-  wrong: number;
+/** A card is judged once it has this many answers */
+export const JUDGE_FROM = 3;
+/** From this share of wrong answers, a card is poor */
+export const POOR_WRONG_SHARE = 0.4;
+/** From this share of right answers, a card is good */
+export const GOOD_SHARE = 0.8;
+
+/** A card's standing from its saved record (undefined if never asked) */
+export function cardStanding(record: CardProgress | undefined): Standing {
+  if (record === undefined) return 'new';
+  const answers = record.right + record.wrong;
+  if (answers < JUDGE_FROM) return 'fresh';
+  if (record.wrong / answers >= POOR_WRONG_SHARE) return 'poor';
+  return record.right / answers >= GOOD_SHARE ? 'good' : 'fair';
 }
 
-/** A card counts as tricky once it has this many answers... */
-export const TRICKY_MIN_ANSWERS = 3;
-/** ...and at least this share of them were wrong */
-export const TRICKY_WRONG_SHARE = 0.4;
+/** What each standing means, after the numbers behind it */
+const STANDING_MEANINGS: Record<Exclude<Standing, 'new'>, string> = {
+  fresh: 'too early to tell',
+  poor: 'often missed',
+  fair: 'sometimes missed',
+  good: 'rarely missed',
+};
 
-/** Turns a card's saved record (undefined if never asked) into its labels */
-export function cardStatus(record: CardProgress | undefined): CardStatus {
-  if (record === undefined) {
-    return { knowledge: 'new', tricky: false, answers: 0, wrong: 0 };
-  }
+/**
+ * A standing in full, e.g. "5 of 8 answered right, sometimes missed" -
+ * shown when a mouse hovers over the label, and read by screen readers
+ */
+export function standingDetails(record: CardProgress | undefined): string {
+  const standing = cardStanding(record);
+  if (record === undefined || standing === 'new') return 'Never answered';
   const answers = record.right + record.wrong;
-  return {
-    knowledge: record.box >= KNOWN_BOX ? 'known' : 'learning',
-    tricky: answers >= TRICKY_MIN_ANSWERS && record.wrong / answers >= TRICKY_WRONG_SHARE,
-    answers,
-    wrong: record.wrong,
-  };
+  return `${record.right} of ${answers} answered right, ${STANDING_MEANINGS[standing]}`;
 }
 
 export interface Progress {

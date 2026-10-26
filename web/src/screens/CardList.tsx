@@ -2,10 +2,11 @@ import { type ReactNode, type RefObject, useEffect, useRef, useState } from 'rea
 
 import CardPicture, { LargeCard } from '../components/CardPicture';
 import LargeView from '../components/LargeView';
+import StandingLabel from '../components/StandingLabel';
 import { type Card, formatLabel } from '../lib/cards';
 import { LIST_LABELS, type Selection } from '../lib/formats';
 import { useLargeView } from '../lib/largeView';
-import { type CardProgress, cardStatus, type Progress } from '../lib/progress';
+import type { Progress } from '../lib/progress';
 import { type Direction, step } from '../lib/swipe';
 
 interface CardListProps {
@@ -75,7 +76,10 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
       <ul className="card-grid">
         {cards.map((card, position) => (
           <li key={card.oracle_id}>
-            <CardRecord record={progress.cards[card.oracle_id]} />
+            {/* How the card is doing, above it */}
+            <div className="card-progress">
+              <StandingLabel record={progress.cards[card.oracle_id]} />
+            </div>
             <CardPicture
               card={card}
               lazy
@@ -171,28 +175,3 @@ function CardRow({
   );
 }
 
-/**
- * Shown above the card, all in one row (wrapping if the card is narrow):
- * its knowledge labels, then its record as a label, e.g. "✓ 3/6" for 3 of
- * 6 answered right
- */
-function CardRecord({ record }: { record: CardProgress | undefined }) {
-  const status = cardStatus(record);
-  const names = { new: 'New', learning: 'Learning', known: 'Known' };
-  return (
-    <div className="card-progress">
-      <span className={`label ${status.knowledge}`}>{names[status.knowledge]}</span>
-      {status.tricky && <span className="label tricky">Tricky</span>}
-      {record !== undefined && (
-        // Screen readers say the full meaning rather than the symbols
-        <span
-          className="label record"
-          role="img"
-          aria-label={`${record.right} of ${status.answers} answered right`}
-        >
-          ✓ {record.right}/{status.answers}
-        </span>
-      )}
-    </div>
-  );
-}

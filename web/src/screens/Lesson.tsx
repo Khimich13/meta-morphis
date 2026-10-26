@@ -1,8 +1,16 @@
 import { useState } from 'react';
 
 import CardPicture from '../components/CardPicture';
+import StandingLabel from '../components/StandingLabel';
 import type { Card } from '../lib/cards';
-import { cardStatus, type Knowledge, localDay, type Progress } from '../lib/progress';
+import {
+  type CardProgress,
+  cardStanding,
+  localDay,
+  type Progress,
+  type Standing,
+  STANDING_LABELS,
+} from '../lib/progress';
 import { canSpeak, sayName } from '../lib/speech';
 import {
   afterAnswer,
@@ -36,10 +44,18 @@ export default function Lesson({
   const [lesson, setLesson] = useState(() => startLesson(cards, progress, localDay()));
   // The answer chosen for the question on screen, or null while choosing
   const [picked, setPicked] = useState<Card | null>(null);
+  // The card's standing before this answer was counted, to show how the
+  // answer changed it; null for a repeat, which isn't counted
+  const [standingBefore, setStandingBefore] = useState<Standing | null>(null);
 
   function pick(option: Card) {
     const question = lesson.queue[0];
     setPicked(option);
+    setStandingBefore(
+      isFirstTry(lesson, question.card)
+        ? cardStanding(progress.cards[question.card.oracle_id])
+        : null,
+    );
     // Saved progress counts the first answer to each card only: a right
     // answer on a repeat comes straight after seeing the answer
     if (isFirstTry(lesson, question.card)) {
@@ -87,7 +103,7 @@ export default function Lesson({
   const card = question.card;
   const repeat = !isFirstTry(lesson, card);
   // Read from the saved progress, so after an answer it includes it
-  const status = cardStatus(progress.cards[card.oracle_id]);
+  const record = progress.cards[card.oracle_id];
   // Cards answered right, including this one as soon as it is: the bar
   // only moves forward on a right answer
   const done = lesson.done + (picked !== null && isCorrect(question, picked) ? 1 : 0);
@@ -114,7 +130,7 @@ export default function Lesson({
 
       {picked === null ? (
         <>
-          <QuestionLabel repeat={repeat} knowledge={status.knowledge} tricky={status.tricky} />
+          <QuestionLabel repeat={repeat} standing={cardStanding(record)} />
           <h2 className="question">Which card is this?</h2>
           {/* A figure ties the credit to the artwork, for screen readers too */}
           <figure className="artwork">
@@ -143,11 +159,8 @@ export default function Lesson({
           <Feedback
             card={card}
             picked={picked}
-            missedNote={
-              status.tricky
-                ? `You've missed this card ${status.wrong} of ${status.answers} times`
-                : null
-            }
+            standingBefore={standingBefore}
+            record={record}
             onContinue={next}
           />
         </>
@@ -157,21 +170,13 @@ export default function Lesson({
 }
 
 /**
- * One label above the artwork, the most useful one: a repeat says so
- * first, then a card never seen before, then one often missed.
+ * A label above the artwork: a repeat, a card never seen before, or one
+ * often missed - the same red "Poor" as in the card list, as a warning
  */
-function QuestionLabel({
-  repeat,
-  knowledge,
-  tricky,
-}: {
-  repeat: boolean;
-  knowledge: Knowledge;
-  tricky: boolean;
-}) {
-  if (repeat) return <p className="label tricky">Try again</p>;
-  if (knowledge === 'new') return <p className="label new">New card</p>;
-  if (tricky) return <p className="label tricky">Tricky card</p>;
+function QuestionLabel({ repeat, standing }: { repeat: boolean; standing: Standing }) {
+  if (repeat) return <p className="label again">Try again</p>;
+  if (standing === 'new') return <p className="label new">New card</p>;
+  if (standing === 'poor') return <p className="label standing poor">Poor</p>;
   return null;
 }
 
@@ -188,12 +193,15 @@ function SayButton({ name }: { name: string }) {
 interface FeedbackProps {
   card: Card;
   picked: Card;
-  /** Shown after a wrong answer to a card that is often missed */
-  missedNote: string | null;
+  /** The card's standing before this answer; null for a repeat */
+  standingBefore: Standing | null;
+  /** The card's saved record, with this answer counted */
+  record: CardProgress | undefined;
   onContinue: () => void;
 }
 
-function Feedback({ card, picked, missedNote, onContinue }: FeedbackProps) {
+function Feedback({ card, picked, standingBefore, record, onContinue }: FeedbackProps) {
+  const standingNow = cardStanding(record);
   const correct = picked.oracle_id === card.oracle_id;
   return (
     <div className={correct ? 'feedback correct' : 'feedback wrong'}>
@@ -210,9 +218,20 @@ function Feedback({ card, picked, missedNote, onContinue }: FeedbackProps) {
             <p>
               It was {card.name} <SayButton name={card.name} />
             </p>
-            {missedNote && <p className="missed-note">{missedNote}</p>}
           </>
         )}
+        {/* How this answer moved the card, e.g. "Fair → Good" */}
+        <p className="standing-change">
+          {standingBefore !== null && standingBefore !== standingNow && (
+            <>
+              <span className={`label standing ${standingBefore}`}>
+                {STANDING_LABELS[standingBefore]}
+              </span>
+              <span aria-hidden="true"> → </span>
+            </>
+          )}
+          <StandingLabel record={record} />
+        </p>
       </div>
       <button className="primary" onClick={onContinue} autoFocus>
         Continue

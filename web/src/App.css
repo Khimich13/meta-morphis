@@ -75,18 +75,16 @@ body {
   opacity: 0.7;
 }
 
-/* Above each card: its labels and record in one row, wrapping onto a
-   second line when the card is too narrow for all of them */
+/* Above each card: its standing label, centered */
 .card-progress {
   display: flex;
-  flex-wrap: wrap;
   justify-content: center;
-  gap: 4px;
   font-size: 0.8rem;
 }
 
-/* How well a card is known: New, Learning, Known, and Tricky as an extra
-   warning. The word carries the meaning; the color only adds to it. */
+/* A small rounded tag: "New card" and "Try again" in a lesson, and a
+   card's standing (New, Fresh, Fair, Good, Poor). Its word carries the
+   meaning; the color only adds to it. */
 .label {
   display: inline-block;
   padding: 1px 8px;
@@ -100,24 +98,72 @@ body {
   color: #3b82f6;
 }
 
-.label.learning {
-  color: #d69e2e;
-}
-
-.label.known {
-  color: #2e9e5b;
-}
-
-.label.tricky {
+.label.again {
   color: #d64545;
 }
 
-/* "✓ 3/6": how many answers to this card were right, out of all answers.
-   Gray, so it doesn't compete with the colored labels. */
-.label.record {
-  color: color-mix(in srgb, currentColor 65%, transparent);
-  border-color: currentColor;
+/* A card's standing (see cardStanding in lib/progress.ts): a soft gray
+   pill with a colored dot and the text in normal ink. The word always
+   carries the meaning - red and green dots look alike to many color-blind
+   readers - so the text stays readable and the dot only adds to it.
+   Contrast checked on 2026-10-25: text at least 6.6:1 in both modes, each
+   dot at least 3:1 against the pill. */
+.label.standing {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px 2px 6px;
+  border: none;
+  background: color-mix(in srgb, CanvasText 8%, Canvas);
+  color: color-mix(in srgb, CanvasText 70%, Canvas);
+  font-size: 0.72rem;
+  font-weight: 600;
+  /* "3/6" and "12/15" take the same width per digit */
   font-variant-numeric: tabular-nums;
+}
+
+.label.standing::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--dot);
+}
+
+/* Light mode: darker yellow and green, so the dots stand out on the pale
+   pill */
+.label.standing.new {
+  --dot: #2a78d6;
+}
+
+.label.standing.fresh {
+  --dot: #898781;
+}
+
+.label.standing.poor {
+  --dot: #d03b3b;
+}
+
+.label.standing.fair {
+  --dot: #b37400;
+}
+
+.label.standing.good {
+  --dot: #008300;
+}
+
+@media (prefers-color-scheme: dark) {
+  .label.standing.new {
+    --dot: #3987e5;
+  }
+
+  .label.standing.fair {
+    --dot: #fab219;
+  }
+
+  .label.standing.good {
+    --dot: #0ca30c;
+  }
 }
 
 button {

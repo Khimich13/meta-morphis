@@ -4,7 +4,7 @@ import {
   addDays,
   BOX_WAIT_DAYS,
   type CardProgress,
-  cardStatus,
+  cardStanding,
   dueCount,
   EMPTY_PROGRESS,
   localDay,
@@ -13,6 +13,7 @@ import {
   type Progress,
   recordAnswer,
   recordLesson,
+  standingDetails,
   streak,
 } from './progress';
 
@@ -197,26 +198,30 @@ function record(right: number, wrong: number, box: number): CardProgress {
   return { right, wrong, box, due: TODAY };
 }
 
-test('cardStatus: a card never asked is new', () => {
-  expect(cardStatus(undefined)).toEqual({ knowledge: 'new', tricky: false, answers: 0, wrong: 0 });
+test('cardStanding: new, then fresh until there are enough answers to judge', () => {
+  expect(cardStanding(undefined)).toBe('new');
+  expect(cardStanding(record(0, 1, 0))).toBe('fresh');
+  expect(cardStanding(record(2, 0, 2))).toBe('fresh');
 });
 
-test('cardStatus: learning below box 3, known from box 3', () => {
-  expect(cardStatus(record(1, 0, 0)).knowledge).toBe('learning');
-  expect(cardStatus(record(2, 0, 2)).knowledge).toBe('learning');
-  expect(cardStatus(record(3, 0, 3)).knowledge).toBe('known');
-  expect(cardStatus(record(9, 0, 5)).knowledge).toBe('known');
+test('cardStanding: good from 80% right, poor from 40% wrong, fair between', () => {
+  expect(cardStanding(record(4, 1, 2))).toBe('good'); // 80%
+  expect(cardStanding(record(9, 1, 3))).toBe('good'); // 90%
+  expect(cardStanding(record(3, 1, 1))).toBe('fair'); // 75%
+  expect(cardStanding(record(5, 3, 1))).toBe('fair'); // 62.5%
+  expect(cardStanding(record(3, 2, 1))).toBe('poor'); // 60%: 40% wrong
+  expect(cardStanding(record(1, 4, 0))).toBe('poor'); // 20%
 });
 
-test('cardStatus: tricky needs three answers and 40% of them wrong', () => {
-  // Two answers, both wrong: too few to judge
-  expect(cardStatus(record(0, 2, 0)).tricky).toBe(false);
-  // 2 wrong of 5 is exactly 40%
-  expect(cardStatus(record(3, 2, 1)).tricky).toBe(true);
-  // 1 wrong of 4 is 25%
-  expect(cardStatus(record(3, 1, 2)).tricky).toBe(false);
-  // Known now, but with a poor history: still tricky
-  expect(cardStatus(record(5, 5, 3))).toEqual({
-    knowledge: 'known', tricky: true, answers: 10, wrong: 5,
-  });
+test('cardStanding ignores the review box', () => {
+  // A card in a high box with a poor history is still poor
+  expect(cardStanding(record(5, 5, 5))).toBe('poor');
+});
+
+test('standingDetails gives the numbers and what they mean', () => {
+  expect(standingDetails(undefined)).toBe('Never answered');
+  expect(standingDetails(record(1, 1, 0))).toBe('1 of 2 answered right, too early to tell');
+  expect(standingDetails(record(3, 3, 1))).toBe('3 of 6 answered right, often missed');
+  expect(standingDetails(record(5, 3, 1))).toBe('5 of 8 answered right, sometimes missed');
+  expect(standingDetails(record(4, 1, 2))).toBe('4 of 5 answered right, rarely missed');
 });

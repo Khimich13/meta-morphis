@@ -38,15 +38,18 @@
   flex: 1;
 }
 
-/* "Try again", "New card", "Tricky card" above the artwork. The
-   colors come from .label in App.css */
+/* "Try again" or "New card" above the artwork. The colors come from
+   .label in App.css */
 .lesson-bar + .label {
   align-self: flex-start;
 }
 
-.missed-note {
-  font-size: 0.9rem;
-  opacity: 0.8;
+/* After answering: how the answer moved the card, e.g. "Fair → Good" */
+.standing-change {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2px;
 }
 
 .question {
