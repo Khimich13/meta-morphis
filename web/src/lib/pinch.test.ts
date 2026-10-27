@@ -18,8 +18,9 @@ test('columns stay between one and as many as fit', () => {
   expect(columnsAfterPinch(2, 0.1, 4)).toBe(4);
 });
 
-test('mostColumns: cards at least 70px wide', () => {
-  expect(mostColumns(358, 16)).toBe(4); // a phone
-  expect(mostColumns(1068, 16)).toBe(12);
-  expect(mostColumns(50, 16)).toBe(1);
+test('mostColumns: up to six, each with 50px of room', () => {
+  expect(mostColumns(358)).toBe(6); // a phone
+  expect(mostColumns(1068)).toBe(6);
+  expect(mostColumns(220)).toBe(4);
+  expect(mostColumns(30)).toBe(1);
 });

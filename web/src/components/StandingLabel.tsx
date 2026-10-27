@@ -26,7 +26,7 @@ export default function StandingLabel({ record }: { record: CardProgress | undef
       aria-label={`${name}: ${details}`}
       title={details}
     >
-      {name}
+      <span className="name">{name}</span>
       {numbers}
     </span>
   );

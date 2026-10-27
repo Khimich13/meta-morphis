@@ -45,10 +45,13 @@ body {
 }
 
 /* Cards per row chosen by pinching (see lib/pinch.ts), each card at most
-   480px wide, so one per row stays card-sized on a wide screen */
+   480px wide, so one per row stays card-sized on a wide screen. The
+   space between them shrinks as they do: 16px for up to two per row,
+   about 5px for six. */
 .card-grid.chosen {
   grid-template-columns: repeat(var(--columns), minmax(0, 480px));
   justify-content: center;
+  column-gap: min(16px, calc(32px / var(--columns)));
 }
 
 /* Each card's record (its labels and "N of M right") and its picture are
@@ -91,10 +94,22 @@ body {
   container-type: inline-size;
 }
 
-/* Cards pinched very small: the word and dot only, without "· 3/6" */
+/* Cards pinched small: the word and dot only, without "· 3/6" */
 @container (max-width: 100px) {
   .label.standing .numbers {
     display: none;
+  }
+}
+
+/* Cards pinched very small: only the dot. Its full meaning is still
+   there for screen readers and as a tooltip. */
+@container (max-width: 64px) {
+  .label.standing .name {
+    display: none;
+  }
+
+  .label.standing {
+    padding: 4px;
   }
 }
 

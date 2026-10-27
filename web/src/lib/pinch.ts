@@ -25,12 +25,55 @@ export function stopPageZoom(): void {
   document.addEventListener('gesturestart', stop);
 }
 
-/** The narrowest a card may get when pinching in, in pixels */
-const MIN_CARD_WIDTH = 70;
+/** The most cards in a row that pinching in can give */
+const MAX_COLUMNS = 6;
+/** The room each card needs in a row, with the space beside it, in pixels */
+const MIN_CARD_ROOM = 50;
 
-/** How many cards fit in a row of this width, each at least MIN_CARD_WIDTH */
-export function mostColumns(width: number, gap: number): number {
-  return Math.max(1, Math.floor((width + gap) / (MIN_CARD_WIDTH + gap)));
+/** How many cards a pinch may fit in a row of this width */
+export function mostColumns(width: number): number {
+  return Math.min(MAX_COLUMNS, Math.max(1, Math.floor(width / MIN_CARD_ROOM)));
+}
+
+/** How long the cards take to move to their new places, in milliseconds */
+const MOVE_TIME = 250;
+
+/** Where each card of the grid that is on the screen is drawn */
+function cardsOnScreen(grid: HTMLElement): Map<Element, DOMRect> {
+  const places = new Map<Element, DOMRect>();
+  for (const card of grid.children) {
+    const place = card.getBoundingClientRect();
+    if (place.bottom > 0 && place.top < window.innerHeight) places.set(card, place);
+  }
+  return places;
+}
+
+/**
+ * Moves each card that was on the screen smoothly from its old place to
+ * its new one, and fades in the cards that have just come into view
+ */
+function animateCards(grid: HTMLElement, before: Map<Element, DOMRect>): void {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  for (const [card, now] of cardsOnScreen(grid)) {
+    // A card still moving from the last step starts again from where it is
+    for (const animation of card.getAnimations()) animation.cancel();
+    const was = before.get(card);
+    const timing = { duration: MOVE_TIME, easing: 'ease-out' };
+    if (was === undefined) {
+      card.animate([{ opacity: 0 }, { opacity: 1 }], timing);
+      continue;
+    }
+    const x = was.left - now.left;
+    const y = was.top - now.top;
+    const scale = was.width / now.width;
+    card.animate(
+      [
+        { transformOrigin: 'top left', transform: `translate(${x}px, ${y}px) scale(${scale})` },
+        { transformOrigin: 'top left', transform: 'none' },
+      ],
+      timing,
+    );
+  }
 }
 
 /**
@@ -60,6 +103,8 @@ export function usePinchColumns(
 ): void {
   // The card under the fingers and how far it was from the screen's top
   const anchor = useRef<{ card: Element; top: number } | null>(null);
+  // Where the cards on the screen were before the grid changed
+  const before = useRef<Map<Element, DOMRect> | null>(null);
 
   useEffect(() => {
     const element = grid.current;
@@ -78,8 +123,7 @@ export function usePinchColumns(
 
     function pinch(event: TouchEvent) {
       if (start === null || event.touches.length !== 2 || element === null) return;
-      const gap = parseFloat(getComputedStyle(element).columnGap) || 0;
-      const most = mostColumns(element.clientWidth, gap);
+      const most = mostColumns(element.clientWidth);
       const next = columnsAfterPinch(start.columns, distance(event.touches) / start.spread, most);
       const now = getComputedStyle(element).gridTemplateColumns.split(' ').length;
       if (next === now) return;
@@ -88,6 +132,7 @@ export function usePinchColumns(
       const under = document.elementFromPoint((a.clientX + b.clientX) / 2, (a.clientY + b.clientY) / 2);
       const card = under?.closest('.card-grid > li');
       anchor.current = card ? { card, top: card.getBoundingClientRect().top } : null;
+      before.current = cardsOnScreen(element);
       setColumns(next);
     }
 
@@ -108,11 +153,16 @@ export function usePinchColumns(
   }, [grid, setColumns]);
 
   // After the grid changed, before it is drawn: scroll the anchored card
-  // back to where it was
+  // back to where it was, then let the cards move there smoothly
   useLayoutEffect(() => {
-    if (anchor.current === null) return;
-    const { card, top } = anchor.current;
-    window.scrollBy(0, card.getBoundingClientRect().top - top);
-    anchor.current = null;
-  }, [columns]);
+    if (anchor.current !== null) {
+      const { card, top } = anchor.current;
+      window.scrollBy(0, card.getBoundingClientRect().top - top);
+      anchor.current = null;
+    }
+    if (before.current !== null && grid.current !== null) {
+      animateCards(grid.current, before.current);
+      before.current = null;
+    }
+  }, [columns, grid]);
 }
