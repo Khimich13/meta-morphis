@@ -16,7 +16,9 @@ export default function StandingLabel({ record }: { record: CardProgress | undef
   const name = STANDING_LABELS[standing];
   const details = standingDetails(record);
   const numbers =
-    record === undefined ? '' : ` · ${record.right}/${record.right + record.wrong}`;
+    record === undefined ? null : (
+      <span className="numbers"> · {record.right}/{record.right + record.wrong}</span>
+    );
   return (
     <span
       className={`label standing ${standing}`}

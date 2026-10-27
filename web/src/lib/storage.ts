@@ -61,3 +61,23 @@ export function saveList(kind: string): void {
     // Not remembered: the overall list is used next time
   }
 }
+
+const COLUMNS_KEY = 'meta-morphis-columns';
+
+/** Cards per row in the card list, as last pinched, or null if never */
+export function loadColumns(): number | null {
+  try {
+    const saved = Number(localStorage.getItem(COLUMNS_KEY));
+    return Number.isInteger(saved) && saved > 0 ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveColumns(columns: number): void {
+  try {
+    localStorage.setItem(COLUMNS_KEY, String(columns));
+  } catch {
+    // Not remembered: the list starts with as many as fit next time
+  }
+}

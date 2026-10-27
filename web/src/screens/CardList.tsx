@@ -1,4 +1,12 @@
-import { type ReactNode, type RefObject, useEffect, useRef, useState } from 'react';
+import {
+  type CSSProperties,
+  type ReactNode,
+  type RefObject,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 
 import CardPicture, { LargeCard } from '../components/CardPicture';
 import LargeView from '../components/LargeView';
@@ -6,7 +14,9 @@ import StandingLabel from '../components/StandingLabel';
 import { type Card, formatLabel } from '../lib/cards';
 import { LIST_LABELS, type Selection } from '../lib/formats';
 import { useLargeView } from '../lib/largeView';
+import { usePinchColumns } from '../lib/pinch';
 import type { Progress } from '../lib/progress';
+import { loadColumns, saveColumns } from '../lib/storage';
 import { type Direction, step } from '../lib/swipe';
 
 interface CardListProps {
@@ -47,6 +57,15 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
   const [index, setIndex] = useState(0);
   const row = useRef<HTMLDivElement>(null);
 
+  // Cards per row, chosen by pinching; null: as many as fit
+  const [columns, setColumns] = useState(loadColumns);
+  const grid = useRef<HTMLUListElement>(null);
+  const chooseColumns = useCallback((chosen: number) => {
+    setColumns(chosen);
+    saveColumns(chosen);
+  }, []);
+  usePinchColumns(grid, columns, chooseColumns);
+
   function open(position: number) {
     setIndex(position);
     large.open();
@@ -73,7 +92,11 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
           Most played {what}in {formatLabel(selection.format)}
         </h1>
       </header>
-      <ul className="card-grid">
+      <ul
+        ref={grid}
+        className={columns === null ? 'card-grid' : 'card-grid chosen'}
+        style={columns === null ? undefined : ({ '--columns': columns } as CSSProperties)}
+      >
         {cards.map((card, position) => (
           <li key={card.oracle_id}>
             {/* How the card is doing, above it */}

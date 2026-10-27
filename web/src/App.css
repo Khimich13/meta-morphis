@@ -44,6 +44,13 @@ body {
   gap: 16px;
 }
 
+/* Cards per row chosen by pinching (see lib/pinch.ts), each card at most
+   480px wide, so one per row stays card-sized on a wide screen */
+.card-grid.chosen {
+  grid-template-columns: repeat(var(--columns), minmax(0, 480px));
+  justify-content: center;
+}
+
 /* Each card's record (its labels and "N of M right") and its picture are
    two rows of the grid itself (subgrid), so the cards in a row share row
    heights: a record on two lines makes the record row taller for the
@@ -80,6 +87,15 @@ body {
   display: flex;
   justify-content: center;
   font-size: 0.8rem;
+  /* Lets the label fit itself to the card's width, below */
+  container-type: inline-size;
+}
+
+/* Cards pinched very small: the word and dot only, without "· 3/6" */
+@container (max-width: 100px) {
+  .label.standing .numbers {
+    display: none;
+  }
 }
 
 /* A small rounded tag: "New card" and "Try again" in a lesson, and a
