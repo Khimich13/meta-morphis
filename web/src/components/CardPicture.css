@@ -19,6 +19,18 @@
   /* A faint card shape while the picture loads, instead of a gap that
      flashes when the picture appears */
   background: rgb(128 128 128 / 20%);
+  /* A soft shadow around the card (never over it), lifting it off the
+     page */
+  box-shadow:
+    0 1px 3px rgb(0 0 0 / 20%),
+    0 4px 12px rgb(0 0 0 / 10%);
+}
+
+/* Shadows hardly show on a dark page: a faint light outline instead */
+@media (prefers-color-scheme: dark) {
+  .card-side {
+    box-shadow: 0 0 0 1px rgb(255 255 255 / 12%);
+  }
 }
 
 /* The 3D settings below are for double-faced cards only. Each puts a

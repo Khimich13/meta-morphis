@@ -2,6 +2,17 @@ html {
   /* Follow the device's light or dark setting */
   color-scheme: light dark;
   font-family: system-ui, sans-serif;
+  /* The page: a neutral gray rather than pure white or black, so that
+     white-bordered cards stand out in light mode and black-bordered ones
+     in dark mode. No tint, so it suits cards of every color. */
+  --page: #eef0f2;
+  background: var(--page);
+}
+
+@media (prefers-color-scheme: dark) {
+  html {
+    --page: #1c1e22;
+  }
 }
 
 body {
@@ -137,16 +148,16 @@ body {
    pill with a colored dot and the text in normal ink. The word always
    carries the meaning - red and green dots look alike to many color-blind
    readers - so the text stays readable and the dot only adds to it.
-   Contrast checked on 2026-10-25: text at least 6.6:1 in both modes, each
-   dot at least 3:1 against the pill. */
+   Contrast checked on 2026-10-27, on the gray page: text at least 6.7:1
+   in both modes, each dot at least 3.2:1 against the pill. */
 .label.standing {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   padding: 2px 8px 2px 6px;
   border: none;
-  background: color-mix(in srgb, CanvasText 8%, Canvas);
-  color: color-mix(in srgb, CanvasText 70%, Canvas);
+  background: color-mix(in srgb, CanvasText 8%, var(--page));
+  color: color-mix(in srgb, CanvasText 70%, var(--page));
   font-size: 0.72rem;
   font-weight: 600;
   /* "3/6" and "12/15" take the same width per digit */
@@ -168,7 +179,7 @@ body {
 }
 
 .label.standing.fresh {
-  --dot: #898781;
+  --dot: #77756f;
 }
 
 .label.standing.poor {
@@ -176,7 +187,7 @@ body {
 }
 
 .label.standing.fair {
-  --dot: #b37400;
+  --dot: #a06800;
 }
 
 .label.standing.good {
@@ -186,6 +197,14 @@ body {
 @media (prefers-color-scheme: dark) {
   .label.standing.new {
     --dot: #3987e5;
+  }
+
+  .label.standing.fresh {
+    --dot: #898781;
+  }
+
+  .label.standing.poor {
+    --dot: #e35d5d;
   }
 
   .label.standing.fair {
