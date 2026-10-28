@@ -17,6 +17,8 @@ import {
   isCorrect,
   isFinished,
   isFirstTry,
+  type Segment,
+  segments,
   startLesson,
 } from '../lib/quiz';
 import './Lesson.css';
@@ -104,9 +106,11 @@ export default function Lesson({
   const repeat = !isFirstTry(lesson, card);
   // Read from the saved progress, so after an answer it includes it
   const record = progress.cards[card.oracle_id];
-  // Cards answered right, including this one as soon as it is: the bar
-  // only moves forward on a right answer
-  const done = lesson.done + (picked !== null && isCorrect(question, picked) ? 1 : 0);
+  // Whether the question on screen was answered right; null while choosing
+  const answer = picked === null ? null : isCorrect(question, picked);
+  // Cards answered right, including this one as soon as it is
+  const done = lesson.done + (answer === true ? 1 : 0);
+  const bar = segments(lesson, answer);
 
   return (
     <section className="lesson">
@@ -114,24 +118,17 @@ export default function Lesson({
         <button className="leave" onClick={onDone} aria-label="Leave the lesson">
           ✕
         </button>
-        <div
-          className="progress-bar"
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={lesson.total}
-          aria-valuenow={done}
-        >
-          <div style={{ width: `${(done / lesson.total) * 100}%` }} />
-        </div>
-        <span>
-          {done}/{lesson.total}
+        <LessonProgress bar={bar} done={done} />
+        {/* Which card is on screen - on a repeat, the missed card's own number */}
+        <span className="position">
+          {bar.findIndex((segment) => segment.current) + 1}/{lesson.total}
         </span>
       </header>
 
       {picked === null ? (
         <>
           <QuestionLabel repeat={repeat} standing={cardStanding(record)} />
-          <h2 className="question">Which card is this?</h2>
+          <h2 className="question">Which card has this artwork?</h2>
           {/* A figure ties the credit to the artwork, for screen readers too */}
           <figure className="artwork">
             {/* The alt text must not give the answer away */}
@@ -166,6 +163,44 @@ export default function Lesson({
         </>
       )}
     </section>
+  );
+}
+
+const SEGMENT_NAMES = {
+  todo: 'not answered yet',
+  right: 'right on the first try',
+  wrong: 'missed',
+  fixed: 'right on a second try',
+};
+
+/**
+ * The lesson's progress: one segment per card, green when answered right
+ * on the first try, red while missed, amber once right on a repeat, gray
+ * when not reached yet. The card on screen has a taller, outlined one.
+ */
+function LessonProgress({ bar, done }: { bar: Segment[]; done: number }) {
+  const position = bar.findIndex((segment) => segment.current) + 1;
+  const missed = bar.filter((segment) => segment.state === 'wrong').length;
+  const summary =
+    (position > 0 ? `Card ${position} of ${bar.length}` : `${done} of ${bar.length} done`) +
+    (missed > 0 ? `, ${missed} missed` : '');
+  return (
+    <div
+      className="lesson-progress"
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={bar.length}
+      aria-valuenow={done}
+      aria-valuetext={summary}
+    >
+      {bar.map((segment, i) => (
+        <span
+          key={i}
+          className={`segment ${segment.state}${segment.current ? ' current' : ''}`}
+          title={`Card ${i + 1}: ${SEGMENT_NAMES[segment.state]}`}
+        />
+      ))}
+    </div>
   );
 }
 

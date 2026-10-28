@@ -95,6 +95,8 @@ export interface LessonState {
   queue: Question[];
   /** How many different cards the lesson is about */
   total: number;
+  /** Their oracle_ids in the order first asked: one progress bar segment each */
+  order: string[];
   /** How many of them have been answered right */
   done: number;
   /** oracle_ids of the cards answered wrongly at least once */
@@ -112,7 +114,14 @@ export function startLesson(
   const queue = chooseLessonCards(allCards, progress, today, random).map((card) =>
     makeQuestion(card, allCards, random),
   );
-  return { queue, total: queue.length, done: 0, missed: [], score: 0 };
+  return {
+    queue,
+    total: queue.length,
+    order: queue.map((question) => question.card.oracle_id),
+    done: 0,
+    missed: [],
+    score: 0,
+  };
 }
 
 /** True the first time a card is asked in this lesson - not on a repeat */
@@ -150,4 +159,42 @@ export function afterAnswer(
 
 export function isFinished(lesson: LessonState): boolean {
   return lesson.queue.length === 0;
+}
+
+/**
+ * How a card of the lesson is doing, for its progress bar segment:
+ *   todo  - not answered yet
+ *   right - answered right on the first try
+ *   wrong - answered wrongly, and not yet right on a repeat
+ *   fixed - answered wrongly, then right on a repeat
+ */
+export type SegmentState = 'todo' | 'right' | 'wrong' | 'fixed';
+
+export interface Segment {
+  state: SegmentState;
+  /** The card of the question on screen */
+  current: boolean;
+}
+
+/**
+ * One segment per card, in the order first asked. `answer` is whether
+ * the question on screen was just answered right (null while choosing),
+ * so the bar changes as soon as the answer shows.
+ */
+export function segments(lesson: LessonState, answer: boolean | null): Segment[] {
+  const onScreen = lesson.queue[0]?.card.oracle_id;
+  // A card with a question still to come isn't answered right yet
+  const waiting = new Set(lesson.queue.map((question) => question.card.oracle_id));
+  return lesson.order.map((id) => {
+    const current = id === onScreen;
+    const missedBefore = lesson.missed.includes(id);
+    let right = !waiting.has(id);
+    let missed = missedBefore;
+    if (current && answer !== null) {
+      right = answer;
+      missed = missedBefore || !answer;
+    }
+    const state: SegmentState = right ? (missed ? 'fixed' : 'right') : missed ? 'wrong' : 'todo';
+    return { state, current };
+  });
 }

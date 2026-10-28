@@ -22,20 +22,68 @@
 }
 
 /* Top bar: leave button, progress bar, question number */
+/* The ✕ button, the progress bar and the card number. The two sides
+   have the same width, so the bar sits exactly in the middle. */
 .lesson-bar {
-  display: flex;
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+}
+
+.lesson-bar .position {
+  text-align: right;
 }
 
 .lesson-bar .leave {
   min-height: 40px;
-  padding: 0 12px;
+  /* The ✕ at the left edge, lined up with the screen's content; the
+     whole 44px stays tappable */
+  padding: 0;
+  text-align: left;
   border: none;
 }
 
-.lesson-bar .progress-bar {
+/* One segment per card of the lesson - see LessonProgress in Lesson.tsx */
+.lesson-progress {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 16px;
+}
+
+.segment {
   flex: 1;
+  height: 10px;
+  border-radius: 5px;
+  background: color-mix(in srgb, currentColor 15%, transparent);
+  transition:
+    background-color 0.3s,
+    height 0.2s;
+}
+
+.segment.right {
+  background: #2e9e5b;
+}
+
+.segment.wrong {
+  background: #d64545;
+}
+
+.segment.fixed {
+  background: #d69e2e;
+}
+
+/* The card on screen: taller, with an outline that shows on any color */
+.segment.current {
+  height: 16px;
+  box-shadow: 0 0 0 2px var(--page), 0 0 0 4px currentColor;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .segment {
+    transition: none;
+  }
 }
 
 /* "Try again" or "New card" above the artwork. The colors come from

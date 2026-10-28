@@ -14,6 +14,7 @@ import {
   NEW_PER_LESSON,
   OPTION_COUNT,
   type Random,
+  segments,
   shuffle,
   startLesson,
 } from './quiz';
@@ -244,4 +245,35 @@ test('any mix of answers ends with every card done', () => {
     expect(lesson.done).toBe(LESSON_LENGTH);
     expect(lesson.score).toBe(LESSON_LENGTH - lesson.missed.length);
   }
+});
+
+test('segments: one per card, the first one current, all to do', () => {
+  const lesson = startLesson(CARDS, EMPTY_PROGRESS, TODAY, seeded(1));
+  const bar = segments(lesson, null);
+  expect(bar).toHaveLength(LESSON_LENGTH);
+  expect(bar.every((segment) => segment.state === 'todo')).toBe(true);
+  expect(bar.map((segment) => segment.current)).toEqual([true, ...Array(9).fill(false)]);
+});
+
+test('segments: an answer shows on its segment as soon as it is given', () => {
+  const lesson = startLesson(CARDS, EMPTY_PROGRESS, TODAY, seeded(1));
+  expect(segments(lesson, true)[0].state).toBe('right');
+  expect(segments(lesson, false)[0].state).toBe('wrong');
+});
+
+test('segments: a missed card stays red until it is right on a repeat', () => {
+  let lesson = startLesson(CARDS, EMPTY_PROGRESS, TODAY, seeded(1));
+  lesson = afterAnswer(lesson, false, CARDS, seeded(2));
+  lesson = afterAnswer(lesson, true, CARDS, seeded(3));
+  let bar = segments(lesson, null);
+  expect(bar.slice(0, 3).map((segment) => segment.state)).toEqual(['wrong', 'right', 'todo']);
+  expect(bar[2].current).toBe(true);
+
+  // The other eight right, which brings the missed card back on screen
+  for (let i = 0; i < 8; i++) lesson = afterAnswer(lesson, true, CARDS, seeded(4));
+  bar = segments(lesson, null);
+  expect(bar[0]).toEqual({ state: 'wrong', current: true });
+  expect(segments(lesson, true)[0].state).toBe('fixed');
+  lesson = afterAnswer(lesson, true, CARDS, seeded(5));
+  expect(segments(lesson, null)[0]).toEqual({ state: 'fixed', current: false });
 });
