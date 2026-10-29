@@ -1,16 +1,23 @@
 // Pinching with two fingers. Phones zoom the whole page on a pinch, which
-// pushes the screens out of shape, so the app stops that everywhere but
-// the large view (where zooming into a card's text is useful). In the
-// card list, a pinch changes how many cards fit in a row instead.
+// pushes the screens out of shape, so the app stops that everywhere. The
+// large view zooms its card itself (see zoom.ts), and in the card list a
+// pinch changes how many cards fit in a row.
 
 import { type RefObject, useEffect, useLayoutEffect, useRef } from 'react';
+
+/**
+ * True while the page is zoomed in, which the app tries never to allow -
+ * but should a browser zoom it anyway, the player must be able to undo it
+ */
+export function isZoomed(): boolean {
+  return (window.visualViewport?.scale ?? 1) > 1.01;
+}
 
 /** Called once when the app starts */
 export function stopPageZoom(): void {
   const stop = (event: Event) => {
-    if (!(event.target instanceof Element) || !event.target.closest('dialog.enlarged')) {
-      event.preventDefault();
-    }
+    // A zoomed page must always be able to pinch back to normal size
+    if (!isZoomed()) event.preventDefault();
   };
   // Two fingers moving: a pinch. Must not be passive, or the browser
   // ignores preventDefault.
@@ -123,7 +130,8 @@ export function usePinchColumns(
     let start: { spread: number; columns: number } | null = null;
 
     function begin(event: TouchEvent) {
-      if (event.touches.length !== 2 || element === null) return;
+      // While zoomed, a pinch zooms the page back out instead
+      if (event.touches.length !== 2 || element === null || isZoomed()) return;
       const style = getComputedStyle(element);
       start = {
         spread: distance(event.touches),

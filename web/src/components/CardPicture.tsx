@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 
 import { type Card, visibleName } from '../lib/cards';
 import { isWorthEnlarging } from '../lib/enlarge';
 import { useLargeView } from '../lib/largeView';
 import { canSpeak, sayName } from '../lib/speech';
+import { useCardZoom } from '../lib/zoom';
 import './CardPicture.css';
-import LargeView from './LargeView';
+import LargeView, { ZoomedContext } from './LargeView';
 
 interface CardPictureProps {
   card: Card;
@@ -109,7 +110,10 @@ function pictureClass(card: Card): string {
   return card.images.length > 1 ? 'card-picture two-sided' : 'card-picture';
 }
 
-/** A card in the large view, with its flip and speaker buttons */
+/**
+ * A card in the large view, with its flip and speaker buttons. A double
+ * tap zooms into it.
+ */
 export function LargeCard({
   card,
   showingBack,
@@ -122,12 +126,23 @@ export function LargeCard({
   /** Load the picture only when it comes into view */
   lazy?: boolean;
 }) {
+  // A double tap zooms in, see lib/zoom.ts
+  const { zoom, moving, handlers } = useCardZoom(useContext(ZoomedContext));
   return (
-    <div className={pictureClass(card)}>
-      <CardSides card={card} showingBack={showingBack} lazy={lazy} />
-      <FlipButton card={card} showingBack={showingBack} onFlip={onFlip} />
-      {/* The name of the side showing, not both of a double-faced card */}
-      <SayOnCard name={visibleName(card, showingBack)} />
+    // The frame stays put and hears the fingers; the card inside it is
+    // the part that grows and moves
+    <div className="zoom-frame" {...handlers}>
+      <div
+        className={moving ? 'zoom-content moving' : 'zoom-content'}
+        style={{ transform: `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.scale})` }}
+      >
+        <div className={pictureClass(card)}>
+          <CardSides card={card} showingBack={showingBack} lazy={lazy} />
+          <FlipButton card={card} showingBack={showingBack} onFlip={onFlip} />
+          {/* The name of the side showing, not both of a double-faced card */}
+          <SayOnCard name={visibleName(card, showingBack)} />
+        </div>
+      </div>
     </div>
   );
 }

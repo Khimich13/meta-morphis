@@ -43,7 +43,7 @@
 }
 
 /* A card shown on its own (after answering): it grows in */
-.enlarged[open] > .card-picture {
+.enlarged[open] > .zoom-frame {
   transition: transform 0.4s ease-out;
 }
 
@@ -53,7 +53,7 @@
     opacity: 0;
   }
 
-  .enlarged[open] > .card-picture {
+  .enlarged[open] > .zoom-frame {
     transform: scale(0.9);
   }
 }
@@ -64,19 +64,22 @@
    brings it to rest exactly on one card. */
 .card-row {
   display: flex;
-  /* Across the dialog's side margins, so a card slides off the screen's
-     edge rather than vanishing 16px before it */
+  /* The whole screen, across the dialog's margins: a card slides off the
+     screen's edge rather than vanishing 16px before it, and a zoomed card
+     can fill the screen. The slides put the margins back. */
   width: 100vw;
-  margin: 0 -16px;
-  height: 100%;
+  height: 100dvh;
+  margin: calc(-56px - env(safe-area-inset-top)) -16px
+    calc(-16px - env(safe-area-inset-bottom));
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   /* At either end: the phone's own edge effect, without passing the
      scroll on to the page behind */
   overscroll-behavior-x: contain;
   scrollbar-width: none;
-  /* Sideways finger movements scroll the row; pinch-zoom still works */
-  touch-action: pan-x pinch-zoom;
+  /* Sideways finger movements scroll the row. No browser zoom: a double
+     tap zooms the card itself (see lib/zoom.ts). */
+  touch-action: pan-x;
   animation: card-grow 0.4s ease-out;
 }
 
@@ -89,8 +92,10 @@
   /* Same height with or without a card in it - see NEARBY in CardList.tsx */
   min-height: 100%;
   box-sizing: border-box;
-  /* Keeps 32px between two cards while both are in view */
-  padding: 0 16px;
+  /* The dialog's margins, which the row covers (see above). At the sides,
+     they keep 32px between two cards while both are in view. */
+  padding: calc(56px + env(safe-area-inset-top)) 16px
+    calc(16px + env(safe-area-inset-bottom));
   display: flex;
   justify-content: center;
   align-items: center;
@@ -156,7 +161,8 @@
 @media (prefers-reduced-motion: reduce) {
   .enlarged[open],
   .enlarged[open]::backdrop,
-  .enlarged[open] > .card-picture {
+  .enlarged[open] > .zoom-frame,
+  .zoom-content {
     transition: none;
   }
 
@@ -165,10 +171,44 @@
   }
 }
 
-.enlarged .card-picture {
+.enlarged .zoom-frame {
   /* As large as fits: the full width, or less if the height runs out
      first (a card is 680/488 times as tall as it is wide) */
   width: min(100%, (100dvh - 72px) * 488 / 680);
+  touch-action: pan-x;
+}
+
+/* The card's own zoom (see lib/zoom.ts): grows from its top left corner,
+   smoothly on a double tap, and right under the finger while moved */
+.zoom-content {
+  transform-origin: 0 0;
+  transition: transform 0.25s ease-out;
+}
+
+.zoom-content.moving {
+  transition: none;
+}
+
+/* While zoomed in: the fingers move and pinch the card, the row stays
+   on it, and the buttons and the card count step aside */
+.enlarged.zoomed .zoom-frame {
+  touch-action: none;
+}
+
+.enlarged.zoomed .card-row {
+  overflow-x: hidden;
+}
+
+.enlarged.zoomed .move,
+.enlarged.zoomed .card-button,
+.enlarged.zoomed .close,
+.enlarged.zoomed .position {
+  display: none;
+}
+
+/* The whole screen is the card's: nothing of the page shows behind it */
+.enlarged.zoomed::backdrop {
+  background: #000;
 }
 
 .enlarged .card-button {

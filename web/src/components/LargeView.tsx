@@ -1,7 +1,13 @@
-import { type ReactNode, useEffect, useRef } from 'react';
+import { createContext, type ReactNode, useEffect, useRef, useState } from 'react';
 
 import type { Direction } from '../lib/swipe';
 import './LargeView.css';
+
+/**
+ * Tells the large view when its card is zoomed in (see lib/zoom.ts), which
+ * pauses moving to other cards until it is back to normal size
+ */
+export const ZoomedContext = createContext<(zoomed: boolean) => void>(() => {});
 
 /**
  * The large view, in the browser's own <dialog>: it dims the page and
@@ -25,6 +31,7 @@ export default function LargeView({
   hasNext,
 }: LargeViewProps) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const [zoomed, setZoomed] = useState(false);
 
   useEffect(() => {
     // Already open when React runs this a second time (StrictMode, in
@@ -35,14 +42,14 @@ export default function LargeView({
   return (
     <dialog
       ref={dialog}
-      className="enlarged"
+      className={zoomed ? 'enlarged zoomed' : 'enlarged'}
       // Esc: close it the same way as the other ways, through history
       onCancel={(event) => {
         event.preventDefault();
         onClose();
       }}
       onKeyDown={(event) => {
-        if (onMove === undefined) return;
+        if (onMove === undefined || zoomed) return;
         if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
         // Instead of the browser's own small scroll step
         event.preventDefault();
@@ -65,7 +72,7 @@ export default function LargeView({
           ‹
         </button>
       )}
-      {children}
+      <ZoomedContext value={setZoomed}>{children}</ZoomedContext>
       {onMove !== undefined && hasNext && (
         <button className="move next" aria-label="Next card" onClick={() => onMove('next')}>
           ›

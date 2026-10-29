@@ -1,6 +1,9 @@
 html {
   /* Follow the device's light or dark setting */
   color-scheme: light dark;
+  /* Fingers scroll, but never zoom the page, not even with a double tap:
+     see lib/pinch.ts */
+  touch-action: pan-x pan-y;
   font-family: system-ui, sans-serif;
   /* The page: a neutral gray rather than pure white or black, so that
      white-bordered cards stand out in light mode and black-bordered ones
