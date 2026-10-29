@@ -1,6 +1,6 @@
-// The large view's own zoom: a double tap enlarges the card around the
-// spot tapped, one finger then moves around it, and a pinch makes it
-// bigger or smaller. The browser's zoom is off everywhere (see pinch.ts),
+// The large view's own zoom: a double tap or spreading two fingers
+// enlarges the card, one finger then moves around it, and a pinch makes
+// it bigger or smaller. The browser's zoom is off everywhere (see pinch.ts),
 // so only the card grows, never the page.
 //
 // A zoom is a scale and a shift of the card's picture, from its top left
@@ -77,6 +77,12 @@ export function isZoomedIn(zoom: Zoom): boolean {
   return zoom.scale > 1.05;
 }
 
+/**
+ * How far two fingers must spread on a card at normal size before it
+ * starts to zoom: 15% further apart, so an uneven swipe doesn't zoom
+ */
+export const PINCH_START = 1.15;
+
 /** Two taps this close in time (milliseconds) and place (pixels) make a double tap */
 export const DOUBLE_TAP_TIME = 300;
 export const DOUBLE_TAP_DISTANCE = 40;
@@ -116,6 +122,8 @@ export function useCardZoom(onZoomedChange: (zoomed: boolean) => void) {
   // When and where the last finger went down, and the last tap
   const pressed = useRef<{ time: number; at: Point } | null>(null);
   const lastTap = useRef<{ time: number; at: Point } | null>(null);
+  // How far apart two fingers were when the second one touched down
+  const pinchStart = useRef(0);
 
   useEffect(() => {
     onZoomedChange(zoomedIn);
@@ -173,14 +181,31 @@ export function useCardZoom(onZoomedChange: (zoomed: boolean) => void) {
     // Keep hearing this finger even when it leaves the card
     event.currentTarget.setPointerCapture(event.pointerId);
     pressed.current = pointers.current.size === 1 ? { time: event.timeStamp, at } : null;
+    if (pointers.current.size === 2) {
+      const [first, second] = [...pointers.current.values()];
+      pinchStart.current = distanceBetween(first, second);
+    }
   }
 
   function onPointerMove(event: PointerEvent<HTMLElement>) {
     const before = pointers.current.get(event.pointerId);
-    if (before === undefined || !isZoomedIn(zoom.current)) return;
+    if (before === undefined) return;
+    const zoomed = isZoomedIn(zoom.current);
+    // One finger at normal size is the row's: a swipe to the next card
+    if (!zoomed && pointers.current.size !== 2) return;
     const { at, bounds } = place(event);
     const others = [...pointers.current].filter(([id]) => id !== event.pointerId);
     pointers.current.set(event.pointerId, at);
+    if (!zoomed) {
+      // Two fingers spreading on a card at normal size: once they are far
+      // enough apart, it zooms around the point between them
+      const other = others[0][1];
+      const spread = distanceBetween(at, other) / pinchStart.current;
+      if (spread < PINCH_START) return;
+      const middle = middleOf(at, other);
+      show(zoomAround(NO_ZOOM, middle.x, middle.y, spread, bounds), false);
+      return;
+    }
     if (others.length === 0) {
       // One finger: move around the card
       show(moveBy(zoom.current, at.x - before.x, at.y - before.y, bounds), false);
