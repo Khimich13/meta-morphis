@@ -179,14 +179,17 @@
 }
 
 /* The card's own zoom (see lib/zoom.ts): grows from its top left corner,
-   smoothly on a double tap, and right under the finger while moved */
+   smoothly on a double tap. Under a moving finger, the code switches the
+   transition off, so the card follows the finger at once. */
 .zoom-content {
   transform-origin: 0 0;
   transition: transform 0.25s ease-out;
 }
 
-.zoom-content.moving {
-  transition: none;
+/* Tells the browser the zoomed card will move, so it keeps the enlarged
+   picture ready to slide rather than drawing it again for every frame */
+.enlarged.zoomed .zoom-content {
+  will-change: transform;
 }
 
 /* While zoomed in: the fingers move and pinch the card, the row stays

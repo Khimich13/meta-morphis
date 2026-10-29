@@ -89,23 +89,34 @@ interface Point {
 const distanceBetween = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 const middleOf = (a: Point, b: Point) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 
+/** The CSS transform that draws a zoom */
+export function transformOf(zoom: Zoom): string {
+  return `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.scale})`;
+}
+
 /**
  * The large view's zoom for one card. Spread `handlers` on the element
- * that holds the card (its frame, which stays put) and apply `zoom` to
- * the element inside it. `moving` is true while a finger moves it, when
- * the zoom must follow without the smooth transition of a double tap.
+ * that holds the card (its frame, which stays put) and put `contentRef`
+ * on the element inside it, which the zoom grows and moves.
  * `onZoomedChange` hears when the card is zoomed in and back out.
+ *
+ * A finger moves the card many times a second, so the zoom is written
+ * straight onto the element, at most once per frame the screen draws,
+ * rather than redrawn by React each time. Only whether the card is
+ * zoomed in at all goes through React.
  */
 export function useCardZoom(onZoomedChange: (zoomed: boolean) => void) {
-  const [zoom, setZoom] = useState(NO_ZOOM);
-  const [moving, setMoving] = useState(false);
+  const [zoomedIn, setZoomedIn] = useState(false);
+  const zoom = useRef(NO_ZOOM);
+  const contentRef = useRef<HTMLDivElement>(null);
+  // The frame waiting to draw the latest zoom, if any
+  const pendingFrame = useRef(0);
   // The fingers (or mouse) on the card, where each is now
   const pointers = useRef(new Map<number, Point>());
   // When and where the last finger went down, and the last tap
   const pressed = useRef<{ time: number; at: Point } | null>(null);
   const lastTap = useRef<{ time: number; at: Point } | null>(null);
 
-  const zoomedIn = isZoomedIn(zoom);
   useEffect(() => {
     onZoomedChange(zoomedIn);
     // Closing the view or leaving the card ends its zoom
@@ -113,6 +124,32 @@ export function useCardZoom(onZoomedChange: (zoomed: boolean) => void) {
       if (zoomedIn) onZoomedChange(false);
     };
   }, [zoomedIn, onZoomedChange]);
+
+  // A frame still waiting when the card goes away is not needed
+  useEffect(() => () => cancelAnimationFrame(pendingFrame.current), []);
+
+  /**
+   * Shows a new zoom: with a short smooth transition (a double tap, or
+   * letting go), or at once on the next frame (under a moving finger)
+   */
+  function show(next: Zoom, smoothly: boolean) {
+    zoom.current = next;
+    setZoomedIn(isZoomedIn(next));
+    const element = contentRef.current;
+    if (element === null) return;
+    if (smoothly) {
+      cancelAnimationFrame(pendingFrame.current);
+      pendingFrame.current = 0;
+      element.style.transition = '';
+      element.style.transform = transformOf(next);
+    } else if (pendingFrame.current === 0) {
+      element.style.transition = 'none';
+      pendingFrame.current = requestAnimationFrame(() => {
+        pendingFrame.current = 0;
+        element.style.transform = transformOf(zoom.current);
+      });
+    }
+  }
 
   /** Where the event is, from the frame's top left corner, and the bounds */
   function place(event: PointerEvent<HTMLElement>) {
@@ -140,40 +177,36 @@ export function useCardZoom(onZoomedChange: (zoomed: boolean) => void) {
 
   function onPointerMove(event: PointerEvent<HTMLElement>) {
     const before = pointers.current.get(event.pointerId);
-    if (before === undefined || !zoomedIn) return;
+    if (before === undefined || !isZoomedIn(zoom.current)) return;
     const { at, bounds } = place(event);
     const others = [...pointers.current].filter(([id]) => id !== event.pointerId);
     pointers.current.set(event.pointerId, at);
-    setMoving(true);
     if (others.length === 0) {
       // One finger: move around the card
-      setZoom((zoom) => moveBy(zoom, at.x - before.x, at.y - before.y, bounds));
-    } else {
-      // Two fingers: bigger or smaller as they spread or close, around
-      // the point between them, which also moves with them
-      const other = others[0][1];
-      const spread = distanceBetween(at, other) / distanceBetween(before, other);
-      const middleBefore = middleOf(before, other);
-      const middle = middleOf(at, other);
-      setZoom((zoom) => {
-        const scaled = zoomAround(
-          zoom,
-          middleBefore.x,
-          middleBefore.y,
-          zoom.scale * spread,
-          bounds,
-        );
-        return moveBy(scaled, middle.x - middleBefore.x, middle.y - middleBefore.y, bounds);
-      });
+      show(moveBy(zoom.current, at.x - before.x, at.y - before.y, bounds), false);
+      return;
     }
+    // Two fingers: bigger or smaller as they spread or close, around the
+    // point between them, which also moves with them
+    const other = others[0][1];
+    const spread = distanceBetween(at, other) / distanceBetween(before, other);
+    const middleBefore = middleOf(before, other);
+    const middle = middleOf(at, other);
+    const scaled = zoomAround(
+      zoom.current,
+      middleBefore.x,
+      middleBefore.y,
+      zoom.current.scale * spread,
+      bounds,
+    );
+    show(moveBy(scaled, middle.x - middleBefore.x, middle.y - middleBefore.y, bounds), false);
   }
 
   function onPointerUp(event: PointerEvent<HTMLElement>) {
     if (!pointers.current.delete(event.pointerId)) return;
     if (pointers.current.size > 0) return;
-    setMoving(false);
     // Pinched back to about normal size: out of zoom
-    setZoom((zoom) => (isZoomedIn(zoom) ? zoom : NO_ZOOM));
+    if (!isZoomedIn(zoom.current) && zoom.current !== NO_ZOOM) show(NO_ZOOM, true);
 
     // A tap: down and up quickly, in about the same place
     const { at, bounds } = place(event);
@@ -189,15 +222,17 @@ export function useCardZoom(onZoomedChange: (zoomed: boolean) => void) {
       distanceBetween(at, previous.at) < DOUBLE_TAP_DISTANCE;
     lastTap.current = isDouble ? null : { time: event.timeStamp, at };
     if (isDouble) {
-      setZoom((zoom) =>
-        isZoomedIn(zoom) ? NO_ZOOM : zoomAround(zoom, at.x, at.y, TAP_SCALE, bounds),
+      show(
+        isZoomedIn(zoom.current)
+          ? NO_ZOOM
+          : zoomAround(zoom.current, at.x, at.y, TAP_SCALE, bounds),
+        true,
       );
     }
   }
 
   return {
-    zoom,
-    moving,
+    contentRef,
     handlers: {
       onPointerDown,
       onPointerMove,

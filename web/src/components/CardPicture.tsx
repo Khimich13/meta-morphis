@@ -127,15 +127,12 @@ export function LargeCard({
   lazy?: boolean;
 }) {
   // A double tap zooms in, see lib/zoom.ts
-  const { zoom, moving, handlers } = useCardZoom(useContext(ZoomedContext));
+  const { contentRef, handlers } = useCardZoom(useContext(ZoomedContext));
   return (
     // The frame stays put and hears the fingers; the card inside it is
     // the part that grows and moves
     <div className="zoom-frame" {...handlers}>
-      <div
-        className={moving ? 'zoom-content moving' : 'zoom-content'}
-        style={{ transform: `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.scale})` }}
-      >
+      <div className="zoom-content" ref={contentRef}>
         <div className={pictureClass(card)}>
           <CardSides card={card} showingBack={showingBack} lazy={lazy} />
           <FlipButton card={card} showingBack={showingBack} onFlip={onFlip} />
