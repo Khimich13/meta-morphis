@@ -85,10 +85,23 @@ body {
   align-self: end;
 }
 
-/* A smaller flip button on the list's smaller pictures (not on the
-   enlarged one opened from them) */
+/* The flip button on the list's pictures (not on the enlarged one opened
+   from them) grows and shrinks with the card: about a fifth of its width,
+   between 24px and 36px. cqw is a hundredth of the picture's width. */
+.card-grid li > .card-picture {
+  container-type: inline-size;
+}
+
 .card-grid li > .card-picture .flip {
-  --size: 36px;
+  --size: clamp(24px, 21cqw, 36px);
+}
+
+/* On the tiniest cards it would cover most of the artwork: a tap opens
+   the large view, which has its own flip button */
+@container (max-width: 72px) {
+  .card-grid li > .card-picture .flip {
+    display: none;
+  }
 }
 
 .offline-status {
