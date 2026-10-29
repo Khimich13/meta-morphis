@@ -64,7 +64,7 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
     setColumns(chosen);
     saveColumns(chosen);
   }, []);
-  usePinchColumns(grid, columns, chooseColumns);
+  usePinchColumns(grid, columns, chooseColumns, open);
 
   function open(position: number) {
     setIndex(position);

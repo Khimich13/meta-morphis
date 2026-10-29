@@ -35,6 +35,9 @@ export function mostColumns(width: number): number {
   return Math.min(MAX_COLUMNS, Math.max(1, Math.floor(width / MIN_CARD_ROOM)));
 }
 
+/** How far apart the fingers must spread, at one card per row, to open it */
+const OPEN_SPREAD = 1.4;
+
 /** How long the cards take to move to their new places, in milliseconds */
 const MOVE_TIME = 250;
 
@@ -95,12 +98,20 @@ function distance(touches: TouchList): number {
  * Lets a pinch on the grid change its number of columns (`columns`, or
  * the number that fit by themselves while it is null). The card under
  * the fingers stays where it was on the screen while the grid changes.
+ * At one card per row, spreading the fingers opens the card under them.
  */
 export function usePinchColumns(
   grid: RefObject<HTMLElement | null>,
   columns: number | null,
   setColumns: (columns: number) => void,
+  /** Opens the large view on the card at this position of the grid */
+  openCard: (position: number) => void,
 ): void {
+  // The latest openCard, without setting up the touch handling again
+  const open = useRef(openCard);
+  useEffect(() => {
+    open.current = openCard;
+  });
   // The card under the fingers and how far it was from the screen's top
   const anchor = useRef<{ card: Element; top: number } | null>(null);
   // Where the cards on the screen were before the grid changed
@@ -123,14 +134,22 @@ export function usePinchColumns(
 
     function pinch(event: TouchEvent) {
       if (start === null || event.touches.length !== 2 || element === null) return;
-      const most = mostColumns(element.clientWidth);
-      const next = columnsAfterPinch(start.columns, distance(event.touches) / start.spread, most);
-      const now = getComputedStyle(element).gridTemplateColumns.split(' ').length;
-      if (next === now) return;
       // The card between the two fingers
       const [a, b] = [event.touches[0], event.touches[1]];
       const under = document.elementFromPoint((a.clientX + b.clientX) / 2, (a.clientY + b.clientY) / 2);
       const card = under?.closest('.card-grid > li');
+      const spread = distance(event.touches) / start.spread;
+      // Already one per row and spreading further: open that card, like
+      // zooming into a photo
+      if (start.columns === 1 && spread >= OPEN_SPREAD && card) {
+        start = null;
+        open.current([...element.children].indexOf(card));
+        return;
+      }
+      const most = mostColumns(element.clientWidth);
+      const next = columnsAfterPinch(start.columns, spread, most);
+      const now = getComputedStyle(element).gridTemplateColumns.split(' ').length;
+      if (next === now) return;
       anchor.current = card ? { card, top: card.getBoundingClientRect().top } : null;
       before.current = cardsOnScreen(element);
       setColumns(next);

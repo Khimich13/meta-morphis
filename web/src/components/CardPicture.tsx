@@ -27,7 +27,8 @@ interface CardPictureProps {
 
 /**
  * A card's full picture. Tapping it shows the card as large as the screen
- * allows, when that is noticeably larger than it is already shown. A
+ * allows, when that is noticeably larger than it is already shown (always,
+ * in the card list). A
  * double-faced card also gets a round button over its artwork that turns
  * it over to the back and back again, in both sizes.
  *
@@ -71,10 +72,17 @@ export default function CardPicture({
     };
   }, []);
 
+  // A card in the card list (onEnlarge given) can always be tapped: its
+  // large view also lets the player swipe through the list, worth it
+  // even when the card is already almost full size. Staying the same
+  // also keeps its picture from being rebuilt, and blank for a moment,
+  // when the grid changes its number of columns.
+  const enlargeable = onEnlarge !== undefined || canEnlarge;
+
   return (
     <>
       <div className={pictureClass(card)} ref={picture}>
-        {canEnlarge ? (
+        {enlargeable ? (
           <button
             className="enlarge"
             aria-label={`Enlarge ${card.name}`}
