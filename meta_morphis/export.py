@@ -26,6 +26,9 @@ class ExportCard(TypedDict):
     name: str
     # One picture per physical side: two for a double-faced card
     images: list[str]
+    # The same pictures larger, which the app loads only when the player
+    # zooms into the card; empty when Scryfall lacks one for any side
+    large_images: list[str]
     # The front side's artwork alone, and who painted it. Scryfall asks
     # for the artist to be named wherever the artwork is shown by itself.
     art: str
@@ -57,6 +60,11 @@ def image_urls(card: Card) -> list[str]:
             urls.append(url)
     return urls
 
+def large_image_urls(card: Card) -> list[str]:
+    urls = [side.image_uris.get("large") for side in card.image_sides()]
+    # All sides or none, so the app never mixes sizes on one card
+    return [url for url in urls if url] if all(urls) else []
+
 def build_card(card: Card) -> ExportCard | None:
     # Without an id the app can't tell cards apart, and without its
     # pictures and artist it can't show or ask about the card - leave
@@ -79,6 +87,7 @@ def build_card(card: Card) -> ExportCard | None:
         "oracle_id": card.oracle_id,
         "name": card.name,
         "images": images,
+        "large_images": large_image_urls(card),
         "art": art,
         "artist": front.artist,
     }

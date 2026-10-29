@@ -64,6 +64,16 @@ test('new pictures are saved, then the old ones deleted', async () => {
   expect([...urls].sort()).toEqual(['new-art.webp', 'new.webp']);
 });
 
+test("large pictures of the list's cards stay, other ones go", async () => {
+  // Zoomed into a card of this list, and into one of another format
+  const zoomed = { ...card('New', ['new.webp'], 'new-art.webp'), large_images: ['new-large.jpg'] };
+  const urls = fakeCaches(['new.webp', 'new-art.webp', 'new-large.jpg', 'old-large.jpg']);
+
+  await savePictures([zoomed], () => {});
+
+  expect([...urls].sort()).toEqual(['new-art.webp', 'new-large.jpg', 'new.webp']);
+});
+
 test('old pictures stay when the new ones cannot all be downloaded', async () => {
   // Switched format, then went offline before the artwork downloaded
   const urls = fakeCaches(['old.webp', 'old-art.webp'], ['new-art.webp']);

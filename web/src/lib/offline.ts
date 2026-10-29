@@ -74,11 +74,14 @@ export async function savePictures(
     }
   }
 
-  // Pictures of cards that left the list, or of another format
+  // Pictures of cards that left the list, or of another format. The large
+  // pictures of cards still in the list stay: they are saved only for the
+  // cards the player zoomed into, and would otherwise download again.
   if (done < wanted.length) return;
+  const kept = new Set([...wanted, ...cards.flatMap((card) => card.large_images ?? [])]);
   for (const url of saved) {
     if (isStopped()) return;
-    if (!wanted.includes(url)) {
+    if (!kept.has(url)) {
       await cache.delete(url);
     }
   }

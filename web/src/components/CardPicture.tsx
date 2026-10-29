@@ -4,7 +4,7 @@ import { type Card, visibleName } from '../lib/cards';
 import { isWorthEnlarging } from '../lib/enlarge';
 import { useLargeView } from '../lib/largeView';
 import { canSpeak, sayName } from '../lib/speech';
-import { useCardZoom } from '../lib/zoom';
+import { useCardZoom, useLargePictures } from '../lib/zoom';
 import './CardPicture.css';
 import LargeView, { ZoomedContext } from './LargeView';
 
@@ -127,14 +127,21 @@ export function LargeCard({
   lazy?: boolean;
 }) {
   // A double tap zooms in, see lib/zoom.ts
-  const { contentRef, handlers } = useCardZoom(useContext(ZoomedContext));
+  const { contentRef, zoomedIn, handlers } = useCardZoom(useContext(ZoomedContext));
+  // Sharper pictures once zoomed in, see lib/zoom.ts
+  const large = useLargePictures(card.large_images, zoomedIn);
   return (
     // The frame stays put and hears the fingers; the card inside it is
     // the part that grows and moves
     <div className="zoom-frame" {...handlers}>
       <div className="zoom-content" ref={contentRef}>
         <div className={pictureClass(card)}>
-          <CardSides card={card} showingBack={showingBack} lazy={lazy} />
+          <CardSides
+            card={card}
+            showingBack={showingBack}
+            lazy={lazy}
+            pictures={large ?? undefined}
+          />
           <FlipButton card={card} showingBack={showingBack} onFlip={onFlip} />
           {/* The name of the side showing, not both of a double-faced card */}
           <SayOnCard name={visibleName(card, showingBack)} />
@@ -149,12 +156,15 @@ function CardSides({
   card,
   showingBack,
   lazy,
+  pictures = card.images,
 }: {
   card: Card;
   showingBack: boolean;
   lazy: boolean;
+  /** Other pictures of the same sides, e.g. larger ones */
+  pictures?: string[];
 }) {
-  const [front, back] = card.images;
+  const [front, back] = pictures;
   return (
     <div className={showingBack ? 'card-sides flipped' : 'card-sides'}>
       {/* crossOrigin lets the saved copy of the picture be used */}

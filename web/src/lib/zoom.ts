@@ -17,7 +17,7 @@ export interface Zoom {
 export const NO_ZOOM: Zoom = { scale: 1, x: 0, y: 0 };
 
 /** How much a double tap enlarges the card */
-export const TAP_SCALE = 2.5;
+export const TAP_SCALE = 2;
 /** The most a pinch can enlarge it */
 export const MAX_SCALE = 5;
 
@@ -233,6 +233,7 @@ export function useCardZoom(onZoomedChange: (zoomed: boolean) => void) {
 
   return {
     contentRef,
+    zoomedIn,
     handlers: {
       onPointerDown,
       onPointerMove,
@@ -240,4 +241,40 @@ export function useCardZoom(onZoomedChange: (zoomed: boolean) => void) {
       onPointerCancel: onPointerUp,
     },
   };
+}
+
+/**
+ * The card's large pictures, once the player has zoomed in and they have
+ * downloaded; null until then, while the normal ones show. They download
+ * and are made ready to draw in the background, so swapping them in shows
+ * no gap. Offline, or without large pictures, the normal ones stay.
+ */
+export function useLargePictures(
+  large: string[] | undefined,
+  zoomedIn: boolean,
+): string[] | null {
+  const [ready, setReady] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!zoomedIn || ready !== null || large === undefined || large.length === 0) return;
+    let stopped = false;
+    Promise.all(
+      large.map((url) => {
+        const picture = new Image();
+        // The same way the card's <img> asks, so it finds this download
+        picture.crossOrigin = 'anonymous';
+        picture.src = url;
+        return picture.decode();
+      }),
+    )
+      .then(() => {
+        if (!stopped) setReady(large);
+      })
+      .catch(() => {
+        // No connection, or the picture is gone: the normal ones stay
+      });
+    return () => {
+      stopped = true;
+    };
+  }, [zoomedIn, large, ready]);
+  return ready;
 }

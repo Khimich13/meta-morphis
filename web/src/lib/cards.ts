@@ -7,6 +7,12 @@ export interface Card {
   name: string;
   /** One picture per physical side: two for a double-faced card */
   images: string[];
+  /**
+   * The same pictures larger, loaded only when the player zooms into the
+   * card (see lib/zoom.ts). Empty when Scryfall lacks one, and missing in
+   * files written before it was added.
+   */
+  large_images?: string[];
   /** The front side's artwork alone */
   art: string;
   /** Who painted it - shown wherever the artwork appears by itself */

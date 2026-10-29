@@ -30,6 +30,7 @@ def _raw(name: str, oracle_id: str = "oid", **extra: Any) -> dict[str, Any]:
         "image_uris": {
             "grid": f"grid/{printing}.webp",
             "normal": f"normal/{printing}.jpg",
+            "large": f"large/{printing}.jpg",
             "art": f"art/{printing}.webp",
         },
         "artist": "Some Artist",
@@ -50,6 +51,7 @@ def test_build_card_single_faced() -> None:
         "oracle_id": "b94c0336",
         "name": "Hydroblast",
         "images": ["grid/id-Hydroblast.webp"],
+        "large_images": ["large/id-Hydroblast.jpg"],
         "art": "art/id-Hydroblast.webp",
         "artist": "Some Artist",
     }
@@ -65,6 +67,8 @@ def test_build_card_falls_back_to_jpg_images() -> None:
     assert built is not None
     assert built["images"] == ["normal/id-Old Card.jpg"]
     assert built["art"] == "art_crop/id-Old Card.jpg"
+    # No large picture: the app zooms into the normal one
+    assert built["large_images"] == []
 
 def test_build_card_double_faced_has_both_pictures() -> None:
     card = Card.from_raw({
@@ -74,17 +78,34 @@ def test_build_card_double_faced_has_both_pictures() -> None:
         "artist": "Joseph Meehan",
         "card_faces": [
             {"name": "Fable of the Mirror-Breaker", "type_line": "Enchantment — Saga",
-             "image_uris": {"grid": "front/24c0d87b.webp", "art": "art/front/24c0d87b.webp"}},
+             "image_uris": {"grid": "front/24c0d87b.webp", "large": "large/front/24c0d87b.jpg",
+                            "art": "art/front/24c0d87b.webp"}},
             {"name": "Reflection of Kiki-Jiki", "type_line": "Enchantment Creature",
-             "image_uris": {"grid": "back/24c0d87b.webp", "art": "art/back/24c0d87b.webp"}},
+             "image_uris": {"grid": "back/24c0d87b.webp", "large": "large/back/24c0d87b.jpg",
+                            "art": "art/back/24c0d87b.webp"}},
         ],
     })
     built = build_card(card)
     assert built is not None
     assert built["images"] == ["front/24c0d87b.webp", "back/24c0d87b.webp"]
+    assert built["large_images"] == ["large/front/24c0d87b.jpg", "large/back/24c0d87b.jpg"]
     # The artwork asked about is the front side's
     assert built["art"] == "art/front/24c0d87b.webp"
     assert built["artist"] == "Joseph Meehan"
+
+def test_build_card_large_pictures_all_sides_or_none() -> None:
+    # A back side without a large picture: none at all, never mixed sizes
+    card = Card.from_raw({
+        "id": "x1", "oracle_id": "x", "name": "Front // Back", "artist": "A",
+        "card_faces": [
+            {"name": "Front", "type_line": "Creature", "image_uris": {"grid": "front/x1.webp", "large": "large/front/x1.jpg",
+                                             "art": "art/front/x1.webp"}},
+            {"name": "Back", "type_line": "Creature", "image_uris": {"grid": "back/x1.webp"}},
+        ],
+    })
+    built = build_card(card)
+    assert built is not None
+    assert built["large_images"] == []
 
 def test_build_card_without_id_or_picture_is_left_out() -> None:
     no_id = Card.from_raw({"id": "1", "name": "No Id", "image_uris": {"grid": "x.webp"}})
@@ -146,6 +167,7 @@ def test_export_format_writes_the_file(
             "oracle_id": "l",
             "name": "Lórien Revealed",
             "images": ["grid/id-Lórien Revealed.webp"],
+            "large_images": ["large/id-Lórien Revealed.jpg"],
             "art": "art/id-Lórien Revealed.webp",
             "artist": "Some Artist",
         }],
