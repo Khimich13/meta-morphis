@@ -19,17 +19,19 @@ export function stopPageZoom(): void {
     // A zoomed page must always be able to pinch back to normal size
     if (!isZoomed()) event.preventDefault();
   };
-  // Two fingers moving: a pinch. Must not be passive, or the browser
-  // ignores preventDefault.
-  document.addEventListener(
-    'touchmove',
-    (event) => {
-      if (event.touches.length > 1) stop(event);
-    },
-    { passive: false },
-  );
-  // Safari's own pinch event, which it may act on before touchmove
-  document.addEventListener('gesturestart', stop);
+  // A second finger touching down, and two fingers moving: a pinch.
+  // Not passive, or the browser ignores preventDefault.
+  const twoFingers = (event: TouchEvent) => {
+    if (event.touches.length > 1) stop(event);
+  };
+  document.addEventListener('touchstart', twoFingers, { passive: false });
+  document.addEventListener('touchmove', twoFingers, { passive: false });
+  // Safari's own pinch events, which it may act on before any of those.
+  // On iPhones, these are what stops the zoom: Safari ignores the CSS
+  // rule against it (touch-action in App.css), which other browsers obey.
+  for (const name of ['gesturestart', 'gesturechange', 'gestureend']) {
+    document.addEventListener(name, stop, { passive: false });
+  }
 }
 
 /** The most cards in a row that pinching in can give */
@@ -141,6 +143,9 @@ export function usePinchColumns(
     }
 
     function pinch(event: TouchEvent) {
+      // This pinch is the grid's, never the browser's zoom - stopped here
+      // too, in case the page-wide blocker doesn't hear it
+      if (event.touches.length > 1 && !isZoomed()) event.preventDefault();
       if (start === null || event.touches.length !== 2 || element === null) return;
       // The card between the two fingers
       const [a, b] = [event.touches[0], event.touches[1]];
@@ -168,7 +173,8 @@ export function usePinchColumns(
     }
 
     element.addEventListener('touchstart', begin);
-    element.addEventListener('touchmove', pinch);
+    // Not passive, so it can stop the browser's zoom (see pinch)
+    element.addEventListener('touchmove', pinch, { passive: false });
     element.addEventListener('touchend', end);
     element.addEventListener('touchcancel', end);
     return () => {
