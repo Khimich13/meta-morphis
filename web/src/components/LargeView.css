@@ -9,8 +9,8 @@
   max-width: none;
   max-height: none;
   margin: 0;
-  /* The sizes here and below are also in src/lib/enlarge.ts, which
-     decides whether enlarging is offered: change them together */
+  /* Room for the close button above the card, and 16px at the sides and
+     below: the card's size below (.zoom-content) counts on these */
   padding: calc(56px + env(safe-area-inset-top)) 16px
     calc(16px + env(safe-area-inset-bottom));
   border: none;
@@ -43,7 +43,7 @@
 }
 
 /* A card shown on its own (after answering): it grows in */
-.enlarged[open] > .zoom-frame {
+.enlarged[open] > .zoom-area {
   transition: transform 0.4s ease-out;
 }
 
@@ -53,7 +53,7 @@
     opacity: 0;
   }
 
-  .enlarged[open] > .zoom-frame {
+  .enlarged[open] > .zoom-area {
     transform: scale(0.9);
   }
 }
@@ -78,7 +78,7 @@
   overscroll-behavior-x: contain;
   scrollbar-width: none;
   /* Sideways finger movements scroll the row. No browser zoom: a double
-     tap zooms the card itself (see lib/zoom.ts). */
+     tap zooms the card itself (see LargeCard in CardPicture.tsx). */
   touch-action: pan-x;
   animation: card-grow 0.4s ease-out;
 }
@@ -88,6 +88,8 @@
 }
 
 .card-slide {
+  /* Holds the card's zoom area, which covers the whole slide */
+  position: relative;
   flex: 0 0 100%;
   /* Same height with or without a card in it - see NEARBY in CardList.tsx */
   min-height: 100%;
@@ -161,8 +163,7 @@
 @media (prefers-reduced-motion: reduce) {
   .enlarged[open],
   .enlarged[open]::backdrop,
-  .enlarged[open] > .zoom-frame,
-  .zoom-content {
+  .enlarged[open] > .zoom-area {
     transition: none;
   }
 
@@ -171,32 +172,26 @@
   }
 }
 
-.enlarged .zoom-frame {
-  /* As large as fits: the full width, or less if the height runs out
-     first (a card is 680/488 times as tall as it is wide) */
-  width: min(100%, (100dvh - 72px) * 488 / 680);
+/* The area the card zooms in (see Zoomable in CardPicture.tsx): the
+   whole screen, so a zoomed card can fill it. At normal size the card
+   sits in its middle, and one finger swipes the row sideways. */
+.enlarged .zoom-area {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
   touch-action: pan-x;
 }
 
-/* The card's own zoom (see lib/zoom.ts): grows from its top left corner,
-   smoothly on a double tap. Under a moving finger, the code switches the
-   transition off, so the card follows the finger at once. */
-.zoom-content {
-  transform-origin: 0 0;
-  transition: transform 0.25s ease-out;
+/* The card: as large as fits, the full width less 16px each side, or
+   less if the height runs out first (a card is 680/488 times as tall as
+   it is wide). The 72px are the dialog's padding above and below. */
+.enlarged .zoom-content {
+  width: min(100vw - 32px, (100dvh - 72px) * 488 / 680);
 }
 
-/* Tells the browser the zoomed card will move, so it keeps the enlarged
-   picture ready to slide rather than drawing it again for every frame */
-.enlarged.zoomed .zoom-content {
-  will-change: transform;
-}
-
-/* While zoomed in: the fingers move and pinch the card, the row stays
-   on it, and the buttons and the card count step aside */
-.enlarged.zoomed .zoom-frame {
-  touch-action: none;
-}
+/* While zoomed in: the row stays on the card, and the buttons and the
+   card count step aside */
 
 .enlarged.zoomed .card-row {
   overflow-x: hidden;

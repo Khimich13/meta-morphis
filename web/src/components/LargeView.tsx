@@ -4,8 +4,9 @@ import type { Direction } from '../lib/swipe';
 import './LargeView.css';
 
 /**
- * Tells the large view when its card is zoomed in (see lib/zoom.ts), which
- * pauses moving to other cards until it is back to normal size
+ * Tells the large view when its card is zoomed in (see LargeCard in
+ * CardPicture.tsx), which pauses moving to other cards until it is back
+ * to normal size
  */
 export const ZoomedContext = createContext<(zoomed: boolean) => void>(() => {});
 
@@ -32,6 +33,9 @@ export default function LargeView({
 }: LargeViewProps) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [zoomed, setZoomed] = useState(false);
+  // When the view opened: a quick second tap right after the one that
+  // opened it (a double tap on the small card) must not close it again
+  const openedAt = useRef(performance.now());
 
   useEffect(() => {
     // Already open when React runs this a second time (StrictMode, in
@@ -57,6 +61,7 @@ export default function LargeView({
       }}
       // A tap anywhere but on the card or a button counts as outside it
       onClick={(event) => {
+        if (performance.now() - openedAt.current < 400) return;
         if (!(event.target as Element).closest('.card-picture, button')) onClose();
       }}
     >

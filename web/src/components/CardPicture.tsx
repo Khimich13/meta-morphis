@@ -1,10 +1,17 @@
-import { useContext, useEffect, useRef, useState } from 'react';
+import {
+  type ReactNode,
+  type TouchEvent,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
+import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 
 import { type Card, visibleName } from '../lib/cards';
-import { isWorthEnlarging } from '../lib/enlarge';
 import { useLargeView } from '../lib/largeView';
 import { canSpeak, sayName } from '../lib/speech';
-import { useCardZoom, useLargePictures } from '../lib/zoom';
+import { useLargePictures } from '../lib/largePictures';
 import './CardPicture.css';
 import LargeView, { ZoomedContext } from './LargeView';
 
@@ -28,9 +35,8 @@ interface CardPictureProps {
 
 /**
  * A card's full picture. Tapping it shows the card as large as the screen
- * allows, when that is noticeably larger than it is already shown (always,
- * in the card list). A
- * double-faced card also gets a round button over its artwork that turns
+ * allows, in the large view, where it can also zoom.
+ * A double-faced card also gets a round button over its artwork that turns
  * it over to the back and back again, in both sizes.
  *
  * Card pictures are shown as they are: never stretched or dimmed. The
@@ -49,51 +55,20 @@ export default function CardPicture({
   const flip = parentFlip ?? (() => setOwnBack(!ownBack));
   const large = useLargeView();
 
-  // Enlarging is offered only when the large view would make the card
-  // noticeably bigger - see lib/enlarge.ts. Checked again whenever the
-  // card or the screen changes size.
-  const picture = useRef<HTMLDivElement>(null);
-  const [canEnlarge, setCanEnlarge] = useState(false);
-  useEffect(() => {
-    const element = picture.current;
-    if (element === null) return;
-    const check = () =>
-      setCanEnlarge(
-        isWorthEnlarging(element.offsetWidth, window.innerWidth, window.innerHeight),
-      );
-    check();
-    // The card's own size, e.g. a lesson column that narrows
-    const observer = new ResizeObserver(check);
-    observer.observe(element);
-    // The screen's size, which sets the large view's size
-    window.addEventListener('resize', check);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', check);
-    };
-  }, []);
-
-  // A card in the card list (onEnlarge given) can always be tapped: its
-  // large view also lets the player swipe through the list, worth it
-  // even when the card is already almost full size. Staying the same
-  // also keeps its picture from being rebuilt, and blank for a moment,
-  // when the grid changes its number of columns.
-  const enlargeable = onEnlarge !== undefined || canEnlarge;
-
   return (
     <>
-      <div className={pictureClass(card)} ref={picture}>
-        {enlargeable ? (
-          <button
-            className="enlarge"
-            aria-label={`Enlarge ${card.name}`}
-            onClick={onEnlarge ?? large.open}
-          >
-            <CardSides card={card} showingBack={showingBack} lazy={lazy} />
-          </button>
-        ) : (
+      <div className={pictureClass(card)}>
+        <button
+          className="enlarge"
+          aria-label={`Enlarge ${card.name}`}
+          onClick={onEnlarge ?? large.open}
+          // Two fingers on the card open the large view too, to pinch there
+          onTouchStart={(event) => {
+            if (event.touches.length === 2 && onEnlarge === undefined) large.open();
+          }}
+        >
           <CardSides card={card} showingBack={showingBack} lazy={lazy} />
-        )}
+        </button>
         <FlipButton card={card} showingBack={showingBack} onFlip={flip} />
       </div>
       {large.isOpen && (
@@ -111,8 +86,8 @@ function pictureClass(card: Card): string {
 }
 
 /**
- * A card in the large view, with its flip and speaker buttons. A double
- * tap zooms into it.
+ * A card in the large view, with its flip and speaker buttons. It zooms
+ * over the whole screen, see Zoomable.
  */
 export function LargeCard({
   card,
@@ -126,29 +101,124 @@ export function LargeCard({
   /** Load the picture only when it comes into view */
   lazy?: boolean;
 }) {
-  // A double tap zooms in, see lib/zoom.ts
-  const { contentRef, zoomedIn, handlers } = useCardZoom(useContext(ZoomedContext));
-  // Sharper pictures once zoomed in, see lib/zoom.ts
-  const large = useLargePictures(card.large_images, zoomedIn);
+  // Zoomed in: the large view pauses moving to other cards, and hides
+  // its buttons and the page behind
+  const reportZoomed = useContext(ZoomedContext);
   return (
-    // The frame stays put and hears the fingers; the card inside it is
-    // the part that grows and moves
-    <div className="zoom-frame" {...handlers}>
-      <div className="zoom-content" ref={contentRef}>
+    <Zoomable card={card} areaClass="zoom-area" onZoomedChange={reportZoomed}>
+      {(pictures) => (
         <div className={pictureClass(card)}>
-          <CardSides
-            card={card}
-            showingBack={showingBack}
-            lazy={lazy}
-            pictures={large ?? undefined}
-          />
+          <CardSides card={card} showingBack={showingBack} lazy={lazy} pictures={pictures} />
           <FlipButton card={card} showingBack={showingBack} onFlip={onFlip} />
           {/* The name of the side showing, not both of a double-faced card */}
           <SayOnCard name={visibleName(card, showingBack)} />
         </div>
-      </div>
-    </div>
+      )}
+    </Zoomable>
   );
+}
+
+/**
+ * A card that zooms, with the react-zoom-pan-pinch library: a double tap
+ * goes to 2x and back, a pinch up to 4x, and one finger moves around the
+ * zoomed card. At normal size, one finger is left to the page (the large
+ * view's row swipes with it). Only `areaClass`'s box shows the zoomed
+ * card. `children` draws the card, given its sharper pictures once they
+ * have loaded (see lib/largePictures.ts).
+ */
+function Zoomable({
+  card,
+  areaClass,
+  onZoomedChange,
+  children,
+}: {
+  card: Card;
+  areaClass: string;
+  /** Hears when the card is zoomed in, and back out */
+  onZoomedChange: (zoomed: boolean) => void;
+  children: (pictures: string[] | undefined) => ReactNode;
+}) {
+  const [zoomedIn, setZoomedIn] = useState(false);
+  useEffect(() => {
+    onZoomedChange(zoomedIn);
+    // Leaving the card ends its zoom
+    return () => {
+      if (zoomedIn) onZoomedChange(false);
+    };
+  }, [zoomedIn, onZoomedChange]);
+  const large = useLargePictures(card.large_images, zoomedIn);
+  // When and where the last tap while zoomed in ended
+  const lastTap = useRef<{ time: number; x: number; y: number } | null>(null);
+  // Just shown: the end of the double tap or click that opened the large
+  // view would otherwise count as one on the card, and zoom in
+  const [justShown, setJustShown] = useState(true);
+  useEffect(() => {
+    const timer = setTimeout(() => setJustShown(false), 500);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <TransformWrapper
+      minScale={1}
+      maxScale={4}
+      centerOnInit
+      // A double tap zooms in to 2x where it is. Zooming back out is done
+      // below: the library's own double tap doesn't zoom out on a touch
+      // screen.
+      doubleClick={{ disabled: zoomedIn || justShown, mode: 'zoomIn', step: 1 }}
+      // Back in the middle after zooming out
+      centerZoomedOut
+      panning={{ disabled: !zoomedIn }}
+      // The mouse wheel and touchpad keep scrolling and moving between cards
+      wheel={{ disabled: true }}
+      onTransform={(_, { scale }) => setZoomedIn(scale > 1.05)}
+    >
+      {({ resetTransform }) => (
+        <TransformComponent
+          wrapperClass={zoomedIn ? `${areaClass} zoomed` : areaClass}
+          contentClass="zoom-content"
+          wrapperProps={{
+            // While zoomed in, a double tap or double click goes back to
+            // normal size
+            onTouchEnd: (event) => {
+              if (!zoomedIn || !isDoubleTap(event, lastTap)) return;
+              // Phones follow a tap with a pretend mouse press for older
+              // websites, and the library stops any animation on a mouse
+              // press: without this, the zoom-out stops at once
+              event.preventDefault();
+              resetTransform(250);
+            },
+            onDoubleClick: () => {
+              if (zoomedIn) resetTransform(250);
+            },
+          }}
+        >
+          {children(large ?? undefined)}
+        </TransformComponent>
+      )}
+    </TransformWrapper>
+  );
+}
+
+/** How soon a second tap must follow the first to make a double tap, in ms */
+const DOUBLE_TAP_TIME = 300;
+
+/**
+ * True when this tap ends close in time (300ms) and place (40px) to the
+ * one before. Taps with more than one finger don't count.
+ */
+function isDoubleTap(
+  event: TouchEvent,
+  lastTap: { current: { time: number; x: number; y: number } | null },
+): boolean {
+  if (event.touches.length > 0 || event.changedTouches.length !== 1) return false;
+  const { clientX: x, clientY: y } = event.changedTouches[0];
+  const before = lastTap.current;
+  const isDouble =
+    before !== null &&
+    event.timeStamp - before.time < DOUBLE_TAP_TIME &&
+    Math.hypot(x - before.x, y - before.y) < 40;
+  lastTap.current = isDouble ? null : { time: event.timeStamp, x, y };
+  return isDouble;
 }
 
 /** The card's sides stacked, turned to the one showing */

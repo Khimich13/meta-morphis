@@ -9,7 +9,7 @@ export interface Card {
   images: string[];
   /**
    * The same pictures larger, loaded only when the player zooms into the
-   * card (see lib/zoom.ts). Empty when Scryfall lacks one, and missing in
+   * card (see lib/largePictures.ts). Empty when Scryfall lacks one, and missing in
    * files written before it was added.
    */
   large_images?: string[];

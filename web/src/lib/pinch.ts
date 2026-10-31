@@ -1,7 +1,8 @@
 // Pinching with two fingers. Phones zoom the whole page on a pinch, which
 // pushes the screens out of shape, so the app stops that everywhere. The
-// large view zooms its card itself (see zoom.ts), and in the card list a
-// pinch changes how many cards fit in a row.
+// large view zooms its card itself (see LargeCard in
+// components/CardPicture.tsx), and in the card list a pinch changes how
+// many cards fit in a row.
 
 import { type RefObject, useEffect, useLayoutEffect, useRef } from 'react';
 
