@@ -65,21 +65,33 @@ export default function Lesson({
         onAnswer(question.card, isCorrect(question, option));
       }
     };
-    if (!isCorrect(question, option) || !canAnimate()) {
+    const correct = isCorrect(question, option);
+    if (prefersLessMotion()) {
       answer();
       return;
     }
-    // A right answer: the artwork flies into the full card's art box, a
-    // view transition (see Lesson.css). The browser captures the screen
-    // before and after the change and morphs between the two.
-    // .answer-animating marks the page meanwhile, see Lesson.css.
+    // Once the card is there, it settles with a small pulse after a right
+    // answer, and shakes its head after a wrong one
+    const afterwards = correct ? pulseCard : shakeCard;
+    if (!('startViewTransition' in document)) {
+      flushSync(answer);
+      afterwards();
+      return;
+    }
+    // The artwork flies into the full card's art box, a view transition
+    // (see Lesson.css). The browser captures the screen before and after
+    // the change and morphs between the two. .answer-animating marks the
+    // page meanwhile, see Lesson.css.
     const page = document.documentElement;
     page.classList.add('answer-animating');
     const transition = document.startViewTransition(async () => {
       flushSync(answer);
       await cardPictureReady();
     });
-    transition.finished.finally(() => page.classList.remove('answer-animating'));
+    transition.finished.finally(() => {
+      page.classList.remove('answer-animating');
+      afterwards();
+    });
   }
 
   function next() {
@@ -174,7 +186,7 @@ export default function Lesson({
             {/* One side at a time, which a double-faced card can turn over.
                 The full card shows its own artist and copyright. */}
             <CardPicture key={card.oracle_id} card={card} speaker />
-            {/* Where the artwork lands after a right answer: the card's art box */}
+            {/* Where the artwork lands after an answer: the card's art box */}
             <div className="art-target" aria-hidden="true" style={artTarget(card)} />
           </div>
           <Feedback
@@ -191,7 +203,7 @@ export default function Lesson({
 }
 
 /**
- * The view transition the artwork takes part in after a right answer (see
+ * The view transition the artwork takes part in after an answer (see
  * Lesson.css): flying into the card's art box, or, for a card without one,
  * shrinking towards the card's middle and fading
  */
@@ -211,14 +223,40 @@ function artTarget(card: Card): CSSProperties {
   } as CSSProperties;
 }
 
+/** The device asks for less motion: no animations after answering */
+function prefersLessMotion(): boolean {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 /**
- * Whether the screen change after a right answer can be animated: the
- * browser has view transitions, and the device doesn't ask for less motion
+ * After a right answer: the full card grows a little and back, as if
+ * settling into place. It only grows; the picture itself is untouched.
  */
-function canAnimate(): boolean {
-  return (
-    'startViewTransition' in document &&
-    !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+function pulseCard() {
+  document
+    .querySelector('.picture .card-picture')
+    ?.animate([{ scale: '1' }, { scale: '1.03' }, { scale: '1' }], {
+      duration: 260,
+      easing: 'ease-in-out',
+    });
+}
+
+/**
+ * After a wrong answer: the full card shakes briefly from side to side,
+ * like a head saying no. It only moves; the picture itself is untouched.
+ */
+function shakeCard() {
+  document.querySelector('.picture .card-picture')?.animate(
+    [
+      { transform: 'translateX(0)' },
+      { transform: 'translateX(-9px)' },
+      { transform: 'translateX(8px)' },
+      { transform: 'translateX(-6px)' },
+      { transform: 'translateX(4px)' },
+      { transform: 'translateX(-2px)' },
+      { transform: 'translateX(0)' },
+    ],
+    { duration: 420, easing: 'ease-out' },
   );
 }
 

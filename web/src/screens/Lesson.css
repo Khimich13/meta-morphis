@@ -221,7 +221,7 @@
   width: 100%;
 }
 
-/* Where the artwork lands after a right answer (see pick in Lesson.tsx):
+/* Where the artwork lands after an answer (see pick in Lesson.tsx):
    an invisible box over the art of the full card. The card's size is set
    the same way as .picture > .card-picture above; the art box's place on
    it, as shares of its width and height, comes from the card's file. */
@@ -236,10 +236,11 @@
   pointer-events: none;
 }
 
-/* The animation: the artwork moves and shrinks onto the art box, fully
-   visible until nearly there, then gives way to the card's own art.
-   Meanwhile the old screen fades out and the new one, with the card,
-   fades in. */
+/* The animation, after a right answer or a wrong one (which then also
+   pulses or shakes the card, see Lesson.tsx): the artwork moves and shrinks onto
+   the art box, fully visible until nearly there, then gives way to the
+   card's own art. Meanwhile the old screen fades out and the new one,
+   with the card, fades in. */
 ::view-transition-group(card-art) {
   animation-duration: 0.45s;
   animation-timing-function: ease-in-out;
