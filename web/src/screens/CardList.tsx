@@ -1,14 +1,16 @@
 import {
   type CSSProperties,
+  lazy,
   type ReactNode,
   type RefObject,
+  Suspense,
   useCallback,
   useEffect,
   useRef,
   useState,
 } from 'react';
 
-import CardPicture, { LargeCard } from '../components/CardPicture';
+import CardPicture from '../components/CardPicture';
 import LargeView from '../components/LargeView';
 import StandingLabel from '../components/StandingLabel';
 import { type Card, formatLabel } from '../lib/cards';
@@ -18,6 +20,10 @@ import { usePinchColumns } from '../lib/pinch';
 import type { Progress } from '../lib/progress';
 import { loadColumns, saveColumns } from '../lib/storage';
 import { type Direction, step } from '../lib/swipe';
+
+// The large view's card, with the zoom library: loaded the first time the
+// large view opens, so the list starts without it
+const LargeCard = lazy(() => import('../components/LargeCard'));
 
 interface CardListProps {
   selection: Selection;
@@ -134,11 +140,13 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
                 {/* Only the cards near the one in view hold a picture; the
                     others show a card shape of the same size */}
                 {Math.abs(position - index) <= NEARBY ? (
-                  <LargeCard
-                    card={card}
-                    showingBack={backs.has(card.oracle_id)}
-                    onFlip={() => flip(card)}
-                  />
+                  <Suspense fallback={<div className="card-placeholder" />}>
+                    <LargeCard
+                      card={card}
+                      showingBack={backs.has(card.oracle_id)}
+                      onFlip={() => flip(card)}
+                    />
+                  </Suspense>
                 ) : (
                   <div className="card-placeholder" />
                 )}
