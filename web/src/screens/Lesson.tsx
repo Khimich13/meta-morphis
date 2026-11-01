@@ -21,6 +21,7 @@ import {
   segments,
   startLesson,
 } from '../lib/quiz';
+import { playAnswerSound } from '../lib/sounds';
 import './Lesson.css';
 
 interface LessonProps {
@@ -33,6 +34,8 @@ interface LessonProps {
   onLessonFinished: () => void;
   /** Called when the player leaves the lesson, finished or not */
   onDone: () => void;
+  /** Whether answers make a sound, see lib/sounds.ts */
+  soundsOn: boolean;
 }
 
 export default function Lesson({
@@ -41,6 +44,7 @@ export default function Lesson({
   onAnswer,
   onLessonFinished,
   onDone,
+  soundsOn,
 }: LessonProps) {
   // The rules for what comes next are in quiz.ts
   const [lesson, setLesson] = useState(() => startLesson(cards, progress, localDay()));
@@ -66,6 +70,8 @@ export default function Lesson({
       }
     };
     const correct = isCorrect(question, option);
+    // At once, before any animation: the sound answers the tap itself
+    if (soundsOn) playAnswerSound(correct);
     if (prefersLessMotion()) {
       answer();
       return;

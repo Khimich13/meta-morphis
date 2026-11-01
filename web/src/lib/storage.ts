@@ -81,3 +81,22 @@ export function saveColumns(columns: number): void {
     // Not remembered: the list starts with as many as fit next time
   }
 }
+
+const SOUNDS_KEY = 'meta-morphis-sounds';
+
+/** Whether answers make a sound: on unless the player turned them off */
+export function loadSoundsOn(): boolean {
+  try {
+    return localStorage.getItem(SOUNDS_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+export function saveSoundsOn(on: boolean): void {
+  try {
+    localStorage.setItem(SOUNDS_KEY, on ? 'on' : 'off');
+  } catch {
+    // Not remembered: sounds are on again next time
+  }
+}

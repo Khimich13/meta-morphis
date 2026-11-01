@@ -19,9 +19,11 @@ import {
   loadFormat,
   loadList,
   loadProgress,
+  loadSoundsOn,
   saveFormat,
   saveList,
   saveProgress,
+  saveSoundsOn,
 } from './lib/storage';
 import { useAppUpdate } from './lib/update';
 import CardList from './screens/CardList';
@@ -56,6 +58,8 @@ export default function App() {
   const [listUpdated, setListUpdated] = useState<string | undefined>(undefined);
   const [failed, setFailed] = useState(false);
   const [screen, setScreen] = useState<Screen>(format === null ? 'formats' : 'home');
+  // Whether answers make a sound, see lib/sounds.ts
+  const [soundsOn, setSoundsOn] = useState(loadSoundsOn);
   // How many card pictures are saved on the device, out of how many
   const [pictures, setPictures] = useState({ saved: 0, total: 0 });
 
@@ -161,6 +165,7 @@ export default function App() {
           setProgress((before) => recordLesson(before, localDay()))
         }
         onDone={goHome}
+        soundsOn={soundsOn}
       />
     );
   }
@@ -196,6 +201,11 @@ export default function App() {
       onStartLesson={() => setScreen('lesson')}
       onSeeCards={() => setScreen('cards')}
       onChangeFormat={() => setScreen('formats')}
+      soundsOn={soundsOn}
+      onToggleSounds={() => {
+        setSoundsOn(!soundsOn);
+        saveSoundsOn(!soundsOn);
+      }}
     />
   );
 }

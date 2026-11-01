@@ -28,6 +28,9 @@ interface HomeProps {
   onStartLesson: () => void;
   onSeeCards: () => void;
   onChangeFormat: () => void;
+  /** Whether answers make a sound, and how to switch that */
+  soundsOn: boolean;
+  onToggleSounds: () => void;
 }
 
 export default function Home({
@@ -43,6 +46,8 @@ export default function Home({
   pictures,
   onStartLesson,
   onSeeCards,
+  soundsOn,
+  onToggleSounds,
   onChangeFormat,
 }: HomeProps) {
   return (
@@ -76,6 +81,9 @@ export default function Home({
             </button>
             <button className="link" onClick={onSeeCards}>
               See all cards
+            </button>
+            <button className="link" aria-pressed={soundsOn} onClick={onToggleSounds}>
+              {soundsOn ? '🔊 Sounds on' : '🔇 Sounds off'}
             </button>
             {pictures.total > 0 && (
               <p className="offline-status">
