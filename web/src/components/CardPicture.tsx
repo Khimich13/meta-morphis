@@ -31,6 +31,8 @@ interface CardPictureProps {
    * between cards. Otherwise this picture opens its own.
    */
   onEnlarge?: () => void;
+  /** Shows the button that reads the name aloud, as the large view does */
+  speaker?: boolean;
 }
 
 /**
@@ -49,6 +51,7 @@ export default function CardPicture({
   showingBack: parentBack,
   onFlip: parentFlip,
   onEnlarge,
+  speaker = false,
 }: CardPictureProps) {
   const [ownBack, setOwnBack] = useState(false);
   const showingBack = parentBack ?? ownBack;
@@ -70,6 +73,7 @@ export default function CardPicture({
           <CardSides card={card} showingBack={showingBack} lazy={lazy} />
         </button>
         <FlipButton card={card} showingBack={showingBack} onFlip={flip} />
+        {speaker && <SayOnCard name={visibleName(card, showingBack)} />}
       </div>
       {large.isOpen && (
         <LargeView onClose={large.close}>
@@ -286,8 +290,8 @@ function FlipButton({
 }
 
 /**
- * Reads the card's name aloud; only in the large view, where there is
- * room for it. Nothing in a browser that can't speak.
+ * Reads the card's name aloud; in the large view and on a lesson's answer
+ * card, where there is room for it. Nothing in a browser that can't speak.
  */
 function SayOnCard({ name }: { name: string }) {
   if (!canSpeak()) return null;

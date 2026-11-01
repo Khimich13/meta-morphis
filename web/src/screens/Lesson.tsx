@@ -11,7 +11,6 @@ import {
   type Standing,
   STANDING_LABELS,
 } from '../lib/progress';
-import { canSpeak, sayName } from '../lib/speech';
 import {
   afterAnswer,
   isCorrect,
@@ -151,7 +150,7 @@ export default function Lesson({
           <div className="picture">
             {/* One side at a time, which a double-faced card can turn over.
                 The full card shows its own artist and copyright. */}
-            <CardPicture key={card.oracle_id} card={card} />
+            <CardPicture key={card.oracle_id} card={card} speaker />
           </div>
           <Feedback
             card={card}
@@ -215,16 +214,6 @@ function QuestionLabel({ repeat, standing }: { repeat: boolean; standing: Standi
   return null;
 }
 
-/** Reads the name aloud; nothing in a browser that can't speak */
-function SayButton({ name }: { name: string }) {
-  if (!canSpeak()) return null;
-  return (
-    <button className="say" aria-label={`Say ${name}`} onClick={() => sayName(name)}>
-      🔊
-    </button>
-  );
-}
-
 interface FeedbackProps {
   card: Card;
   picked: Card;
@@ -244,14 +233,14 @@ function Feedback({ card, picked, standingBefore, record, onContinue }: Feedback
       <div role="status">
         {correct ? (
           <p className="verdict">
-            ✓ Correct: {card.name} <SayButton name={card.name} />
+            ✓ Correct: {card.name}
           </p>
         ) : (
           <>
             <p className="verdict">✗ Not quite</p>
             <p>You picked {picked.name}</p>
             <p>
-              It was {card.name} <SayButton name={card.name} />
+              It was {card.name}
             </p>
           </>
         )}
