@@ -25,6 +25,8 @@ class Card:
     raw: dict[str, Any]
     oracle_id: str | None = None
     layout: str = "normal"
+    # The printing's frame design, e.g. "1997" or "2015"
+    frame: str | None = None
     cmc: float | None = None
     color_identity: list[str] = field(default_factory=list)
     keywords: list[str] = field(default_factory=list)
@@ -65,6 +67,7 @@ class Card:
             raw=raw,
             oracle_id=raw.get("oracle_id"),
             layout=raw.get("layout") or "normal",
+            frame=raw.get("frame"),
             cmc=raw.get("cmc"),
             color_identity=raw.get("color_identity") or [],
             keywords=raw.get("keywords") or [],

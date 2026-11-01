@@ -118,6 +118,8 @@
 }
 
 .artwork img {
+  /* After a right answer, it flies into the card's art box (below); its
+     view-transition-name is set in Lesson.tsx */
   /* Never taller than the space, never wider than the screen */
   min-height: 120px;
   max-width: 100%;
@@ -130,6 +132,8 @@
 /* The full card after answering: as large as fits in the height left,
    at the top. */
 .picture {
+  /* Holds .art-target, placed over the card */
+  position: relative;
   flex: 1;
   min-height: 160px;
   display: flex;
@@ -215,4 +219,88 @@
 
 .lesson-actions button {
   width: 100%;
+}
+
+/* Where the artwork lands after a right answer (see pick in Lesson.tsx):
+   an invisible box over the art of the full card. The card's size is set
+   the same way as .picture > .card-picture above; the art box's place on
+   it, as shares of its width and height, comes from the card's file. */
+.art-target {
+  --width: min(100cqw, 100cqh * 488 / 680);
+  --height: calc(var(--width) * 680 / 488);
+  position: absolute;
+  left: calc((100cqw - var(--width)) / 2 + var(--width) * var(--box-left));
+  top: calc(var(--height) * var(--box-top));
+  width: calc(var(--width) * var(--box-width));
+  height: calc(var(--height) * var(--box-height));
+  pointer-events: none;
+}
+
+/* The animation: the artwork moves and shrinks onto the art box, fully
+   visible until nearly there, then gives way to the card's own art.
+   Meanwhile the old screen fades out and the new one, with the card,
+   fades in. */
+::view-transition-group(card-art) {
+  animation-duration: 0.45s;
+  animation-timing-function: ease-in-out;
+}
+
+::view-transition-old(card-art) {
+  animation: art-lands 0.45s ease-in both;
+}
+
+/* The browser animates flat pictures of the screen, in which a
+   double-faced card's back - hidden by being turned away, see
+   CardPicture.css - would show through its front: hidden meanwhile */
+.answer-animating .card-sides:not(.flipped) > .card-back {
+  visibility: hidden;
+}
+
+/* The landing box itself is empty */
+::view-transition-new(card-art) {
+  animation: none;
+  opacity: 0;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.45s;
+}
+
+/* A card without a single art box (a split card): the artwork shrinks
+   towards the card's middle and is gone by halfway */
+::view-transition-group(card-art-soft) {
+  animation-duration: 0.45s;
+  animation-timing-function: ease-in-out;
+}
+
+::view-transition-old(card-art-soft) {
+  animation: art-fades 0.45s ease-out both;
+}
+
+::view-transition-new(card-art-soft) {
+  animation: none;
+  opacity: 0;
+}
+
+@keyframes art-fades {
+  0% {
+    opacity: 1;
+  }
+
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes art-lands {
+  0%,
+  75% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
 }

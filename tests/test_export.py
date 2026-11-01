@@ -14,6 +14,7 @@ from meta_morphis.export import (
     build_export,
     export_all,
     export_format,
+    art_box,
     is_basic_land,
 )
 from meta_morphis.models.card import Card
@@ -34,6 +35,7 @@ def _raw(name: str, oracle_id: str = "oid", **extra: Any) -> dict[str, Any]:
             "art": f"art/{printing}.webp",
         },
         "artist": "Some Artist",
+        "frame": "2015",
         **extra,
     }
 
@@ -52,6 +54,7 @@ def test_build_card_single_faced() -> None:
         "name": "Hydroblast",
         "images": ["grid/id-Hydroblast.webp"],
         "large_images": ["large/id-Hydroblast.jpg"],
+        "art_box": [0.079, 0.114, 0.840, 0.440],
         "art": "art/id-Hydroblast.webp",
         "artist": "Some Artist",
     }
@@ -106,6 +109,50 @@ def test_build_card_large_pictures_all_sides_or_none() -> None:
     built = build_card(card)
     assert built is not None
     assert built["large_images"] == []
+
+@pytest.mark.parametrize("frame, box", [
+    ("1993", [0.113, 0.094, 0.781, 0.449]),
+    ("1997", [0.119, 0.100, 0.764, 0.443]),
+    ("2003", [0.088, 0.119, 0.826, 0.435]),
+    ("2015", [0.079, 0.114, 0.840, 0.440]),
+])
+def test_art_box_follows_the_frame(frame: str, box: list[float]) -> None:
+    assert art_box(Card.from_raw(_raw("Card", frame=frame, type_line="Instant"))) == box
+
+def test_art_box_of_sagas_classes_and_planeswalkers() -> None:
+    saga = Card.from_raw(_raw("Urza's Saga", layout="saga",
+                              type_line="Enchantment Land — Urza's Saga"))
+    talent = Card.from_raw(_raw("Stormchaser's Talent", layout="class",
+                                type_line="Enchantment — Class"))
+    short = Card.from_raw(_raw("Teferi", type_line="Legendary Planeswalker — Teferi",
+                               oracle_text="Static.\n+1: One.\n−3: Two."))
+    long = Card.from_raw(_raw("Jace", type_line="Legendary Planeswalker — Jace",
+                              oracle_text="Static.\n+1: One.\n−1: Two.\n−8: Three."))
+    assert art_box(saga) == [0.502, 0.113, 0.418, 0.724]
+    assert art_box(talent) == [0.076, 0.113, 0.418, 0.724]
+    assert art_box(short) == [0.072, 0.101, 0.850, 0.451]
+    assert art_box(long) == [0.073, 0.101, 0.849, 0.382]
+
+def test_art_box_of_a_double_faced_saga_is_its_front_side() -> None:
+    fable = Card.from_raw({
+        **_raw("Fable of the Mirror-Breaker // Reflection of Kiki-Jiki", layout="transform"),
+        "card_faces": [
+            {"name": "Fable of the Mirror-Breaker", "type_line": "Enchantment — Saga"},
+            {"name": "Reflection of Kiki-Jiki", "type_line": "Enchantment Creature — Goblin"},
+        ],
+    })
+    assert art_box(fable) == [0.502, 0.113, 0.418, 0.724]
+
+def test_no_art_box_without_a_single_measured_one() -> None:
+    split = Card.from_raw(_raw("Wear // Tear", layout="split", type_line="Instant // Instant"))
+    future = Card.from_raw(_raw("Future Card", frame="future", type_line="Creature"))
+    old_walker = Card.from_raw(_raw("Old Walker", frame="1997",
+                                    type_line="Planeswalker — Someone"))
+    unknown = Card.from_raw(_raw("New Layout", layout="something_new", type_line="Creature"))
+    assert art_box(split) is None
+    assert art_box(future) is None
+    assert art_box(old_walker) is None
+    assert art_box(unknown) is None
 
 def test_build_card_without_id_or_picture_is_left_out() -> None:
     no_id = Card.from_raw({"id": "1", "name": "No Id", "image_uris": {"grid": "x.webp"}})
@@ -168,6 +215,7 @@ def test_export_format_writes_the_file(
             "name": "Lórien Revealed",
             "images": ["grid/id-Lórien Revealed.webp"],
             "large_images": ["large/id-Lórien Revealed.jpg"],
+            "art_box": [0.079, 0.114, 0.840, 0.440],
             "art": "art/id-Lórien Revealed.webp",
             "artist": "Some Artist",
         }],

@@ -29,6 +29,11 @@ class ExportCard(TypedDict):
     # The same pictures larger, which the app loads only when the player
     # zooms into the card; empty when Scryfall lacks one for any side
     large_images: list[str]
+    # Where the artwork sits on the front picture, as shares of its width
+    # and height: [left, top, width, height]. The app flies the artwork
+    # into it after a right answer. None for a card without a single art
+    # box, such as a split card, or a kind not measured.
+    art_box: list[float] | None
     # The front side's artwork alone, and who painted it. Scryfall asks
     # for the artist to be named wherever the artwork is shown by itself.
     art: str
@@ -65,6 +70,48 @@ def large_image_urls(card: Card) -> list[str]:
     # All sides or none, so the app never mixes sizes on one card
     return [url for url in urls if url] if all(urls) else []
 
+# Where the artwork sits on each kind of card front, as shares of the
+# card's width and height: left, top, width, height. Measured on
+# Scryfall's pictures on 2026-11-01, by finding samples of each kind's
+# artwork in their full pictures; every sample of a kind matched.
+ART_BOXES = {
+    "1993": (0.113, 0.094, 0.781, 0.449),
+    "1997": (0.119, 0.100, 0.764, 0.443),
+    "2003": (0.088, 0.119, 0.826, 0.435),
+    "2015": (0.079, 0.114, 0.840, 0.440),
+}
+# The modern frame's planeswalkers: four lines of abilities leave less
+# room for the art
+PLANESWALKER_ART_BOX = (0.072, 0.101, 0.850, 0.451)
+PLANESWALKER_LONG_TEXT_ART_BOX = (0.073, 0.101, 0.849, 0.382)
+# Sagas have tall art on the right half; classes and cases on the left
+SAGA_ART_BOX = (0.502, 0.113, 0.418, 0.724)
+CLASS_ART_BOX = (0.076, 0.113, 0.418, 0.724)
+# Layouts whose front has its frame's usual art box
+USUAL_ART_LAYOUTS = {"normal", "transform", "modal_dfc", "adventure", "prepare"}
+
+def art_box(card: Card) -> list[float] | None:
+    faces = card.gameplay_faces()
+    front = faces[0] if faces else None
+    type_line = front.type_line if front else card.type_line
+    if card.frame == "2015" and card.layout in ("class", "case"):
+        box = CLASS_ART_BOX
+    elif card.frame == "2015" and "Saga" in type_line:
+        box = SAGA_ART_BOX
+    elif card.layout not in USUAL_ART_LAYOUTS:
+        return None
+    elif "Planeswalker" in type_line:
+        if card.frame != "2015":
+            return None
+        lines = len(front.oracle_text.splitlines()) if front else 0
+        box = PLANESWALKER_LONG_TEXT_ART_BOX if lines >= 4 else PLANESWALKER_ART_BOX
+    else:
+        found = ART_BOXES.get(card.frame or "")
+        if found is None:
+            return None
+        box = found
+    return list(box)
+
 def build_card(card: Card) -> ExportCard | None:
     # Without an id the app can't tell cards apart, and without its
     # pictures and artist it can't show or ask about the card - leave
@@ -88,6 +135,7 @@ def build_card(card: Card) -> ExportCard | None:
         "name": card.name,
         "images": images,
         "large_images": large_image_urls(card),
+        "art_box": art_box(card),
         "art": art,
         "artist": front.artist,
     }

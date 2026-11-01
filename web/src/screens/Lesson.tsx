@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { type CSSProperties, useState } from 'react';
+import { flushSync } from 'react-dom';
 
 import CardPicture from '../components/CardPicture';
 import StandingLabel from '../components/StandingLabel';
@@ -51,17 +52,34 @@ export default function Lesson({
 
   function pick(option: Card) {
     const question = lesson.queue[0];
-    setPicked(option);
-    setStandingBefore(
-      isFirstTry(lesson, question.card)
-        ? cardStanding(progress.cards[question.card.oracle_id])
-        : null,
-    );
-    // Saved progress counts the first answer to each card only: a right
-    // answer on a repeat comes straight after seeing the answer
-    if (isFirstTry(lesson, question.card)) {
-      onAnswer(question.card, isCorrect(question, option));
+    const answer = () => {
+      setPicked(option);
+      setStandingBefore(
+        isFirstTry(lesson, question.card)
+          ? cardStanding(progress.cards[question.card.oracle_id])
+          : null,
+      );
+      // Saved progress counts the first answer to each card only: a right
+      // answer on a repeat comes straight after seeing the answer
+      if (isFirstTry(lesson, question.card)) {
+        onAnswer(question.card, isCorrect(question, option));
+      }
+    };
+    if (!isCorrect(question, option) || !canAnimate()) {
+      answer();
+      return;
     }
+    // A right answer: the artwork flies into the full card's art box, a
+    // view transition (see Lesson.css). The browser captures the screen
+    // before and after the change and morphs between the two.
+    // .answer-animating marks the page meanwhile, see Lesson.css.
+    const page = document.documentElement;
+    page.classList.add('answer-animating');
+    const transition = document.startViewTransition(async () => {
+      flushSync(answer);
+      await cardPictureReady();
+    });
+    transition.finished.finally(() => page.classList.remove('answer-animating'));
   }
 
   function next() {
@@ -131,7 +149,12 @@ export default function Lesson({
           {/* A figure ties the credit to the artwork, for screen readers too */}
           <figure className="artwork">
             {/* The alt text must not give the answer away */}
-            <img src={card.art} alt="Card artwork" crossOrigin="anonymous" />
+            <img
+              src={card.art}
+              alt="Card artwork"
+              crossOrigin="anonymous"
+              style={{ viewTransitionName: artTransition(card) }}
+            />
             {/* Scryfall asks for this whenever the artwork is shown by itself */}
             <figcaption className="credit">
               Illustrated by {card.artist} · © Wizards of the Coast
@@ -151,6 +174,8 @@ export default function Lesson({
             {/* One side at a time, which a double-faced card can turn over.
                 The full card shows its own artist and copyright. */}
             <CardPicture key={card.oracle_id} card={card} speaker />
+            {/* Where the artwork lands after a right answer: the card's art box */}
+            <div className="art-target" aria-hidden="true" style={artTarget(card)} />
           </div>
           <Feedback
             card={card}
@@ -163,6 +188,52 @@ export default function Lesson({
       )}
     </section>
   );
+}
+
+/**
+ * The view transition the artwork takes part in after a right answer (see
+ * Lesson.css): flying into the card's art box, or, for a card without one,
+ * shrinking towards the card's middle and fading
+ */
+function artTransition(card: Card): string {
+  return card.art_box ? 'card-art' : 'card-art-soft';
+}
+
+/** Where on the card the artwork lands: its art box, or the card's middle */
+function artTarget(card: Card): CSSProperties {
+  const [left, top, width, height] = card.art_box ?? [0.3, 0.3, 0.4, 0.4];
+  return {
+    viewTransitionName: artTransition(card),
+    '--box-left': left,
+    '--box-top': top,
+    '--box-width': width,
+    '--box-height': height,
+  } as CSSProperties;
+}
+
+/**
+ * Whether the screen change after a right answer can be animated: the
+ * browser has view transitions, and the device doesn't ask for less motion
+ */
+function canAnimate(): boolean {
+  return (
+    'startViewTransition' in document &&
+    !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+}
+
+/**
+ * Waits until the full card's picture can be drawn, so the animation
+ * doesn't capture a blank card - but at most 300ms, so a slow download
+ * never holds it up
+ */
+function cardPictureReady(): Promise<unknown> {
+  const picture = document.querySelector<HTMLImageElement>('.picture img');
+  if (picture === null) return Promise.resolve();
+  return Promise.race([
+    picture.decode().catch(() => {}),
+    new Promise((resolve) => setTimeout(resolve, 300)),
+  ]);
 }
 
 const SEGMENT_NAMES = {

@@ -13,6 +13,13 @@ export interface Card {
    * files written before it was added.
    */
   large_images?: string[];
+  /**
+   * Where the artwork sits on the front picture, as shares of its width
+   * and height: [left, top, width, height]. Null for a card without a
+   * single art box (a split card), missing in files written before it
+   * was added.
+   */
+  art_box?: [number, number, number, number] | null;
   /** The front side's artwork alone */
   art: string;
   /** Who painted it - shown wherever the artwork appears by itself */
