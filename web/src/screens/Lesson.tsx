@@ -233,15 +233,14 @@ function Feedback({ card, picked, standingBefore, record, onContinue }: Feedback
       <div role="status">
         {correct ? (
           <p className="verdict">
-            ✓ Correct: {card.name}
+            {/* The card is in full view above, with its name */}
+            ✓ Correct
           </p>
         ) : (
           <>
             <p className="verdict">✗ Not quite</p>
+            {/* The right card is in full view above, with its name */}
             <p>You picked {picked.name}</p>
-            <p>
-              It was {card.name}
-            </p>
           </>
         )}
         {/* How this answer moved the card, e.g. "Fair → Good" */}
