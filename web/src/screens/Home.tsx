@@ -5,7 +5,7 @@ import {
   type Selection,
   selectionLabel,
 } from '../lib/formats';
-import { dueCount, localDay, type Progress, streak } from '../lib/progress';
+import { dueCount, localDay, masteredCount, type Progress, streak } from '../lib/progress';
 import './Home.css';
 
 interface HomeProps {
@@ -106,8 +106,10 @@ function Stats({ cards, progress }: { cards: Card[]; progress: Progress }) {
   const days = streak(progress, today);
   // Only cards in today's list count: one that left the list keeps its
   // saved numbers but is no longer shown
+  const ids = cards.map((card) => card.oracle_id);
   const seen = cards.filter((card) => card.oracle_id in progress.cards).length;
-  const due = dueCount(progress, cards.map((card) => card.oracle_id), today);
+  const mastered = masteredCount(progress, ids);
+  const due = dueCount(progress, ids, today);
 
   return (
     <div className="home-middle">
@@ -117,18 +119,21 @@ function Stats({ cards, progress }: { cards: Card[]; progress: Progress }) {
         <span>day streak</span>
       </div>
       <div className="seen">
+        {/* Mastered cards in full green, the other seen ones in pale green */}
         <div
           className="progress-bar"
           role="progressbar"
           aria-valuemin={0}
           aria-valuemax={cards.length}
-          aria-valuenow={seen}
-          aria-label="Cards seen"
+          aria-valuenow={mastered}
+          aria-valuetext={`${mastered} of ${cards.length} cards mastered, ${seen} seen`}
+          aria-label="Cards mastered"
         >
-          <div style={{ width: `${(seen / cards.length) * 100}%` }} />
+          <div style={{ width: `${(mastered / cards.length) * 100}%` }} />
+          <div className="seen-only" style={{ width: `${((seen - mastered) / cards.length) * 100}%` }} />
         </div>
         <p>
-          {seen} of {cards.length} cards seen
+          {seen} of {cards.length} seen · <strong>{mastered} mastered</strong>
         </p>
         <p className="due">
           {due === 0

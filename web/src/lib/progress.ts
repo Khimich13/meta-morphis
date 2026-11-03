@@ -3,73 +3,69 @@
 // Every function returns a new Progress and leaves the old one as it was.
 
 export interface CardProgress {
-  /** How many times this card was answered right */
+  /** How many times this card was answered right - one answer a day at most */
   right: number;
   wrong: number;
-  /** How well the card is known, from 0 (just missed) to 5 - see BOX_WAIT_DAYS */
+  /**
+   * The card's level, from 0 to TOP_LEVEL: how well it is known. It
+   * decides when the card comes back (see BOX_WAIT_DAYS) and is shown to
+   * the player as pips. Called a box in spaced repetition, after the
+   * boxes of flash cards it imitates.
+   */
   box: number;
   /** The day (YYYY-MM-DD) from which the card should be asked again */
   due: string;
+  /**
+   * The day (YYYY-MM-DD) of the answer that counted last. Missing in
+   * progress saved before the app remembered it.
+   */
+  last?: string;
 }
 
 /**
- * How many days a card waits before it is asked again, by box. A right
- * first answer moves the card up a box, so it waits longer each time;
- * a wrong one drops it to box 0, so it comes back in the next lesson.
+ * How many days a card waits before it is asked again, by level. A right
+ * answer moves the card up a level, so it waits longer each time; a wrong
+ * one drops it WRONG_DROP levels, and it comes back the next day. (It is
+ * also asked again at the end of the same lesson.)
  */
 export const BOX_WAIT_DAYS = [0, 1, 3, 7, 16, 35];
-const TOP_BOX = BOX_WAIT_DAYS.length - 1;
+/** The highest level */
+export const TOP_LEVEL = BOX_WAIT_DAYS.length - 1;
+/** How many levels a wrong answer costs */
+export const WRONG_DROP = 1;
+/** From this level a card is mastered: answered right on at least this many days */
+export const MASTERED_LEVEL = 3;
+
 /**
- * How a card is doing, shown to the player as a label:
- *   new   - never answered
- *   fresh - fewer than JUDGE_FROM answers, too few to judge
- *   poor  - POOR_WRONG_SHARE or more of its answers were wrong
- *   good  - at least GOOD_SHARE of its answers were right
- *   fair  - in between
+ * How a card is doing:
+ *   new      - never answered, marked "New card" when a lesson asks it
+ *   learning - below MASTERED_LEVEL, shown by its pips alone
+ *   mastered - MASTERED_LEVEL or higher, labelled "Mastered"
  */
-export type Standing = 'new' | 'fresh' | 'fair' | 'good' | 'poor';
-
-export const STANDING_LABELS: Record<Standing, string> = {
-  new: 'New',
-  fresh: 'Fresh',
-  fair: 'Fair',
-  good: 'Good',
-  poor: 'Poor',
-};
-
-/** A card is judged once it has this many answers */
-export const JUDGE_FROM = 3;
-/** From this share of wrong answers, a card is poor */
-export const POOR_WRONG_SHARE = 0.4;
-/** From this share of right answers, a card is good */
-export const GOOD_SHARE = 0.8;
+export type Standing = 'new' | 'learning' | 'mastered';
 
 /** A card's standing from its saved record (undefined if never asked) */
 export function cardStanding(record: CardProgress | undefined): Standing {
   if (record === undefined) return 'new';
-  const answers = record.right + record.wrong;
-  if (answers < JUDGE_FROM) return 'fresh';
-  if (record.wrong / answers >= POOR_WRONG_SHARE) return 'poor';
-  return record.right / answers >= GOOD_SHARE ? 'good' : 'fair';
+  return record.box >= MASTERED_LEVEL ? 'mastered' : 'learning';
 }
 
-/** What each standing means, after the numbers behind it */
-const STANDING_MEANINGS: Record<Exclude<Standing, 'new'>, string> = {
-  fresh: 'too early to tell',
-  poor: 'often missed',
-  fair: 'sometimes missed',
-  good: 'rarely missed',
-};
+/**
+ * The level the player sees, from 0 to MASTERED_LEVEL: the steps to
+ * mastered. The levels above it only make a mastered card wait longer
+ * between reviews, so they aren't shown.
+ */
+export function shownLevel(record: CardProgress | undefined): number {
+  return Math.min(record?.box ?? 0, MASTERED_LEVEL);
+}
 
 /**
- * A standing in full, e.g. "5 of 8 answered right, sometimes missed" -
- * shown when a mouse hovers over the label, and read by screen readers
+ * A standing in full, e.g. "Level 2 of 3" - shown when a mouse hovers
+ * over the label, and read by screen readers
  */
 export function standingDetails(record: CardProgress | undefined): string {
-  const standing = cardStanding(record);
-  if (record === undefined || standing === 'new') return 'Never answered';
-  const answers = record.right + record.wrong;
-  return `${record.right} of ${answers} answered right, ${STANDING_MEANINGS[standing]}`;
+  if (record === undefined) return 'Never answered';
+  return `Level ${shownLevel(record)} of ${MASTERED_LEVEL}`;
 }
 
 export interface Progress {
@@ -107,6 +103,11 @@ export function isDue(card: CardProgress, today: string): boolean {
   return card.due <= today;
 }
 
+/** How many of these cards are mastered */
+export function masteredCount(progress: Progress, oracleIds: readonly string[]): number {
+  return oracleIds.filter((id) => cardStanding(progress.cards[id]) === 'mastered').length;
+}
+
 /** How many of these cards have been seen and are due today */
 export function dueCount(progress: Progress, oracleIds: readonly string[], today: string): number {
   return oracleIds.filter((id) => {
@@ -115,7 +116,12 @@ export function dueCount(progress: Progress, oracleIds: readonly string[], today
   }).length;
 }
 
-/** Records the first answer to a card in a lesson, and moves it between boxes */
+/**
+ * Records the first answer to a card in a lesson: a right one moves it up
+ * a level, a wrong one down. Only the first answer of each day counts:
+ * the ones after it are practice, or a few lessons in one evening could
+ * master any card.
+ */
 export function recordAnswer(
   progress: Progress,
   oracleId: string,
@@ -123,16 +129,19 @@ export function recordAnswer(
   today: string,
 ): Progress {
   const before = progress.cards[oracleId] ?? { right: 0, wrong: 0, box: 0, due: today };
+  if (before.last === today) return progress;
   let after: CardProgress;
   if (!correct) {
-    after = { ...before, wrong: before.wrong + 1, box: 0, due: today };
-  } else if (isDue(before, today)) {
-    const box = Math.min(before.box + 1, TOP_BOX);
-    after = { ...before, right: before.right + 1, box, due: addDays(today, BOX_WAIT_DAYS[box]) };
+    const box = Math.max(before.box - WRONG_DROP, 0);
+    // Due tomorrow, not today: another lesson today couldn't count it
+    const due = addDays(today, 1);
+    after = { ...before, wrong: before.wrong + 1, box, due, last: today };
   } else {
-    // Practised before its time: right, but not promoted, or a few
-    // lessons in one evening would push every card to the top box
-    after = { ...before, right: before.right + 1 };
+    // Up a level even when asked before its waiting time was over (a
+    // lesson with room to spare): it still counts once a day at most
+    const box = Math.min(before.box + 1, TOP_LEVEL);
+    const due = addDays(today, BOX_WAIT_DAYS[box]);
+    after = { ...before, right: before.right + 1, box, due, last: today };
   }
   return { ...progress, cards: { ...progress.cards, [oracleId]: after } };
 }

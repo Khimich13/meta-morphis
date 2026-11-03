@@ -92,16 +92,15 @@
   align-self: flex-start;
 }
 
-/* After answering: how the answer moved the card, e.g. "Fair → Good" */
-.standing-change {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 2px;
-}
-
 .question {
   font-size: 1.2rem;
+}
+
+/* An answer that didn't count: a quiet line under the label */
+.practice-note {
+  margin: 0;
+  font-size: 0.8rem;
+  opacity: 0.7;
 }
 
 /* The artwork and its credit, kept together at the top of the space
@@ -169,28 +168,97 @@
   width: 100%;
 }
 
-/* The result bar after answering. The symbol and the words say right or
-   wrong; the color only adds to them. */
+/* The result after answering: a box tinted green or red, with the
+   verdict, the card's pips, big, a line of words and Continue. The words
+   and pips say right or wrong; the color only adds to them. Contrast
+   checked on 2026-11-03: the verdict at least 5:1 on its tint in both
+   modes, white on the red Continue 5:1. */
 .feedback {
+  --tone: #2e9e5b;
+  --tone-text: #1d6b3d;
+  --tint: 12%;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  border: 2px solid;
-}
-
-.feedback.correct {
-  border-color: #2e9e5b;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px 20px;
+  border-radius: 16px;
+  border: 1.5px solid color-mix(in srgb, var(--tone) 35%, var(--page));
+  background: color-mix(in srgb, var(--tone) var(--tint), var(--page));
+  text-align: center;
 }
 
 .feedback.wrong {
-  border-color: #d64545;
+  --tone: #d64545;
+  --tone-text: #a82e2e;
+}
+
+@media (prefers-color-scheme: dark) {
+  .feedback {
+    --tone-text: #6fd49a;
+    --tint: 18%;
+  }
+
+  .feedback.wrong {
+    --tone-text: #f49a9a;
+  }
+}
+
+.feedback-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+/* The pips as the main thing: big, without the pill around them */
+.feedback .label.standing {
+  --shake: 8px;
+  gap: 12px;
+  padding: 0;
+  background: none;
+  color: CanvasText;
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+/* The words below say "Mastered", so the pips stay centered alone */
+.feedback .label.standing .name {
+  display: none;
+}
+
+.feedback .pips {
+  gap: 14px;
+  height: auto;
+}
+
+.feedback .pips > span {
+  width: 22px;
+  height: 22px;
+  border-width: 2px;
 }
 
 .verdict {
-  font-size: 1.2rem;
+  margin: 0;
+  color: var(--tone-text);
+  font-size: 1.25rem;
   font-weight: bold;
+}
+
+.feedback-line {
+  margin: 0;
+}
+
+/* A normal button, not a bar across the whole box - red after a wrong
+   answer, to match */
+.lesson .feedback .primary {
+  width: auto;
+  min-width: 200px;
+}
+
+.lesson .feedback.wrong .primary {
+  background: #c63d3d;
+  border-color: #c63d3d;
 }
 
 .lesson .primary {

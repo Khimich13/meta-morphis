@@ -2,15 +2,16 @@ import { type CSSProperties, useState } from 'react';
 import { flushSync } from 'react-dom';
 
 import CardPicture from '../components/CardPicture';
-import StandingLabel from '../components/StandingLabel';
+import StandingLabel, { type PipChange } from '../components/StandingLabel';
 import type { Card } from '../lib/cards';
 import {
   type CardProgress,
   cardStanding,
   localDay,
+  MASTERED_LEVEL,
   type Progress,
+  shownLevel,
   type Standing,
-  STANDING_LABELS,
 } from '../lib/progress';
 import {
   afterAnswer,
@@ -50,19 +51,17 @@ export default function Lesson({
   const [lesson, setLesson] = useState(() => startLesson(cards, progress, localDay()));
   // The answer chosen for the question on screen, or null while choosing
   const [picked, setPicked] = useState<Card | null>(null);
-  // The card's standing before this answer was counted, to show how the
-  // answer changed it; null for a repeat, which isn't counted
-  const [standingBefore, setStandingBefore] = useState<Standing | null>(null);
+  // The card's record before this answer, to show how the answer changed it
+  const [before, setBefore] = useState<Before | null>(null);
 
   function pick(option: Card) {
     const question = lesson.queue[0];
     const answer = () => {
       setPicked(option);
-      setStandingBefore(
-        isFirstTry(lesson, question.card)
-          ? cardStanding(progress.cards[question.card.oracle_id])
-          : null,
-      );
+      const record = progress.cards[question.card.oracle_id];
+      // A repeat in the lesson never counts: the card was answered today
+      const counted = isFirstTry(lesson, question.card) && record?.last !== localDay();
+      setBefore({ record, counted });
       // Saved progress counts the first answer to each card only: a right
       // answer on a repeat comes straight after seeing the answer
       if (isFirstTry(lesson, question.card)) {
@@ -198,7 +197,7 @@ export default function Lesson({
           <Feedback
             card={card}
             picked={picked}
-            standingBefore={standingBefore}
+            before={before}
             record={record}
             onContinue={next}
           />
@@ -318,58 +317,70 @@ function LessonProgress({ bar, done }: { bar: Segment[]; done: number }) {
   );
 }
 
-/**
- * A label above the artwork: a repeat, a card never seen before, or one
- * often missed - the same red "Poor" as in the card list, as a warning
- */
+/** A label above the artwork: a repeat, or a card never seen before */
 function QuestionLabel({ repeat, standing }: { repeat: boolean; standing: Standing }) {
   if (repeat) return <p className="label again">Try again</p>;
   if (standing === 'new') return <p className="label new">New card</p>;
-  if (standing === 'poor') return <p className="label standing poor">Poor</p>;
   return null;
+}
+
+/** A card's record before an answer */
+interface Before {
+  /** undefined for a card never seen before */
+  record: CardProgress | undefined;
+  /**
+   * False when the card was already answered today, in this lesson or
+   * another: only the first answer of a day counts (see recordAnswer)
+   */
+  counted: boolean;
+}
+
+/** How a counted answer changed the pips, to animate them */
+function pipChange(before: Before, after: CardProgress | undefined, correct: boolean) {
+  if (!before.counted) return null;
+  const from = shownLevel(before.record);
+  const to = shownLevel(after);
+  if (to > from) return 'up';
+  if (to < from) return 'down';
+  // Wrong with no pip to take away: at ○○○, or mastered above level 3
+  return correct ? null : 'miss';
 }
 
 interface FeedbackProps {
   card: Card;
   picked: Card;
-  /** The card's standing before this answer; null for a repeat */
-  standingBefore: Standing | null;
+  /** The card's record before this answer */
+  before: Before | null;
   /** The card's saved record, with this answer counted */
   record: CardProgress | undefined;
   onContinue: () => void;
 }
 
-function Feedback({ card, picked, standingBefore, record, onContinue }: FeedbackProps) {
-  const standingNow = cardStanding(record);
+function Feedback({ card, picked, before, record, onContinue }: FeedbackProps) {
   const correct = picked.oracle_id === card.oracle_id;
+  const change: PipChange | null = before === null ? null : pipChange(before, record, correct);
+  // This answer made the card mastered: the moment to celebrate
+  const justMastered = change === 'up' && cardStanding(record) === 'mastered';
+  const toGo = MASTERED_LEVEL - shownLevel(record);
   return (
     <div className={correct ? 'feedback correct' : 'feedback wrong'}>
       {/* role="status" makes screen readers announce the result */}
-      <div role="status">
-        {correct ? (
-          <p className="verdict">
-            {/* The card is in full view above, with its name */}
-            ✓ Correct
+      <div role="status" className="feedback-body">
+        <p className="verdict">{correct ? 'Correct' : 'Not quite'}</p>
+        {/* The card's pips, big, animating how this answer changed them */}
+        <StandingLabel record={record} change={change} />
+        {/* The card is in full view above, with its name, so the words
+            only say what the pips can't */}
+        {correct && justMastered && <p className="feedback-line">⭐ Mastered!</p>}
+        {correct && change === 'up' && toGo > 0 && (
+          <p className="feedback-line">
+            {toGo} more {toGo === 1 ? 'day' : 'days'} to Mastered
           </p>
-        ) : (
-          <>
-            <p className="verdict">✗ Not quite</p>
-            {/* The right card is in full view above, with its name */}
-            <p>You picked {picked.name}</p>
-          </>
         )}
-        {/* How this answer moved the card, e.g. "Fair → Good" */}
-        <p className="standing-change">
-          {standingBefore !== null && standingBefore !== standingNow && (
-            <>
-              <span className={`label standing ${standingBefore}`}>
-                {STANDING_LABELS[standingBefore]}
-              </span>
-              <span aria-hidden="true"> → </span>
-            </>
-          )}
-          <StandingLabel record={record} />
-        </p>
+        {!correct && <p className="feedback-line">You picked {picked.name}</p>}
+        {before !== null && !before.counted && (
+          <p className="practice-note">Counts once a day: back tomorrow</p>
+        )}
       </div>
       <button className="primary" onClick={onContinue} autoFocus>
         Continue

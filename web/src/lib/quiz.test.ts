@@ -74,6 +74,7 @@ test('the correct option is not always in the same place', () => {
 });
 
 const TODAY = '2026-10-15';
+const YESTERDAY = '2026-10-14';
 
 function start(seed: number, progress: Progress = EMPTY_PROGRESS): LessonState {
   return startLesson(CARDS, progress, TODAY, seeded(seed));
@@ -106,15 +107,15 @@ test('first lessons differ from each other', () => {
 });
 
 test('cards due for review come first, then up to three new ones', () => {
-  // Twelve cards missed today, so all due now
+  // Twelve cards missed yesterday, so all due today
   const missed = CARDS.slice(0, 12);
-  const chosen = chooseLessonCards(CARDS, answered(TODAY, false, ...missed), TODAY, seeded(1));
+  const chosen = chooseLessonCards(CARDS, answered(YESTERDAY, false, ...missed), TODAY, seeded(1));
   // More due cards than room: no new cards at all
   expect(chosen.every((card) => missed.includes(card))).toBe(true);
 
   // Only five due: those five, three new, and two answered right but
   // not due yet - the soonest first
-  const fiveDue = answered(TODAY, false, ...CARDS.slice(0, 5));
+  const fiveDue = answered(YESTERDAY, false, ...CARDS.slice(0, 5));
   let progress = fiveDue;
   for (const [i, card] of CARDS.slice(5, 9).entries()) {
     // Due in 1, 1, 3 and 3 days

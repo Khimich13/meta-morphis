@@ -121,28 +121,21 @@ body {
   container-type: inline-size;
 }
 
-/* Cards pinched small: the word and dot only, without "· 3/6" */
+/* Cards pinched small: only the pips, without "Mastered". Its full
+   meaning is still there for screen readers and as a tooltip. */
 @container (max-width: 100px) {
-  .label.standing .numbers {
-    display: none;
-  }
-}
-
-/* Cards pinched very small: only the dot. Its full meaning is still
-   there for screen readers and as a tooltip. */
-@container (max-width: 64px) {
   .label.standing .name {
     display: none;
   }
 
   .label.standing {
-    padding: 4px;
+    padding: 4px 6px;
   }
 }
 
 /* A small rounded tag: "New card" and "Try again" in a lesson, and a
-   card's standing (New, Fresh, Fair, Good, Poor). Its word carries the
-   meaning; the color only adds to it. */
+   card's level as pips. Its word or pips carry the meaning; the color
+   only adds to it. */
 .label {
   display: inline-block;
   padding: 1px 8px;
@@ -160,75 +153,148 @@ body {
   color: #d64545;
 }
 
-/* A card's standing (see cardStanding in lib/progress.ts): a soft gray
-   pill with a colored dot and the text in normal ink. The word always
-   carries the meaning - red and green dots look alike to many color-blind
-   readers - so the text stays readable and the dot only adds to it.
+/* A card's level (see StandingLabel.tsx): a soft gray pill with colored
+   pips, and "Mastered" in normal ink once all are filled. Filled and
+   empty pips differ in shape, so the color only adds to them.
    Contrast checked on 2026-10-27, on the gray page: text at least 6.7:1
-   in both modes, each dot at least 3.2:1 against the pill. */
+   in both modes, each color at least 3.2:1 against the pill. */
 .label.standing {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 2px 8px 2px 6px;
+  padding: 2px 8px;
   border: none;
   background: color-mix(in srgb, CanvasText 8%, var(--page));
   color: color-mix(in srgb, CanvasText 70%, var(--page));
   font-size: 0.72rem;
   font-weight: 600;
-  /* "3/6" and "12/15" take the same width per digit */
-  font-variant-numeric: tabular-nums;
 }
 
-.label.standing::before {
-  content: '';
+.pips {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  /* A line of text tall, so a pill of pips alone is as tall as one with
+     "Mastered" */
+  height: 1.4em;
+}
+
+/* An empty pip: a ring, so it reads as "not yet" without color too */
+.pips > span {
+  box-sizing: border-box;
   width: 7px;
   height: 7px;
   border-radius: 50%;
+  border: 1px solid color-mix(in srgb, CanvasText 35%, var(--page));
+}
+
+.pips > .on {
+  border: none;
   background: var(--dot);
 }
 
-/* Light mode: darker yellow and green, so the dots stand out on the pale
-   pill */
-.label.standing.new {
-  --dot: #2a78d6;
-}
-
-.label.standing.fresh {
-  --dot: #77756f;
-}
-
-.label.standing.poor {
-  --dot: #d03b3b;
-}
-
-.label.standing.fair {
-  --dot: #a06800;
-}
-
-.label.standing.good {
+/* Filled pips are green, the app's color for right answers - darker in
+   light mode, so they stand out on the pale pill */
+.label.standing {
   --dot: #008300;
+  --miss: #d64545;
 }
 
 @media (prefers-color-scheme: dark) {
-  .label.standing.new {
-    --dot: #3987e5;
-  }
-
-  .label.standing.fresh {
-    --dot: #898781;
-  }
-
-  .label.standing.poor {
-    --dot: #e35d5d;
-  }
-
-  .label.standing.fair {
-    --dot: #fab219;
-  }
-
-  .label.standing.good {
+  .label.standing {
     --dot: #0ca30c;
+  }
+}
+
+/* After an answer in a lesson, once the card has landed (0.45s, see
+   Lesson.css): a pip painted green with a pop, the last one flashing red
+   and emptying, or - with nothing to take away - all of them flashing red
+   and shaking. Before it starts, each shows how it was. */
+@media (prefers-reduced-motion: no-preference) {
+  .pips > .painted {
+    animation: pip-paint 0.45s 0.5s ease-out both;
+  }
+
+  .pips > .unpainted {
+    animation: pip-unpaint 0.6s 0.5s ease-in both;
+  }
+
+  .pips.missed {
+    animation: pips-shake 0.42s 0.5s ease-out;
+  }
+
+  .pips.missed > span {
+    animation: pip-flash 0.6s 0.5s ease-in both;
+  }
+
+  .label.standing .name.appear {
+    overflow: hidden;
+    white-space: nowrap;
+    animation: name-appear 0.35s 0.8s ease-out both;
+  }
+}
+
+@keyframes pip-paint {
+  from {
+    background: transparent;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, CanvasText 35%, var(--page));
+  }
+  50% {
+    transform: scale(1.7);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes pip-unpaint {
+  from {
+    background: var(--dot);
+    border-color: var(--dot);
+  }
+  40% {
+    background: var(--miss);
+    border-color: var(--miss);
+    transform: scale(1.6);
+  }
+  to {
+    background: transparent;
+    transform: scale(1);
+  }
+}
+
+@keyframes pip-flash {
+  30% {
+    border-color: var(--miss);
+    background: color-mix(in srgb, var(--miss) 40%, transparent);
+  }
+}
+
+/* --shake: how far, set bigger for the big pips after an answer */
+@keyframes pips-shake {
+  20% {
+    transform: translateX(calc(var(--shake, 3px) * -1));
+  }
+  40% {
+    transform: translateX(var(--shake, 3px));
+  }
+  60% {
+    transform: translateX(calc(var(--shake, 3px) * -0.6));
+  }
+  80% {
+    transform: translateX(calc(var(--shake, 3px) * 0.3));
+  }
+}
+
+/* The word grows in from nothing, so the pill widens to make room */
+@keyframes name-appear {
+  from {
+    max-width: 0;
+    margin-right: -5px;
+    opacity: 0;
+  }
+  to {
+    max-width: 6em;
   }
 }
 
@@ -259,6 +325,7 @@ button {
 
 /* A thin bar that fills up; the inner div's width is set in the code */
 .progress-bar {
+  display: flex;
   height: 10px;
   border-radius: 5px;
   background: color-mix(in srgb, currentColor 15%, transparent);
@@ -269,4 +336,9 @@ button {
   height: 100%;
   background: #2e9e5b;
   transition: width 0.3s;
+}
+
+/* Seen but not mastered yet: a paler part after the mastered one */
+.progress-bar > .seen-only {
+  background: color-mix(in srgb, #2e9e5b 40%, transparent);
 }

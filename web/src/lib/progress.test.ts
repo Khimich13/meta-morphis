@@ -8,6 +8,8 @@ import {
   dueCount,
   EMPTY_PROGRESS,
   localDay,
+  MASTERED_LEVEL,
+  masteredCount,
   parseProgress,
   previousDay,
   type Progress,
@@ -43,10 +45,12 @@ test('addDays counts forward and back across month ends', () => {
   expect(addDays('2026-10-01', -1)).toBe('2026-09-30');
 });
 
+const TOMORROW = '2026-10-16';
+
 test('recordAnswer counts right and wrong answers per card', () => {
   let progress = EMPTY_PROGRESS;
   progress = recordAnswer(progress, 'hydroblast', true, TODAY);
-  progress = recordAnswer(progress, 'hydroblast', false, TODAY);
+  progress = recordAnswer(progress, 'hydroblast', false, TOMORROW);
   progress = recordAnswer(progress, 'pyroblast', false, TODAY);
 
   expect(progress.cards.hydroblast).toMatchObject({ right: 1, wrong: 1 });
@@ -56,8 +60,27 @@ test('recordAnswer counts right and wrong answers per card', () => {
 test('a new card answered right goes to box 1, due tomorrow', () => {
   const progress = recordAnswer(EMPTY_PROGRESS, 'hydroblast', true, TODAY);
   expect(progress.cards.hydroblast).toEqual({
-    right: 1, wrong: 0, box: 1, due: '2026-10-16',
+    right: 1, wrong: 0, box: 1, due: TOMORROW, last: TODAY,
   });
+});
+
+test('only the first answer of a day counts', () => {
+  const first = recordAnswer(EMPTY_PROGRESS, 'hydroblast', false, TODAY);
+  // Answering it again the same day changes nothing
+  expect(recordAnswer(first, 'hydroblast', true, TODAY)).toBe(first);
+  expect(recordAnswer(first, 'hydroblast', false, TODAY)).toBe(first);
+  // The next day counts again
+  const next = recordAnswer(first, 'hydroblast', true, TOMORROW);
+  expect(next.cards.hydroblast).toMatchObject({ right: 1, wrong: 1, box: 1 });
+});
+
+test('progress saved before days were remembered counts the next answer', () => {
+  const saved: Progress = {
+    ...EMPTY_PROGRESS,
+    cards: { hydroblast: { right: 1, wrong: 0, box: 1, due: TODAY } },
+  };
+  const after = recordAnswer(saved, 'hydroblast', true, TODAY);
+  expect(after.cards.hydroblast).toMatchObject({ box: 2, last: TODAY });
 });
 
 test('each right answer on the due day moves a card up a box and waits longer', () => {
@@ -74,35 +97,61 @@ test('each right answer on the due day moves a card up a box and waits longer', 
   expect(progress.cards.hydroblast.box).toBe(5);
 });
 
-test('a wrong answer drops a card to box 0, due today', () => {
-  let progress = EMPTY_PROGRESS;
-  progress = recordAnswer(progress, 'hydroblast', true, '2026-10-01');
-  progress = recordAnswer(progress, 'hydroblast', true, '2026-10-02');
-  progress = recordAnswer(progress, 'hydroblast', false, TODAY);
-  expect(progress.cards.hydroblast).toMatchObject({ box: 0, due: TODAY });
+test('a wrong answer drops a card one level, due tomorrow', () => {
+  const progress: Progress = {
+    ...EMPTY_PROGRESS,
+    cards: { hydroblast: { right: 4, wrong: 0, box: 4, due: TODAY } },
+  };
+  const after = recordAnswer(progress, 'hydroblast', false, TODAY);
+  expect(after.cards.hydroblast).toMatchObject({ box: 3, due: TOMORROW });
 });
 
-test('a right answer before the due day does not move the card up', () => {
-  let progress = recordAnswer(EMPTY_PROGRESS, 'hydroblast', true, TODAY);
-  // Due tomorrow, practised again today
-  progress = recordAnswer(progress, 'hydroblast', true, TODAY);
-  expect(progress.cards.hydroblast).toEqual({
-    right: 2, wrong: 0, box: 1, due: '2026-10-16',
+test('a wrong answer never drops a card below level 0', () => {
+  let progress = recordAnswer(EMPTY_PROGRESS, 'hydroblast', false, TODAY);
+  progress = recordAnswer(progress, 'hydroblast', false, TOMORROW);
+  expect(progress.cards.hydroblast).toMatchObject({ box: 0, due: '2026-10-17' });
+});
+
+test('a right answer before the due day still moves the card up', () => {
+  const progress: Progress = {
+    ...EMPTY_PROGRESS,
+    cards: { hydroblast: { right: 2, wrong: 0, box: 2, due: '2026-10-18', last: '2026-10-14' } },
+  };
+  // Due in three days, asked again today
+  const after = recordAnswer(progress, 'hydroblast', true, TODAY);
+  expect(after.cards.hydroblast).toEqual({
+    right: 3, wrong: 0, box: 3, due: addDays(TODAY, BOX_WAIT_DAYS[3]), last: TODAY,
   });
 });
 
 test('a wrong answer before the due day still drops the card', () => {
   let progress = recordAnswer(EMPTY_PROGRESS, 'hydroblast', true, TODAY);
-  progress = recordAnswer(progress, 'hydroblast', false, TODAY);
-  expect(progress.cards.hydroblast).toMatchObject({ box: 0, due: TODAY });
+  progress = recordAnswer(progress, 'hydroblast', true, TOMORROW);
+  // Level 2, due in three days, missed the day after
+  progress = recordAnswer(progress, 'hydroblast', false, '2026-10-17');
+  expect(progress.cards.hydroblast).toMatchObject({ box: 1, due: '2026-10-18' });
 });
 
 test('dueCount counts seen cards whose day has come', () => {
-  let progress = recordAnswer(EMPTY_PROGRESS, 'due-today', false, TODAY);
+  // Missed yesterday, so due today
+  let progress = recordAnswer(EMPTY_PROGRESS, 'due-today', false, previousDay(TODAY));
   progress = recordAnswer(progress, 'due-tomorrow', true, TODAY);
   const ids = ['due-today', 'due-tomorrow', 'never-seen'];
   expect(dueCount(progress, ids, TODAY)).toBe(1);
   expect(dueCount(progress, ids, '2026-10-16')).toBe(2);
+});
+
+test('masteredCount counts the given cards that are mastered', () => {
+  const progress = {
+    ...EMPTY_PROGRESS,
+    cards: {
+      mastered: record(3),
+      learning: record(2),
+      'mastered-elsewhere': record(5),
+    },
+  };
+  const ids = ['mastered', 'learning', 'never-seen'];
+  expect(masteredCount(progress, ids)).toBe(1);
 });
 
 test('recording does not change the progress it was given', () => {
@@ -111,7 +160,7 @@ test('recording does not change the progress it was given', () => {
   recordLesson(before, '2026-10-13');
 
   expect(before.cards).toEqual({
-    hydroblast: { right: 1, wrong: 0, box: 1, due: '2026-10-16' },
+    hydroblast: { right: 1, wrong: 0, box: 1, due: TOMORROW, last: TODAY },
   });
   expect(before.lessonDays).toEqual([]);
   expect(EMPTY_PROGRESS).toEqual({ version: 2, cards: {}, lessonDays: [] });
@@ -194,34 +243,23 @@ test('parseProgress gives empty progress for missing or damaged text', () => {
   expect(parseProgress('{"version": 1, "cards": null}', TODAY)).toEqual(EMPTY_PROGRESS);
 });
 
-function record(right: number, wrong: number, box: number): CardProgress {
-  return { right, wrong, box, due: TODAY };
+function record(box: number): CardProgress {
+  return { right: box, wrong: 0, box, due: TODAY };
 }
 
-test('cardStanding: new, then fresh until there are enough answers to judge', () => {
+test('cardStanding: new, then learning, then mastered from level 3', () => {
   expect(cardStanding(undefined)).toBe('new');
-  expect(cardStanding(record(0, 1, 0))).toBe('fresh');
-  expect(cardStanding(record(2, 0, 2))).toBe('fresh');
+  expect(cardStanding(record(0))).toBe('learning');
+  expect(cardStanding(record(MASTERED_LEVEL - 1))).toBe('learning');
+  expect(cardStanding(record(MASTERED_LEVEL))).toBe('mastered');
+  expect(cardStanding(record(5))).toBe('mastered');
 });
 
-test('cardStanding: good from 80% right, poor from 40% wrong, fair between', () => {
-  expect(cardStanding(record(4, 1, 2))).toBe('good'); // 80%
-  expect(cardStanding(record(9, 1, 3))).toBe('good'); // 90%
-  expect(cardStanding(record(3, 1, 1))).toBe('fair'); // 75%
-  expect(cardStanding(record(5, 3, 1))).toBe('fair'); // 62.5%
-  expect(cardStanding(record(3, 2, 1))).toBe('poor'); // 60%: 40% wrong
-  expect(cardStanding(record(1, 4, 0))).toBe('poor'); // 20%
-});
-
-test('cardStanding ignores the review box', () => {
-  // A card in a high box with a poor history is still poor
-  expect(cardStanding(record(5, 5, 5))).toBe('poor');
-});
-
-test('standingDetails gives the numbers and what they mean', () => {
+test('standingDetails gives the level', () => {
   expect(standingDetails(undefined)).toBe('Never answered');
-  expect(standingDetails(record(1, 1, 0))).toBe('1 of 2 answered right, too early to tell');
-  expect(standingDetails(record(3, 3, 1))).toBe('3 of 6 answered right, often missed');
-  expect(standingDetails(record(5, 3, 1))).toBe('5 of 8 answered right, sometimes missed');
-  expect(standingDetails(record(4, 1, 2))).toBe('4 of 5 answered right, rarely missed');
+  expect(standingDetails(record(0))).toBe('Level 0 of 3');
+  expect(standingDetails(record(2))).toBe('Level 2 of 3');
+  // Levels above mastered only space out reviews, and aren't shown
+  expect(standingDetails(record(3))).toBe('Level 3 of 3');
+  expect(standingDetails(record(5))).toBe('Level 3 of 3');
 });

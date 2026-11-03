@@ -15,10 +15,13 @@ like an app, and works offline once a list has been opened.
 ## Features
 
 - Lessons of ten cards, with missed cards repeated until answered right
-- Spaced repetition: each card has a box that decides when it comes back
-- A daily streak, cards seen and cards due for review on the start screen
-- A card list per format and list, with a label for how each card is going:
-  New, Fresh, Poor, Fair or Good, and its right answers out of all
+- Spaced repetition: each card has a level from 0 to 5 that decides when it
+  comes back. A right answer moves it up a level and a wrong one down, and
+  only the first answer of each day counts.
+- A daily streak, cards seen and mastered, and cards due for review on the
+  start screen
+- A card list per format and list, with three pips above each card for
+  the steps to Mastered (level 3 and up)
 - Full-size card view, swiping between cards, and flipping double-faced cards
 - Card names read aloud
 - Installable and usable offline
