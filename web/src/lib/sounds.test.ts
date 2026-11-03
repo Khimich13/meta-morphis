@@ -26,6 +26,6 @@ test('a wrong answer is one pluck, lower than the right ones', () => {
 test('every sound is short and not too loud', () => {
   for (const note of [...answerNotes(true), ...answerNotes(false)]) {
     expect(note.start + note.duration).toBeLessThanOrEqual(0.45);
-    expect(note.volume).toBeLessThanOrEqual(0.3);
+    expect(note.volume).toBeLessThanOrEqual(0.6);
   }
 });

@@ -26,7 +26,8 @@ function pluck(pitch: number, start: number, duration: number, volume: number): 
 
 /**
  * The notes after an answer, like a marimba: three soft plucks rising (G4,
- * C5, E5) for a right one, one low muted pluck (G3) for a wrong one
+ * C5, E5) for a right one, one low muted pluck (G3) for a wrong one. The
+ * low pluck is louder, since phone speakers play low notes more weakly.
  */
 export function answerNotes(correct: boolean): Note[] {
   return correct
@@ -35,7 +36,7 @@ export function answerNotes(correct: boolean): Note[] {
         ...pluck(523, 0.08, 0.16, 0.16),
         ...pluck(659, 0.16, 0.26, 0.16),
       ]
-    : pluck(196, 0, 0.2, 0.3);
+    : pluck(196, 0, 0.2, 0.6);
 }
 
 // One for the whole app, made on the first sound: browsers only allow
