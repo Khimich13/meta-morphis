@@ -34,8 +34,10 @@ body {
 .card-list {
   max-width: 1100px;
   margin: 0 auto;
-  padding: calc(16px + env(safe-area-inset-top)) 16px
-    calc(16px + env(safe-area-inset-bottom));
+  /* The insets keep cards out from under a sideways phone's camera
+     cutout and rounded corners */
+  padding: calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
+    calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
 }
 
 .card-list-bar {

@@ -38,6 +38,10 @@ class ExportCard(TypedDict):
     # for the artist to be named wherever the artwork is shown by itself.
     art: str
     artist: str
+    # For each picture in `images`: whether that side is printed sideways,
+    # to be read with the card turned a quarter clockwise. The app turns
+    # it the right way up when there is room, in landscape.
+    horizontal: list[bool]
 
 
 class FormatsFile(TypedDict):
@@ -112,6 +116,18 @@ def art_box(card: Card) -> list[float] | None:
         box = found
     return list(box)
 
+def horizontal_sides(card: Card) -> list[bool]:
+    """Which sides are printed sideways: both halves of a split card
+    (Fire // Ice, the Rooms), and a battle's front. An aftermath card is
+    split too, but only its second half is turned, the other way - left
+    as it is."""
+    sides = len(card.image_sides())
+    if card.layout == "split" and "Aftermath" not in card.keywords:
+        return [True] * sides
+    if card.layout == "battle":
+        return [side == 0 for side in range(sides)]
+    return [False] * sides
+
 def build_card(card: Card) -> ExportCard | None:
     # Without an id the app can't tell cards apart, and without its
     # pictures and artist it can't show or ask about the card - leave
@@ -138,6 +154,7 @@ def build_card(card: Card) -> ExportCard | None:
         "art_box": art_box(card),
         "art": art,
         "artist": front.artist,
+        "horizontal": horizontal_sides(card),
     }
 
 def build_export(format_name: str, cards: list[Card], list_updated: str) -> ExportFile:

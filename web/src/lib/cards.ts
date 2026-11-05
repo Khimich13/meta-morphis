@@ -24,6 +24,12 @@ export interface Card {
   art: string;
   /** Who painted it - shown wherever the artwork appears by itself */
   artist: string;
+  /**
+   * For each picture in `images`: whether that side is printed sideways
+   * (a split card, a battle's front), to be read turned a quarter
+   * clockwise. Missing in files written before it was added.
+   */
+  horizontal?: boolean[];
 }
 
 export interface CardFile {
@@ -63,6 +69,11 @@ export function listAgeDays(listUpdated: string | undefined, now: Date = new Dat
 /** A format's name for showing on screen: "pauper" → "Pauper" */
 export function formatLabel(format: string): string {
   return format.charAt(0).toUpperCase() + format.slice(1);
+}
+
+/** True when the side being looked at is printed sideways */
+export function isHorizontal(card: Card, showingBack: boolean): boolean {
+  return card.horizontal?.[showingBack ? 1 : 0] ?? false;
 }
 
 /**

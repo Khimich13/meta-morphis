@@ -18,14 +18,15 @@
 
       /* A phone turned sideways: a touch screen in landscape with little
          height. Tablets and computer windows are taller, so they are left
-         alone. Installed apps on Android never get here - the manifest keeps
-         them upright. */
+         alone. The card list and the large view are the exceptions
+         (landscape-ok, see lib/landscape.ts): there a wide screen shows more
+         cards, or a card printed sideways the right way up. */
       @media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
-        #app {
+        html:not(.landscape-ok) #app {
           display: none;
         }
 
-        #rotate-notice {
+        html:not(.landscape-ok) #rotate-notice {
           box-sizing: border-box;
           height: 100dvh;
           display: flex;

@@ -46,7 +46,9 @@ what has been done is in the commit history.
   Buttons may sit over the artwork, but never over the artist name or the
   copyright at the bottom of a card. When the artwork is shown on its own,
   credit the artist next to it. These are
-  [Scryfall's rules](https://scryfall.com/docs/api).
+  [Scryfall's rules](https://scryfall.com/docs/api). Turning a card printed
+  sideways the right way up is fine: the picture itself stays as it is, and
+  Scryfall's own site has a button for it.
 - **Stay within Scryfall's rate limit** of 2 requests per second, and wait 30
   seconds after being told to slow down. The backend does both.
 - **Don't share the app publicly yet.** MTGGoldfish's terms allow personal use

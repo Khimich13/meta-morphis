@@ -15,6 +15,7 @@ import LargeView from '../components/LargeView';
 import StandingLabel from '../components/StandingLabel';
 import { type Card, formatLabel } from '../lib/cards';
 import { LIST_LABELS, type Selection } from '../lib/formats';
+import { isLandscape, useLandscape, useLandscapeAllowed } from '../lib/landscape';
 import { useLargeView } from '../lib/largeView';
 import { usePinchColumns } from '../lib/pinch';
 import type { Progress } from '../lib/progress';
@@ -63,12 +64,24 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
   const [index, setIndex] = useState(0);
   const row = useRef<HTMLDivElement>(null);
 
-  // Cards per row, chosen by pinching; null: as many as fit
-  const [columns, setColumns] = useState(loadColumns);
+  // The list can turn sideways with the phone, keeping the card at the
+  // top of the screen in view
+  useLandscapeAllowed();
+  const landscape = useLandscape();
   const grid = useRef<HTMLUListElement>(null);
-  const chooseColumns = useCallback((chosen: number) => {
-    setColumns(chosen);
-    saveColumns(chosen);
+  useKeepPlaceOnResize(grid);
+
+  // Cards per row, chosen by pinching, for upright and for sideways; null:
+  // as many as fit
+  const [chosen, setChosen] = useState(() => ({
+    upright: loadColumns(false),
+    sideways: loadColumns(true),
+  }));
+  const columns = landscape ? chosen.sideways : chosen.upright;
+  const chooseColumns = useCallback((count: number) => {
+    const sideways = isLandscape();
+    setChosen((before) => (sideways ? { ...before, sideways: count } : { ...before, upright: count }));
+    saveColumns(count, sideways);
   }, []);
   usePinchColumns(grid, columns, chooseColumns, open);
 
@@ -76,6 +89,16 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
     setIndex(position);
     large.open();
   }
+
+  // Closing the large view: the list shows the card last looked at
+  // there, which may be far from the one opened
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (wasOpen.current && !large.isOpen && grid.current !== null) {
+      showInList(grid.current, index);
+    }
+    wasOpen.current = large.isOpen;
+  }, [large.isOpen, index]);
 
   // The arrow keys and the buttons for a mouse: scroll to the neighbor
   function move(direction: Direction) {
@@ -159,6 +182,63 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
   );
 }
 
+/** How long after a change of size the browser may still be laying the page out, in ms */
+const RESIZE_LAYOUT_TIME = 500;
+
+/**
+ * Keeps the card at the top of the screen in view when the phone turns,
+ * or the window changes size. The list's new width rearranges the rows,
+ * and the same scroll position would show other cards. While the browser
+ * lays the page out, in steps, the card is brought back after each step.
+ */
+function useKeepPlaceOnResize(grid: RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    let resizedAt = -Infinity;
+    // The card at the top of the screen; null at the top of the page
+    let top: Element | null = null;
+
+    const remember = () => {
+      // Not while a new size is being laid out: those scrolls aren't the player's
+      if (grid.current === null || performance.now() - resizedAt < RESIZE_LAYOUT_TIME) return;
+      top =
+        window.scrollY < 1
+          ? null
+          : ([...grid.current.children].find((card) => card.getBoundingClientRect().bottom > 0) ??
+            null);
+    };
+    let measuring = false;
+    const onScroll = () => {
+      if (measuring) return;
+      measuring = true;
+      requestAnimationFrame(() => {
+        measuring = false;
+        remember();
+      });
+    };
+    const onResize = () => {
+      resizedAt = performance.now();
+      // Once the new layout is in place
+      requestAnimationFrame(() => {
+        if (top === null) window.scrollTo(0, 0);
+        else top.scrollIntoView({ block: 'start' });
+      });
+    };
+
+    remember();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [grid]);
+}
+
+/** Scrolls the list just enough to show the card at this position */
+function showInList(grid: HTMLElement, position: number) {
+  grid.children[position]?.scrollIntoView({ block: 'nearest' });
+}
+
 /**
  * The sideways row of cards in the large view. The browser scrolls it with
  * the finger, a trackpad or the code above, and scroll snapping (see
@@ -227,10 +307,9 @@ function CardRow({
 /**
  * After the row changed width, scrolls it back to the card that was in
  * view. Its scroll position is in pixels, so at a new width the same
- * position would land on another card. On a phone turned sideways the app
- * is hidden (see "Turn your phone upright" in index.html): the row's width
- * is 0 and its scroll position is lost, so turning back scrolls it to the
- * card again. True if the scroll wasn't the player's.
+ * position would land on another card. A hidden row has no width, and
+ * nothing to scroll to until it shows again. True if the scroll wasn't the
+ * player's.
  */
 function keepCard(
   element: HTMLElement,

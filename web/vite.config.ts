@@ -26,9 +26,10 @@ export default defineConfig({
         scope: './',
         // Full screen, without the browser's address bar
         display: 'standalone',
-        // Keeps the installed app upright on Android. iPhones ignore this,
-        // so index.html also covers sideways phones with a message.
-        orientation: 'portrait',
+        // Free to turn, as on iPhones: index.html covers a sideways phone
+        // with a message, except in the card list and the large view (see
+        // lib/landscape.ts)
+        orientation: 'any',
         background_color: '#1f2a44',
         theme_color: '#1f2a44',
         icons: [

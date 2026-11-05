@@ -15,6 +15,7 @@ from meta_morphis.export import (
     export_all,
     export_format,
     art_box,
+    horizontal_sides,
     is_basic_land,
 )
 from meta_morphis.models.card import Card
@@ -57,6 +58,7 @@ def test_build_card_single_faced() -> None:
         "art_box": [0.079, 0.114, 0.840, 0.440],
         "art": "art/id-Hydroblast.webp",
         "artist": "Some Artist",
+        "horizontal": [False],
     }
 
 def test_build_card_falls_back_to_jpg_images() -> None:
@@ -154,6 +156,27 @@ def test_no_art_box_without_a_single_measured_one() -> None:
     assert art_box(old_walker) is None
     assert art_box(unknown) is None
 
+def test_horizontal_sides() -> None:
+    upright = Card.from_raw(_raw("Counterspell"))
+    split = Card.from_raw(_raw("Wear // Tear", layout="split", keywords=["Fuse"]))
+    aftermath = Card.from_raw(_raw("Commit // Memory", layout="split", keywords=["Aftermath"]))
+    battle = Card.from_raw({
+        **_raw("Invasion of Gobakhan"),
+        "image_uris": None,
+        "layout": "battle",
+        "card_faces": [
+            {"name": "Invasion of Gobakhan", "type_line": "Battle — Siege",
+             "image_uris": {"grid": "front.webp", "art": "art/front.webp"}},
+            {"name": "Lightshield Array", "type_line": "Artifact",
+             "image_uris": {"grid": "back.webp", "art": "art/back.webp"}},
+        ],
+    })
+    assert horizontal_sides(upright) == [False]
+    assert horizontal_sides(split) == [True]
+    assert horizontal_sides(aftermath) == [False]
+    # Only the front of a battle is printed sideways
+    assert horizontal_sides(battle) == [True, False]
+
 def test_build_card_without_id_or_picture_is_left_out() -> None:
     no_id = Card.from_raw({"id": "1", "name": "No Id", "image_uris": {"grid": "x.webp"}})
     no_picture = Card.from_raw({"id": "2", "oracle_id": "oid", "name": "No Picture"})
@@ -218,6 +241,7 @@ def test_export_format_writes_the_file(
             "art_box": [0.079, 0.114, 0.840, 0.440],
             "art": "art/id-Lórien Revealed.webp",
             "artist": "Some Artist",
+            "horizontal": [False],
         }],
     }
 

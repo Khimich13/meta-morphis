@@ -21,8 +21,10 @@ like an app, and works offline once a list has been opened.
 - A daily streak, cards seen and mastered, and cards due for review on the
   start screen
 - A card list per format and list, with three pips above each card for
-  the steps to Mastered (level 3 and up)
-- Full-size card view, swiping between cards, and flipping double-faced cards
+  the steps to Mastered (level 3 and up). It also works with the phone
+  turned sideways, with its own number of cards per row.
+- Full-size card view, swiping between cards, flipping double-faced cards, and
+  turning the phone to read cards printed sideways
 - Card names read aloud
 - Installable and usable offline
 

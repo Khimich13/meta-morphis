@@ -3,6 +3,8 @@
 
 /* The large view: the whole screen, dimmed, with the card in the middle */
 .enlarged {
+  /* The room above the card for the close button and "12 / 50" */
+  --bar: 56px;
   box-sizing: border-box;
   width: 100vw;
   height: 100dvh;
@@ -11,7 +13,7 @@
   margin: 0;
   /* Room for the close button above the card, and 16px at the sides and
      below: the card's size below (.zoom-content) counts on these */
-  padding: calc(56px + env(safe-area-inset-top)) 16px
+  padding: calc(var(--bar) + env(safe-area-inset-top)) 16px
     calc(16px + env(safe-area-inset-bottom));
   border: none;
   background: transparent;
@@ -47,6 +49,20 @@
   transition: transform 0.4s ease-out;
 }
 
+/* While the phone turns (see useSmoothTurn in LargeView.tsx), the card
+   changes size smoothly; the card count and the hint, which move
+   elsewhere, are hidden and fade back in when the turn is done */
+.enlarged .position,
+.enlarged .turn-hint {
+  transition: opacity 0.3s ease-out;
+}
+
+.enlarged.turning .position,
+.enlarged.turning .turn-hint {
+  opacity: 0;
+  transition: none;
+}
+
 @starting-style {
   .enlarged[open],
   .enlarged[open]::backdrop {
@@ -69,7 +85,7 @@
      can fill the screen. The slides put the margins back. */
   width: 100vw;
   height: 100dvh;
-  margin: calc(-56px - env(safe-area-inset-top)) -16px
+  margin: calc(-1 * var(--bar) - env(safe-area-inset-top)) -16px
     calc(-16px - env(safe-area-inset-bottom));
   overflow-x: auto;
   scroll-snap-type: x mandatory;
@@ -96,7 +112,7 @@
   box-sizing: border-box;
   /* The dialog's margins, which the row covers (see above). At the sides,
      they keep 32px between two cards while both are in view. */
-  padding: calc(56px + env(safe-area-inset-top)) 16px
+  padding: calc(var(--bar) + env(safe-area-inset-top)) 16px
     calc(16px + env(safe-area-inset-bottom));
   display: flex;
   justify-content: center;
@@ -109,7 +125,7 @@
 /* An empty slot while skimming fast: a faint card shape, the same as a
    picture still loading, instead of a gap */
 .card-placeholder {
-  width: min(100%, (100dvh - 72px) * 488 / 680);
+  width: min(100%, (100dvh - var(--bar) - 16px) * 488 / 680);
   aspect-ratio: 488 / 680;
   border-radius: 4.75% / 3.5%;
   background: rgb(128 128 128 / 20%);
@@ -170,6 +186,12 @@
   .card-row {
     animation: none;
   }
+
+  /* Shown again at once after a turn, without fading in */
+  .enlarged .position,
+  .enlarged .turn-hint {
+    transition: none;
+  }
 }
 
 /* The area the card zooms in (see Zoomable in CardPicture.tsx): the
@@ -185,9 +207,67 @@
 
 /* The card: as large as fits, the full width less 16px each side, or
    less if the height runs out first (a card is 680/488 times as tall as
-   it is wide). The 72px are the dialog's padding above and below. */
+   it is wide), less the dialog's padding above and below. */
 .enlarged .zoom-content {
-  width: min(100vw - 32px, (100dvh - 72px) * 488 / 680);
+  width: min(100vw - 32px, (100dvh - var(--bar) - 16px) * 488 / 680);
+}
+
+/* A phone turned sideways (see lib/landscape.ts): little
+   height, so the card count moves to the top left corner, beside the
+   card rather than above it */
+@media (orientation: landscape) and (max-height: 500px) {
+  .enlarged {
+    --bar: 8px;
+  }
+
+  .enlarged .position {
+    left: calc(16px + env(safe-area-inset-left));
+    transform: none;
+  }
+}
+
+/* In landscape, a card printed sideways is turned the right way up, a
+   quarter clockwise, and fills the screen's width. Its box is the turned
+   card's shape, landscape; the card inside it is turned. The buttons on
+   it are turned back, so their symbols stay upright. Turning isn't
+   altering: the picture itself stays as it is. */
+@media (orientation: landscape) {
+  .enlarged .zoom-content.horizontal {
+    position: relative;
+    width: min(100vw - 32px, (100dvh - var(--bar) - 16px) * 680 / 488);
+    aspect-ratio: 680 / 488;
+  }
+
+  .enlarged .zoom-content.horizontal > .card-picture {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: calc(100% * 488 / 680);
+    transform: translate(-50%, -50%) rotate(90deg);
+  }
+
+  .enlarged .zoom-content.horizontal .card-button {
+    rotate: -90deg;
+  }
+}
+
+/* Below a card printed sideways, on an upright phone: how to read it */
+.turn-hint {
+  display: none;
+}
+
+@media (orientation: portrait) and (pointer: coarse) {
+  .turn-hint {
+    display: block;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    margin: 0;
+    text-align: center;
+    color: rgb(255 255 255 / 85%);
+    pointer-events: none;
+  }
 }
 
 /* While zoomed in: the row stays on the card, and the buttons and the
@@ -200,7 +280,8 @@
 .enlarged.zoomed .move,
 .enlarged.zoomed .card-button,
 .enlarged.zoomed .close,
-.enlarged.zoomed .position {
+.enlarged.zoomed .position,
+.enlarged.zoomed .turn-hint {
   display: none;
 }
 
@@ -216,7 +297,7 @@
 .enlarged .close {
   position: absolute;
   top: calc(8px + env(safe-area-inset-top));
-  right: 8px;
+  right: calc(8px + env(safe-area-inset-right));
   border: none;
   color: #fff;
   font-size: 1.5rem;

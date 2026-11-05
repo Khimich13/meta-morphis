@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from 'vitest';
 
-import { loadSoundsOn, saveSoundsOn } from './storage';
+import { loadColumns, loadSoundsOn, saveColumns, saveSoundsOn } from './storage';
 
 /** A stand-in for the browser's localStorage */
 function fakeStorage() {
@@ -13,6 +13,16 @@ function fakeStorage() {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+test('upright and sideways keep their own number of columns', () => {
+  fakeStorage();
+  expect(loadColumns(false)).toBeNull();
+  expect(loadColumns(true)).toBeNull();
+  saveColumns(2, false);
+  saveColumns(5, true);
+  expect(loadColumns(false)).toBe(2);
+  expect(loadColumns(true)).toBe(5);
 });
 
 test('sounds are on until the player turns them off', () => {

@@ -63,20 +63,25 @@ export function saveList(kind: string): void {
 }
 
 const COLUMNS_KEY = 'meta-morphis-columns';
+const LANDSCAPE_COLUMNS_KEY = 'meta-morphis-columns-landscape';
 
-/** Cards per row in the card list, as last pinched, or null if never */
-export function loadColumns(): number | null {
+/**
+ * Cards per row in the card list, as last pinched, or null if never.
+ * Upright and sideways each keep their own, since a sideways phone has
+ * room for about twice as many.
+ */
+export function loadColumns(landscape: boolean): number | null {
   try {
-    const saved = Number(localStorage.getItem(COLUMNS_KEY));
+    const saved = Number(localStorage.getItem(landscape ? LANDSCAPE_COLUMNS_KEY : COLUMNS_KEY));
     return Number.isInteger(saved) && saved > 0 ? saved : null;
   } catch {
     return null;
   }
 }
 
-export function saveColumns(columns: number): void {
+export function saveColumns(columns: number, landscape: boolean): void {
   try {
-    localStorage.setItem(COLUMNS_KEY, String(columns));
+    localStorage.setItem(landscape ? LANDSCAPE_COLUMNS_KEY : COLUMNS_KEY, String(columns));
   } catch {
     // Not remembered: the list starts with as many as fit next time
   }

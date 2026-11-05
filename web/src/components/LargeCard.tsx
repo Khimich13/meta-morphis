@@ -13,7 +13,7 @@ import {
 } from 'react';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 
-import { type Card, visibleName } from '../lib/cards';
+import { type Card, isHorizontal, visibleName } from '../lib/cards';
 import { useLargePictures } from '../lib/largePictures';
 import { buttonCorner, CardSides, FlipButton, pictureClass, SayOnCard } from './CardPicture';
 import { ZoomedContext } from './LargeView';
@@ -37,17 +37,29 @@ export default function LargeCard({
   // Zoomed in: the large view pauses moving to other cards, and hides
   // its buttons and the page behind
   const reportZoomed = useContext(ZoomedContext);
+  // Printed sideways: turned the right way up in landscape, where it can
+  // fill the screen's width (see LargeView.css)
+  const horizontal = isHorizontal(card, showingBack);
   return (
-    <Zoomable card={card} areaClass="zoom-area" onZoomedChange={reportZoomed}>
-      {(pictures) => (
-        <div className={pictureClass(card)} style={buttonCorner(card)}>
-          <CardSides card={card} showingBack={showingBack} lazy={lazy} pictures={pictures} />
-          {/* The name of the side showing, not both of a double-faced card */}
-          <SayOnCard name={visibleName(card, showingBack)} />
-          <FlipButton card={card} showingBack={showingBack} onFlip={onFlip} />
-        </div>
-      )}
-    </Zoomable>
+    <>
+      <Zoomable
+        card={card}
+        areaClass="zoom-area"
+        contentClass={horizontal ? 'zoom-content horizontal' : 'zoom-content'}
+        onZoomedChange={reportZoomed}
+      >
+        {(pictures) => (
+          <div className={pictureClass(card)} style={buttonCorner(card, showingBack)}>
+            <CardSides card={card} showingBack={showingBack} lazy={lazy} pictures={pictures} />
+            {/* The name of the side showing, not both of a double-faced card */}
+            <SayOnCard name={visibleName(card, showingBack)} />
+            <FlipButton card={card} showingBack={showingBack} onFlip={onFlip} />
+          </div>
+        )}
+      </Zoomable>
+      {/* Only on an upright phone, see LargeView.css */}
+      {horizontal && <p className="turn-hint">↻ Turn your phone to read this card</p>}
+    </>
   );
 }
 
@@ -62,11 +74,13 @@ export default function LargeCard({
 function Zoomable({
   card,
   areaClass,
+  contentClass,
   onZoomedChange,
   children,
 }: {
   card: Card;
   areaClass: string;
+  contentClass: string;
   /** Hears when the card is zoomed in, and back out */
   onZoomedChange: (zoomed: boolean) => void;
   children: (pictures: string[] | undefined) => ReactNode;
@@ -108,7 +122,7 @@ function Zoomable({
       {({ resetTransform }) => (
         <TransformComponent
           wrapperClass={zoomedIn ? `${areaClass} zoomed` : areaClass}
-          contentClass="zoom-content"
+          contentClass={contentClass}
           wrapperProps={{
             // While zoomed in, a double tap or double click goes back to
             // normal size
