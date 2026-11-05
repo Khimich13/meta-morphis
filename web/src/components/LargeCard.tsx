@@ -15,7 +15,7 @@ import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 
 import { type Card, visibleName } from '../lib/cards';
 import { useLargePictures } from '../lib/largePictures';
-import { CardSides, FlipButton, pictureClass, SayOnCard } from './CardPicture';
+import { buttonCorner, CardSides, FlipButton, pictureClass, SayOnCard } from './CardPicture';
 import { ZoomedContext } from './LargeView';
 
 /**
@@ -40,11 +40,11 @@ export default function LargeCard({
   return (
     <Zoomable card={card} areaClass="zoom-area" onZoomedChange={reportZoomed}>
       {(pictures) => (
-        <div className={pictureClass(card)}>
+        <div className={pictureClass(card)} style={buttonCorner(card)}>
           <CardSides card={card} showingBack={showingBack} lazy={lazy} pictures={pictures} />
-          <FlipButton card={card} showingBack={showingBack} onFlip={onFlip} />
           {/* The name of the side showing, not both of a double-faced card */}
           <SayOnCard name={visibleName(card, showingBack)} />
+          <FlipButton card={card} showingBack={showingBack} onFlip={onFlip} />
         </div>
       )}
     </Zoomable>

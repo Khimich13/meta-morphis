@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react';
+import { type CSSProperties, lazy, Suspense, useState } from 'react';
 
 import { type Card, visibleName } from '../lib/cards';
 import { useLargeView } from '../lib/largeView';
@@ -55,7 +55,7 @@ export default function CardPicture({
 
   return (
     <>
-      <div className={pictureClass(card)}>
+      <div className={pictureClass(card)} style={buttonCorner(card)}>
         <button
           className="enlarge"
           aria-label={`Enlarge ${card.name}`}
@@ -67,8 +67,8 @@ export default function CardPicture({
         >
           <CardSides card={card} showingBack={showingBack} lazy={lazy} />
         </button>
-        <FlipButton card={card} showingBack={showingBack} onFlip={flip} />
         {speaker && <SayOnCard name={visibleName(card, showingBack)} />}
+        <FlipButton card={card} showingBack={showingBack} onFlip={flip} />
       </div>
       {large.isOpen && (
         <LargeView onClose={large.close}>
@@ -84,6 +84,29 @@ export default function CardPicture({
 /** Only a double-faced card gets the 3D settings - see CardPicture.css */
 export function pictureClass(card: Card): string {
   return card.images.length > 1 ? 'card-picture two-sided' : 'card-picture';
+}
+
+/**
+ * Where the buttons over a card go: the top right corner of its artwork,
+ * a little inside it, from the card's art box (see art_box in
+ * meta_morphis/export.py). Artwork on the left half of the card (classes
+ * and cases) gets them in its top left corner instead, at the card's
+ * edge rather than in its middle. Both sides of a double-faced card use
+ * the front's box, so the buttons stay put when it turns. Without a box,
+ * the buttons keep their usual place - see .card-button in CardPicture.css.
+ */
+export function buttonCorner(card: Card): CSSProperties | undefined {
+  if (!card.art_box) return undefined;
+  const [left, top, width] = card.art_box;
+  // CSS variables, which React's style types don't list
+  const corner: Record<string, string> = { '--button-top': `${(top + 0.015) * 100}%` };
+  if (left + width < 0.6) {
+    corner['--button-left'] = `${(left + 0.02) * 100}%`;
+    corner['--button-right'] = 'auto';
+  } else {
+    corner['--button-right'] = `${(1 - left - width + 0.02) * 100}%`;
+  }
+  return corner as CSSProperties;
 }
 
 /** The card's sides stacked, turned to the one showing */

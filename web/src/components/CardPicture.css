@@ -62,15 +62,19 @@
   transform: rotateY(180deg);
 }
 
-/* The round, see-through buttons over a card: flip, and in the large
-   view, say the name. Over the right part of the artwork: the area of a
-   card with the least writing on every frame, and far from the artist
-   name and copyright at the bottom. */
+/* The round, see-through buttons over a card: say the name, and flip.
+   In the top right corner of the artwork, or the top left one for artwork
+   on the card's left half (--button-top, --button-right and --button-left,
+   set from the card's art box by buttonCorner in CardPicture.tsx), far
+   from the artist name and copyright at the bottom. A card without a
+   known art box keeps them over the right part of where artwork usually
+   is. */
 .card-button {
   --size: 48px;
   position: absolute;
-  top: 30%;
-  right: 8%;
+  top: var(--button-top, 30%);
+  right: var(--button-right, 8%);
+  left: var(--button-left, auto);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -117,10 +121,11 @@
   cursor: zoom-in;
 }
 
-/* Just below where the flip button is, on every card, so it is always
-   in the same place */
-.say-on-card {
-  top: calc(30% + var(--size) + 8px);
+/* The speaker takes the corner wherever it shows, so it is always in
+   the same place; the flip button of a double-faced card goes right
+   below it */
+.card-picture:has(.say-on-card) .flip {
+  top: calc(var(--button-top, 30%) + var(--size) + 8px);
 }
 
 .say-on-card svg {
