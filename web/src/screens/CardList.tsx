@@ -164,7 +164,8 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
  * the finger, a trackpad or the code above, and scroll snapping (see
  * components/LargeView.css) brings it to rest exactly on one card;
  * onSettle reports which. At either end, the phone's own edge effect shows
- * there is no more.
+ * there is no more. When the row changes width, as when the phone turns,
+ * it stays on the same card.
  */
 function CardRow({
   rowRef,
@@ -179,6 +180,10 @@ function CardRow({
   count: number;
   children: ReactNode;
 }) {
+  // The card in view, and the row's width when it was last measured
+  const shown = useRef(startAt);
+  const width = useRef(0);
+
   // Runs once, when the large view opens: start at the tapped card
   useEffect(() => {
     const element = rowRef.current;
@@ -187,9 +192,19 @@ function CardRow({
     // opens it now if it hasn't yet
     const dialog = element.closest('dialog');
     if (dialog !== null && !dialog.open) dialog.showModal();
+    width.current = element.clientWidth;
     element.scrollLeft = startAt * element.clientWidth;
     // Only the starting position: later changes come from scrolling
   }, []);
+
+  // A new width - the phone turned, or the window was resized
+  useEffect(() => {
+    const element = rowRef.current;
+    if (element === null) return;
+    const observer = new ResizeObserver(() => keepCard(element, width, shown));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [rowRef]);
 
   return (
     <div
@@ -197,8 +212,11 @@ function CardRow({
       ref={rowRef}
       onScroll={(event) => {
         const element = event.currentTarget;
+        // Scrolled by the change of width, not by the player
+        if (keepCard(element, width, shown)) return;
         const position = Math.round(element.scrollLeft / element.clientWidth);
-        onSettle(Math.min(Math.max(position, 0), count - 1));
+        shown.current = Math.min(Math.max(position, 0), count - 1);
+        onSettle(shown.current);
       }}
     >
       {children}
@@ -206,3 +224,22 @@ function CardRow({
   );
 }
 
+/**
+ * After the row changed width, scrolls it back to the card that was in
+ * view. Its scroll position is in pixels, so at a new width the same
+ * position would land on another card. On a phone turned sideways the app
+ * is hidden (see "Turn your phone upright" in index.html): the row's width
+ * is 0 and its scroll position is lost, so turning back scrolls it to the
+ * card again. True if the scroll wasn't the player's.
+ */
+function keepCard(
+  element: HTMLElement,
+  width: RefObject<number>,
+  shown: RefObject<number>,
+): boolean {
+  const now = element.clientWidth;
+  if (now === width.current) return now === 0;
+  width.current = now;
+  if (now > 0) element.scrollLeft = shown.current * now;
+  return true;
+}
