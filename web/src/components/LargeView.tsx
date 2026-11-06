@@ -2,7 +2,7 @@ import { createContext, type ReactNode, type RefObject, useEffect, useRef, useSt
 
 import { isLandscape, useLandscapeAllowed } from '../lib/landscape';
 import type { Direction } from '../lib/swipe';
-import { type CardShape, turnStart } from '../lib/turn';
+import { type CardShape, glides, glideStep } from '../lib/turn';
 import './LargeView.css';
 
 /**
@@ -49,7 +49,7 @@ export default function LargeView({
   // card printed sideways
   useLandscapeAllowed();
 
-  // Turning the phone changes the card's size smoothly, as in a photo
+  // Turning the phone glides the card to its new size, as in a photo
   // app, see useSmoothTurn
   const turning = useSmoothTurn(dialog);
 
@@ -97,16 +97,13 @@ export default function LargeView({
   );
 }
 
-/** How long the size must stay the same for a turn to count as done, in ms */
-const SETTLED_TIME = 80;
-/** The longest a turn may take to settle before the card moves anyway, in ms */
-const TURN_LONGEST = 600;
-/** How long the card takes to change to its new size, in ms */
-const TURN_MOVE_TIME = 300;
+/** The longest a turn's glide may take, in ms */
+const TURN_LONGEST = 1000;
+/** How soon after a turn a browser's late layout step still counts as part of it, in ms */
+const LATE_STEP_TIME = 300;
 
 /** Takes off what the turn animation put on a card's zoom area */
 function putBack(area: HTMLElement) {
-  area.style.removeProperty('transition');
   area.style.removeProperty('scale');
 }
 
@@ -138,10 +135,11 @@ function cardInView(dialog: HTMLElement): { area: HTMLElement; shape: CardShape 
 
 /**
  * Turning the phone. The browser resizes the page in steps, and the card
- * would jump through them. Instead, through every step the card is drawn
- * at the size it had before, and once the size has settled, it shrinks or
- * grows smoothly to its new size. A card printed sideways that turns with
- * the phone keeps its place, see turnStart. True while a turn is going on.
+ * would jump through them. Instead, from the first frame of the turn, the
+ * card glides from the size it had to its new size, a little closer each
+ * frame (see glideStep), carrying on through every step the browser
+ * takes. A card printed sideways that turns with the phone keeps its
+ * place, see glides. True while a turn is going on.
  */
 function useSmoothTurn(dialog: RefObject<HTMLDialogElement | null>): boolean {
   const [turning, setTurning] = useState(false);
@@ -154,7 +152,8 @@ function useSmoothTurn(dialog: RefObject<HTMLDialogElement | null>): boolean {
     let landscape = isLandscape();
     // The frame being waited for, while a turn is going on
     let frame: number | undefined;
-    let moved: HTMLElement | null = null;
+    // When the last turn ended: the browser may still take a step after it
+    let endedAt = -Infinity;
 
     // Swiping to another card, or a card's picture arriving: remember how
     // the card looks now, since once a turn starts it is already too late.
@@ -176,49 +175,47 @@ function useSmoothTurn(dialog: RefObject<HTMLDialogElement | null>): boolean {
       });
     };
 
-    const draw = (area: HTMLElement, scale: number) => {
-      area.style.transition = 'none';
-      area.style.scale = `${scale}`;
-    };
-
     const onResize = () => {
-      // Only a turn, or more steps of one: not a window being resized
-      if (isLandscape() === landscape && frame === undefined) return;
+      const turned = isLandscape() !== landscape;
+      const lateStep = performance.now() - endedAt < LATE_STEP_TIME;
+      // A turn, or a step of one: not a window being resized
+      if (!turned && !lateStep && frame === undefined) return;
       landscape = isLandscape();
+      if (frame !== undefined) return;
       setTurning(true);
-      if (frame !== undefined) cancelAnimationFrame(frame);
       const started = performance.now();
-      let size = '';
-      let changedAt = started;
-      const check = () => {
-        const now = cardInView(element);
-        if (now !== null && before !== null && !lessMotion) {
-          // Another card's area than last frame: put that one back
-          if (moved !== null && moved !== now.area) putBack(moved);
-          moved = now.area;
-          draw(now.area, turnStart(before, now.shape));
-        }
-        const viewport = `${window.innerWidth}x${window.innerHeight}`;
-        if (viewport !== size) changedAt = performance.now();
-        size = viewport;
-        const still = performance.now() - changedAt;
-        if (still < SETTLED_TIME && performance.now() - started < TURN_LONGEST) {
-          frame = requestAnimationFrame(check);
-          return;
-        }
-        // Settled: off to the new size
+      let last = started;
+      // The card's width on screen, gliding towards its new width
+      let shown = before?.width ?? null;
+      let moved: HTMLElement | null = null;
+      const done = (now: ReturnType<typeof cardInView>) => {
+        if (moved !== null) putBack(moved);
         frame = undefined;
+        endedAt = performance.now();
         setTurning(false);
         before = now?.shape ?? before;
-        const area = moved;
-        if (area === null) return;
-        area.style.transition = `scale ${TURN_MOVE_TIME}ms ease-out`;
-        area.style.scale = '1';
-        setTimeout(() => {
-          if (frame === undefined) putBack(area);
-        }, TURN_MOVE_TIME + 50);
       };
-      frame = requestAnimationFrame(check);
+      const step = (time: number) => {
+        const now = cardInView(element);
+        const elapsed = time - last;
+        last = time;
+        if (now === null || shown === null || before === null || lessMotion || !glides(before, now.shape)) {
+          done(now);
+          return;
+        }
+        // Another card's area than last frame: put that one back
+        if (moved !== null && moved !== now.area) putBack(moved);
+        moved = now.area;
+        shown = glideStep(shown, now.shape.width, elapsed);
+        now.area.style.scale = `${shown / now.shape.width}`;
+        const arrived = Math.abs(shown - now.shape.width) < 0.5;
+        if (arrived || time - started > TURN_LONGEST) {
+          done(now);
+          return;
+        }
+        frame = requestAnimationFrame(step);
+      };
+      frame = requestAnimationFrame(step);
     };
 
     window.addEventListener('resize', onResize);

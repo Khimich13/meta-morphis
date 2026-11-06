@@ -50,7 +50,7 @@
 }
 
 /* While the phone turns (see useSmoothTurn in LargeView.tsx), the card
-   changes size smoothly; the card count and the hint, which move
+   glides to its new size; the card count and the hint, which move
    elsewhere, are hidden and fade back in when the turn is done */
 .enlarged .position,
 .enlarged .turn-hint {
