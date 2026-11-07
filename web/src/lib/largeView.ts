@@ -10,6 +10,10 @@ export function useLargeView() {
   const [isOpen, setOpen] = useState(false);
 
   function open() {
+    // Going back, the browser would put the page back where it was scrolled
+    // when the view opened. After the phone has turned, that position
+    // shows other cards; the card list brings its card into view itself.
+    history.scrollRestoration = 'manual';
     history.pushState({ enlarged: true }, '');
     setOpen(true);
   }
