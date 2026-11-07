@@ -166,26 +166,6 @@ function easeInOut(t: number): number {
 }
 
 /**
- * The screen's angle (screen.orientation.angle) with the phone turned a
- * quarter clockwise from upright, its top to the right. In that landscape,
- * a card printed sideways is turned the same way as the phone.
- */
-const CLOCKWISE_ANGLE = 270;
-
-/** The angle of the last landscape seen: turning back upright, the screen already says 0 */
-let landscapeAngle = CLOCKWISE_ANGLE;
-
-function rememberLandscape() {
-  const angle = screen.orientation?.angle;
-  if (angle === 90 || angle === 270) landscapeAngle = angle;
-}
-
-/** Whether the phone is in, or turning back upright from, the landscape it reaches by turning clockwise */
-function turnedClockwise(): boolean {
-  return landscapeAngle === CLOCKWISE_ANGLE;
-}
-
-/**
  * Turning the phone gives the card its new size and place at once, as the
  * turn starts. But the phone draws the new page from the top left corner
  * of a frame that only gradually changes from the old screen's shape to
@@ -213,12 +193,11 @@ function turnedClockwise(): boolean {
  *
  * A card printed sideways is turned a quarter in landscape (see
  * LargeView.css). Its copy starts at its old angle and turns to the new
- * one over the same time, the opposite way to the screen's turn: it stays
- * still as the phone turns around it. That works for the landscape the
- * phone reaches by turning clockwise. In the other one, the card still
- * stays still, which leaves it upside down, so once the phone's turn is
- * done it turns half around, smaller while it's crosswise so it stays
- * inside the screen.
+ * one over the same time. Turned one way, the phone turns around the card,
+ * which stays still; turned the other way, the card turns half around
+ * with the screen, since it reads only one way up. Which way the phone
+ * turned isn't known in time to do otherwise: iOS tells the page only
+ * once its turn is over.
  */
 function EaseNewSize() {
   // The library's two boxes, once it has set them up
@@ -232,16 +211,14 @@ function EaseNewSize() {
     let width = cardWidth();
     let areaWidth = area.offsetWidth;
     let areaHeight = area.offsetHeight;
-    // The copy's turn, in degrees from the card's angle after the phone's
-    // turn: from, to, then back to 0 after the phone's turn if `to` isn't.
-    // A second change of size during the easing doesn't start it again.
-    let spin = { from: 0, to: 0 };
+    // The copy's turn: from this many degrees from the card's angle after
+    // the phone's turn, to 0, and how far along it is, in ms. It has a
+    // clock of its own, so a second change of size during the easing,
+    // which starts the other moves again from where they are, doesn't
+    // start the turn again.
+    let spinFrom = 0;
     let spun = 0;
-    const angleAt = (time: number) =>
-      time < EASE_TIME
-        ? spin.from + (spin.to - spin.from) * easeInOut(time / EASE_TIME)
-        : spin.to * (1 - easeInOut(Math.min((time - EASE_TIME) / EASE_TIME, 1)));
-    const spinTime = () => (spin.to === 0 ? EASE_TIME : 2 * EASE_TIME);
+    const angleAt = (time: number) => spinFrom * (1 - easeInOut(Math.min(time / EASE_TIME, 1)));
     // Whether a turn is being eased; during one, the area's move and the
     // copy's, the card's copy, and the next frame's request
     let turning = false;
@@ -267,7 +244,6 @@ function EaseNewSize() {
       areaWidth = area.offsetWidth;
       areaHeight = area.offsetHeight;
       const landscape = areaWidth > areaHeight;
-      if (landscape) rememberLandscape();
       if (before.width === 0 || width === 0 || width === before.width) return;
       // A turn: the area, the whole screen, changed from upright to
       // sideways or back. Not a window being resized, unless during a
@@ -288,11 +264,22 @@ function EaseNewSize() {
         // its copy starts without, or with, to look as before
         const quarter = content.classList.contains('horizontal') ? (landscape ? -90 : 90) : 0;
         const from = angle + quarter;
-        spin = { from, to: from === 0 || turnedClockwise() ? 0 : 2 * from };
+        spinFrom = from;
         spun = 0;
       }
-      // The card's new place on the screen, before any move is drawn
-      const card = content.getBoundingClientRect();
+      // The card's new place on the screen: the middle of its area, which
+      // fills the screen from the top left corner once the card row is on
+      // its card. Worked out rather than measured where it's drawn now. As
+      // the phone turns, the row may be scrolled to another card for a
+      // moment (see markShown in CardList.tsx), and the zoom library, which
+      // centres the card with a move of its own, may not have caught up
+      // with the new size yet: the copy was put far to the side.
+      const card = {
+        width: content.offsetWidth,
+        height: content.offsetHeight,
+        left: (areaWidth - content.offsetWidth) / 2,
+        top: (areaHeight - content.offsetHeight) / 2,
+      };
       const top = card.top + scrollY;
       const scrolled = scrollY;
       // In the card list's row, the card it's on (see markShown in
@@ -350,23 +337,9 @@ function EaseNewSize() {
         view = area.closest('dialog');
         view?.classList.add('turning');
       }
-      // The copy's angle, and its size while it turns half around: as large
-      // as fits inside the screen's padding at that angle
+      // The copy's angle
       const turnCopy = () => {
-        if (copy === null) return;
-        const degrees = angleAt(spun);
-        copy.style.rotate = `${degrees}deg`;
-        let fit = 1;
-        if (spun > EASE_TIME) {
-          const sin = Math.abs(Math.sin((degrees * Math.PI) / 180));
-          const cos = Math.abs(Math.cos((degrees * Math.PI) / 180));
-          fit = Math.min(
-            1,
-            (areaWidth - 32) / (card.width * cos + card.height * sin),
-            (areaHeight - 32) / (card.width * sin + card.height * cos),
-          );
-        }
-        copy.style.transform = fit < 1 ? `scale(${fit})` : 'none';
+        if (copy !== null) copy.style.rotate = `${angleAt(spun)}deg`;
       };
       turnCopy();
       // Frame by frame (see above)
@@ -377,8 +350,8 @@ function EaseNewSize() {
         const passed = Math.min(Math.max(now - last, 0), EASE_STEP);
         last = now;
         done = Math.min(done + passed, EASE_TIME);
-        spun = Math.min(spun + passed, spinTime());
-        if (done >= EASE_TIME && spun >= spinTime()) {
+        spun = Math.min(spun + passed, EASE_TIME);
+        if (done >= EASE_TIME && spun >= EASE_TIME) {
           stop();
           return;
         }
