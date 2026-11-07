@@ -6,12 +6,15 @@
   /* The room above the card for the close button and "12 / 50" */
   --bar: 56px;
   box-sizing: border-box;
-  /* The whole screen: its own box rather than the screen's sizes (100vw,
-     100dvh), which Safari updates a few frames late as the phone turns,
-     drawing the view for the old screen meanwhile */
-  inset: 0;
-  width: auto;
-  height: auto;
+  /* The whole screen: the size of the page's own layout, which LargeView.tsx
+     keeps in --page-width and --page-height. Not the box the screen gives
+     pinned elements (inset: 0): as an iPhone app turns, that box covers the
+     old and the new screen at once for a frame or two (844x797), and the
+     card was drawn for it, far too low or off to the side. */
+  top: 0;
+  left: 0;
+  width: var(--page-width, 100vw);
+  height: var(--page-height, 100dvh);
   max-width: none;
   max-height: none;
   margin: 0;
@@ -42,16 +45,48 @@
   align-items: center;
 }
 
+/* The page under the view is dimmed by a layer of the page itself, over
+   all of it (body::after), not by the view's backdrop, which stays clear.
+   The backdrop covers only the screen, and as a phone turns, the page is
+   drawn for a moment in a frame larger than the new screen: past the
+   backdrop's edge, it showed undimmed. A layer of the page is drawn
+   wherever the page is.
+
+   Where the frame reaches past the page itself, the phone fills it with
+   the page's background color, from html and body: that is the dimmed
+   color, the same as the dimmed page. The app's own box (#app) keeps the
+   page's usual color, under the layer. */
 .enlarged::backdrop {
+  background: transparent;
+}
+
+html:has(.enlarged[open]) {
+  background: color-mix(in srgb, #000 85%, var(--page));
+}
+
+html:has(.enlarged[open]) body {
+  position: relative;
+}
+
+html:has(.enlarged[open]) #app {
+  background: var(--page);
+}
+
+/* Fades in with the view (see @starting-style below); gone at once on closing */
+html:has(.enlarged[open]) body::after {
+  content: '';
+  position: absolute;
+  inset: 0;
   background: rgb(0 0 0 / 85%);
+  pointer-events: none;
+  transition: opacity 0.4s ease-out;
 }
 
 /* Opening: the dark background fades in while the card fades in and
    grows from 90% to its full size. @starting-style gives the values the
    dialog starts from the moment it appears; browsers without it show
    the card at once. Closing is instant. */
-.enlarged[open],
-.enlarged[open]::backdrop {
+.enlarged[open] {
   transition: opacity 0.4s ease-out;
 }
 
@@ -62,7 +97,7 @@
 
 @starting-style {
   .enlarged[open],
-  .enlarged[open]::backdrop {
+  html:has(.enlarged[open]) body::after {
     opacity: 0;
   }
 
@@ -173,7 +208,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .enlarged[open],
-  .enlarged[open]::backdrop,
+  html:has(.enlarged[open]) body::after,
   .enlarged[open] > .zoom-area {
     transition: none;
   }
@@ -181,7 +216,6 @@
   .card-row {
     animation: none;
   }
-
 }
 
 /* The area the card zooms in (see Zoomable in CardPicture.tsx): the
@@ -228,7 +262,10 @@
     aspect-ratio: 680 / 488;
   }
 
-  .enlarged .zoom-content.horizontal > .card-picture {
+  /* The copy of the card that turns with the phone, outside the view
+     (see EaseNewSize in LargeCard.tsx), too */
+  .enlarged .zoom-content.horizontal > .card-picture,
+  .turn-copy.horizontal > .card-picture {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -236,7 +273,8 @@
     transform: translate(-50%, -50%) rotate(90deg);
   }
 
-  .enlarged .zoom-content.horizontal .card-button {
+  .enlarged .zoom-content.horizontal .card-button,
+  .turn-copy.horizontal .card-button {
     rotate: -90deg;
   }
 }
@@ -282,6 +320,22 @@
 
 .enlarged .card-button {
   --size: 56px;
+}
+
+/* While the phone turns (see EaseNewSize in LargeCard.tsx): the close
+   button and the card count, which have other spots upright and sideways,
+   are hidden at once rather than jumping, and fade back in at their new
+   spots once the card has turned. A fade-out would show them at their new
+   spots, as the turn starts with the new layout. */
+.enlarged .close,
+.enlarged .position {
+  transition: opacity 0.2s ease-out;
+}
+
+.enlarged.turning .close,
+.enlarged.turning .position {
+  opacity: 0;
+  transition: none;
 }
 
 .enlarged .close {

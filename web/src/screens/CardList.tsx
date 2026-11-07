@@ -69,7 +69,7 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
   useLandscapeAllowed();
   const landscape = useLandscape();
   const grid = useRef<HTMLUListElement>(null);
-  useKeepPlaceOnResize(grid);
+  useKeepPlaceOnResize(grid, large.isOpen);
 
   // Cards per row, chosen by pinching, for upright and for sideways; null:
   // as many as fit
@@ -190,8 +190,18 @@ const RESIZE_LAYOUT_TIME = 500;
  * or the window changes size. The list's new width rearranges the rows,
  * and the same scroll position would show other cards. While the browser
  * lays the page out, in steps, the card is brought back after each step.
+ *
+ * Not while the large view is open: closing it brings its last card into
+ * view anyway. And as the phone turns, the large view's card moves as a
+ * copy in the page (see EaseNewSize in LargeCard.tsx), which a long scroll
+ * made here carried off the screen for a moment: on an iPhone, the scroll
+ * reaches the screen a frame or two after the copy is drawn.
  */
-function useKeepPlaceOnResize(grid: RefObject<HTMLElement | null>) {
+function useKeepPlaceOnResize(grid: RefObject<HTMLElement | null>, largeViewOpen: boolean) {
+  const paused = useRef(largeViewOpen);
+  useEffect(() => {
+    paused.current = largeViewOpen;
+  }, [largeViewOpen]);
   useEffect(() => {
     let resizedAt = -Infinity;
     // The card at the top of the screen; null at the top of the page
@@ -217,6 +227,7 @@ function useKeepPlaceOnResize(grid: RefObject<HTMLElement | null>) {
     };
     const onResize = () => {
       resizedAt = performance.now();
+      if (paused.current) return;
       // Once the new layout is in place
       requestAnimationFrame(() => {
         if (top === null) window.scrollTo(0, 0);

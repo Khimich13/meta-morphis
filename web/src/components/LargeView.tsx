@@ -1,4 +1,12 @@
-import { createContext, type ReactNode, useEffect, useRef, useState } from 'react';
+import {
+  createContext,
+  type ReactNode,
+  type RefObject,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 
 import { useLandscapeAllowed } from '../lib/landscape';
 import type { Direction } from '../lib/swipe';
@@ -53,6 +61,7 @@ export default function LargeView({
   // A phone may turn sideways while the large view is open, to read a
   // card printed sideways
   useLandscapeAllowed();
+  usePageSize(dialog);
 
   return (
     <dialog
@@ -99,3 +108,31 @@ export default function LargeView({
   );
 }
 
+/**
+ * Keeps the view the size of the page's own layout, in --page-width and
+ * --page-height (see LargeView.css). As an iPhone app turns, the page's
+ * layout has its new size from the first frame, while the box the screen
+ * gives the view covers the old and the new screen at once for a frame or
+ * two. The page's root element is as wide as its layout, so watching it
+ * hears every turn before the frame is drawn; the window's resize event
+ * catches a change of height alone.
+ */
+function usePageSize(dialog: RefObject<HTMLDialogElement | null>) {
+  useLayoutEffect(() => {
+    const element = dialog.current;
+    if (element === null) return;
+    const root = document.documentElement;
+    const update = () => {
+      element.style.setProperty('--page-width', `${root.clientWidth}px`);
+      element.style.setProperty('--page-height', `${root.clientHeight}px`);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(root);
+    window.addEventListener('resize', update);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', update);
+    };
+  }, [dialog]);
+}
