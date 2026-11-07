@@ -285,6 +285,7 @@ function CardRow({
     if (dialog !== null && !dialog.open) dialog.showModal();
     width.current = element.clientWidth;
     element.scrollLeft = startAt * element.clientWidth;
+    markShown(element, startAt);
     // Only the starting position: later changes come from scrolling
   }, []);
 
@@ -307,12 +308,24 @@ function CardRow({
         if (keepCard(element, width, shown)) return;
         const position = Math.round(element.scrollLeft / element.clientWidth);
         shown.current = Math.min(Math.max(position, 0), count - 1);
+        markShown(element, shown.current);
         onSettle(shown.current);
       }}
     >
       {children}
     </div>
   );
+}
+
+/**
+ * Marks which card the row is on, for the large view's cards (see
+ * EaseNewSize in LargeCard.tsx): as the phone turns, the row's scroll
+ * position may show another card for a moment, before keepCard brings it
+ * back. Near the end of the list, the browser first stops it at the last
+ * card, since the new width leaves less room to scroll.
+ */
+function markShown(row: HTMLElement, position: number) {
+  row.dataset.shown = String(position);
 }
 
 /**

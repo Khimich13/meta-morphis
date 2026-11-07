@@ -295,9 +295,13 @@ function EaseNewSize() {
       const card = content.getBoundingClientRect();
       const top = card.top + scrollY;
       const scrolled = scrollY;
-      // In the card list's row, each area is one screen wide: only the
-      // card in view's area is on the screen
-      if (Math.round(area.getBoundingClientRect().left / areaWidth) !== 0) {
+      // In the card list's row, the card it's on (see markShown in
+      // CardList.tsx), whatever its scroll position shows for the moment
+      const row = area.closest<HTMLElement>('.card-row');
+      const slide = area.closest('.card-slide');
+      const inView =
+        row === null || slide === null || [...row.children].indexOf(slide) === Number(row.dataset.shown);
+      if (!inView) {
         // A card beside it is hidden over the turn. In the old layout it
         // was just past the old screen's edge, and the turning frame grows
         // past that edge: eased from there, the next card came into view.
