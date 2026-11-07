@@ -4,7 +4,7 @@
 // components/CardPicture.tsx), and in the card list a pinch changes how
 // many cards fit in a row.
 
-import { type RefObject, useEffect, useLayoutEffect, useRef } from 'react';
+import { type RefObject, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 /**
  * True while the page is zoomed in, which the app tries never to allow -
@@ -45,7 +45,55 @@ export function mostColumns(width: number): number {
   return Math.min(MAX_COLUMNS, Math.max(1, Math.floor(width / MIN_CARD_ROOM)));
 }
 
-/** How far apart the fingers must spread, at one card per row, to open it */
+/** A card is this many times as tall as it is wide */
+const CARD_SHAPE = 680 / 488;
+
+/**
+ * How wide each card is at this many per row, as App.css lays them out
+ * (.card-grid.chosen): at most 480px, with less space between them the
+ * more there are
+ */
+function cardWidth(rowWidth: number, columns: number): number {
+  const gap = Math.min(16, 32 / columns);
+  return Math.min(480, (rowWidth - gap * (columns - 1)) / columns);
+}
+
+/**
+ * The fewest cards a pinch may leave in a row: the fewest at which a whole
+ * card fits in the screen's height. On a phone turned sideways, one or two
+ * per row made each card taller than the screen.
+ */
+export function fewestColumns(rowWidth: number, screenHeight: number): number {
+  const most = mostColumns(rowWidth);
+  for (let columns = 1; columns < most; columns++) {
+    if (cardWidth(rowWidth, columns) * CARD_SHAPE <= screenHeight) return columns;
+  }
+  return most;
+}
+
+/**
+ * The fewest cards per row for the grid (see fewestColumns), kept up to
+ * date as the window changes size or the phone turns
+ */
+export function useFewestColumns(grid: RefObject<HTMLElement | null>): number {
+  const [fewest, setFewest] = useState(1);
+  useLayoutEffect(() => {
+    const element = grid.current;
+    if (element === null) return;
+    const update = () => setFewest(fewestColumns(element.clientWidth, window.innerHeight));
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    window.addEventListener('resize', update);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', update);
+    };
+  }, [grid]);
+  return fewest;
+}
+
+/** How far apart the fingers must spread, at the fewest cards per row, to open the card */
 const OPEN_SPREAD = 1.4;
 
 /** How long the cards take to move to their new places, in milliseconds */
@@ -93,10 +141,15 @@ function animateCards(grid: HTMLElement, before: Map<Element, DOMRect>): void {
  * The number of columns after a pinch. `spread` is how far apart the
  * fingers are now, compared with when the pinch began: 2 means twice as
  * far apart. Twice as far halves the columns (bigger cards), half as far
- * doubles them, rounded to whole columns.
+ * doubles them, rounded to whole columns, between `fewest` and `most`.
  */
-export function columnsAfterPinch(start: number, spread: number, most: number): number {
-  return Math.min(most, Math.max(1, Math.round(start / spread)));
+export function columnsAfterPinch(
+  start: number,
+  spread: number,
+  fewest: number,
+  most: number,
+): number {
+  return Math.min(most, Math.max(fewest, Math.round(start / spread)));
 }
 
 function distance(touches: TouchList): number {
@@ -108,7 +161,8 @@ function distance(touches: TouchList): number {
  * Lets a pinch on the grid change its number of columns (`columns`, or
  * the number that fit by themselves while it is null). The card under
  * the fingers stays where it was on the screen while the grid changes.
- * At one card per row, spreading the fingers opens the card under them.
+ * At the fewest cards per row, spreading the fingers opens the card under
+ * them.
  */
 export function usePinchColumns(
   grid: RefObject<HTMLElement | null>,
@@ -153,15 +207,16 @@ export function usePinchColumns(
       const under = document.elementFromPoint((a.clientX + b.clientX) / 2, (a.clientY + b.clientY) / 2);
       const card = under?.closest('.card-grid > li');
       const spread = distance(event.touches) / start.spread;
-      // Already one per row and spreading further: open that card, like
-      // zooming into a photo
-      if (start.columns === 1 && spread >= OPEN_SPREAD && card) {
+      const fewest = fewestColumns(element.clientWidth, window.innerHeight);
+      // Already the fewest per row and spreading further: open that card,
+      // like zooming into a photo
+      if (start.columns <= fewest && spread >= OPEN_SPREAD && card) {
         start = null;
         open.current([...element.children].indexOf(card));
         return;
       }
       const most = mostColumns(element.clientWidth);
-      const next = columnsAfterPinch(start.columns, spread, most);
+      const next = columnsAfterPinch(start.columns, spread, fewest, most);
       const now = getComputedStyle(element).gridTemplateColumns.split(' ').length;
       if (next === now) return;
       anchor.current = card ? { card, top: card.getBoundingClientRect().top } : null;
