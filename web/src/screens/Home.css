@@ -9,8 +9,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: calc(16px + env(safe-area-inset-top)) 16px
-    calc(12px + env(safe-area-inset-bottom));
+  padding: calc(16px + env(safe-area-inset-top)) 16px calc(12px + env(safe-area-inset-bottom));
   /* Last resort on very short screens */
   overflow-y: auto;
   text-align: center;

@@ -1,10 +1,5 @@
 import { type Card, formatLabel, LIST_OLD_AFTER_DAYS, listAgeDays } from '../lib/cards';
-import {
-  LIST_LABELS,
-  type ListKind,
-  type Selection,
-  selectionLabel,
-} from '../lib/formats';
+import { LIST_LABELS, type ListKind, type Selection, selectionLabel } from '../lib/formats';
 import { dueCount, localDay, masteredCount, type Progress, streak } from '../lib/progress';
 import './Home.css';
 
@@ -130,7 +125,10 @@ function Stats({ cards, progress }: { cards: Card[]; progress: Progress }) {
           aria-label="Cards mastered"
         >
           <div style={{ width: `${(mastered / cards.length) * 100}%` }} />
-          <div className="seen-only" style={{ width: `${((seen - mastered) / cards.length) * 100}%` }} />
+          <div
+            className="seen-only"
+            style={{ width: `${((seen - mastered) / cards.length) * 100}%` }}
+          />
         </div>
         <p>
           {seen} of {cards.length} seen · <strong>{mastered} mastered</strong>
@@ -212,8 +210,7 @@ function OldListBanner({ listUpdated }: { listUpdated: string | undefined }) {
   if (days === null || days <= LIST_OLD_AFTER_DAYS) return null;
   return (
     <p className="old-list" role="status">
-      ⚠ The card list was last updated {days} days ago, so it may not match the
-      current meta.
+      ⚠ The card list was last updated {days} days ago, so it may not match the current meta.
     </p>
   );
 }
@@ -223,15 +220,14 @@ function Notice() {
     <footer className="notice">
       {/* Required wording of the Wizards of the Coast Fan Content Policy */}
       <p>
-        MetaMorphis is unofficial Fan Content permitted under the Fan Content
-        Policy. Not approved/endorsed by Wizards. Portions of the materials
-        used are property of Wizards of the Coast. ©Wizards of the Coast LLC.
+        MetaMorphis is unofficial Fan Content permitted under the Fan Content Policy. Not
+        approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the
+        Coast. ©Wizards of the Coast LLC.
       </p>
       <p>
-        Card data and images come from{' '}
-        <a href="https://scryfall.com">Scryfall</a>. The list of most played
-        cards comes from <a href="https://www.mtggoldfish.com">MTGGoldfish</a>.
-        This app is not affiliated with either.
+        Card data and images come from <a href="https://scryfall.com">Scryfall</a>. The list of most
+        played cards comes from <a href="https://www.mtggoldfish.com">MTGGoldfish</a>. This app is
+        not affiliated with either.
       </p>
     </footer>
   );

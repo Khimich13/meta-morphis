@@ -194,13 +194,7 @@ export default function Lesson({
             {/* Where the artwork lands after an answer: the card's art box */}
             <div className="art-target" aria-hidden="true" style={artTarget(card)} />
           </div>
-          <Feedback
-            card={card}
-            picked={picked}
-            before={before}
-            record={record}
-            onContinue={next}
-          />
+          <Feedback card={card} picked={picked} before={before} record={record} onContinue={next} />
         </>
       )}
     </section>
@@ -251,18 +245,20 @@ function pulseCard() {
  * like a head saying no. It only moves; the picture itself is untouched.
  */
 function shakeCard() {
-  document.querySelector('.picture .card-picture')?.animate(
-    [
-      { transform: 'translateX(0)' },
-      { transform: 'translateX(-9px)' },
-      { transform: 'translateX(8px)' },
-      { transform: 'translateX(-6px)' },
-      { transform: 'translateX(4px)' },
-      { transform: 'translateX(-2px)' },
-      { transform: 'translateX(0)' },
-    ],
-    { duration: 420, easing: 'ease-out' },
-  );
+  document
+    .querySelector('.picture .card-picture')
+    ?.animate(
+      [
+        { transform: 'translateX(0)' },
+        { transform: 'translateX(-9px)' },
+        { transform: 'translateX(8px)' },
+        { transform: 'translateX(-6px)' },
+        { transform: 'translateX(4px)' },
+        { transform: 'translateX(-2px)' },
+        { transform: 'translateX(0)' },
+      ],
+      { duration: 420, easing: 'ease-out' },
+    );
 }
 
 /**

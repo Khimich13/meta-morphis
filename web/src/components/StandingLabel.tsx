@@ -38,9 +38,7 @@ export default function StandingLabel({
       aria-label={mastered ? `Mastered, ${details}` : details}
       title={details}
     >
-      {mastered && (
-        <span className={change === 'up' ? 'name appear' : 'name'}>Mastered</span>
-      )}
+      {mastered && <span className={change === 'up' ? 'name appear' : 'name'}>Mastered</span>}
       <Pips level={shownLevel(record)} change={change} />
     </span>
   );

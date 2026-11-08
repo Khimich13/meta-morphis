@@ -139,7 +139,12 @@ test('the most overdue cards come first when not all fit', () => {
   let progress = EMPTY_PROGRESS;
   // Fifteen cards, each missed on a different earlier day
   for (const [i, card] of CARDS.slice(0, 15).entries()) {
-    progress = recordAnswer(progress, card.oracle_id, false, `2026-10-${String(i + 1).padStart(2, '0')}`);
+    progress = recordAnswer(
+      progress,
+      card.oracle_id,
+      false,
+      `2026-10-${String(i + 1).padStart(2, '0')}`,
+    );
   }
   const chosen = chooseLessonCards(CARDS, progress, TODAY, seeded(3));
   expect(ids(chosen)).toEqual(ids(CARDS.slice(0, LESSON_LENGTH)));

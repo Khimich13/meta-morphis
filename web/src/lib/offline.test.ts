@@ -23,10 +23,7 @@ test('pictureUrls lists every side and the artwork of each card', () => {
 });
 
 test('pictureUrls lists a shared picture once', () => {
-  const cards = [
-    card('One', ['same.webp'], 'art.webp'),
-    card('Two', ['same.webp'], 'art.webp'),
-  ];
+  const cards = [card('One', ['same.webp'], 'art.webp'), card('Two', ['same.webp'], 'art.webp')];
 
   expect(pictureUrls(cards)).toEqual(['same.webp', 'art.webp']);
 });

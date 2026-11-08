@@ -161,9 +161,7 @@ export default function App() {
         onAnswer={(card, correct) =>
           setProgress((before) => recordAnswer(before, card.oracle_id, correct, localDay()))
         }
-        onLessonFinished={() =>
-          setProgress((before) => recordLesson(before, localDay()))
-        }
+        onLessonFinished={() => setProgress((before) => recordLesson(before, localDay()))}
         onDone={goHome}
         soundsOn={soundsOn}
       />
@@ -190,8 +188,7 @@ export default function App() {
       cards={cards}
       failed={failed}
       fallback={
-        lastLoaded !== null &&
-        (lastLoaded.format !== format || lastLoaded.kind !== shownKind)
+        lastLoaded !== null && (lastLoaded.format !== format || lastLoaded.kind !== shownKind)
           ? lastLoaded
           : null
       }

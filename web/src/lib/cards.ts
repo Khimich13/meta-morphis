@@ -59,7 +59,10 @@ export async function loadCards(file: string): Promise<CardFile> {
 export const LIST_OLD_AFTER_DAYS = 3;
 
 /** Whole days since the list was fetched, or null if the file doesn't say */
-export function listAgeDays(listUpdated: string | undefined, now: Date = new Date()): number | null {
+export function listAgeDays(
+  listUpdated: string | undefined,
+  now: Date = new Date(),
+): number | null {
   if (listUpdated === undefined) return null;
   const fetched = Date.parse(listUpdated);
   if (Number.isNaN(fetched)) return null;

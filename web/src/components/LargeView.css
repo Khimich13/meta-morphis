@@ -22,8 +22,7 @@
   container-type: size;
   /* Room for the close button above the card, and 16px at the sides and
      below: the card's size below (.zoom-content) counts on these */
-  padding: calc(var(--bar) + env(safe-area-inset-top)) 16px
-    calc(16px + env(safe-area-inset-bottom));
+  padding: calc(var(--bar) + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
   border: none;
   background: transparent;
   /* The card is sized to fit, so nothing here ever needs scrolling. The
@@ -142,8 +141,7 @@ html:has(.enlarged[open]) body::after {
   box-sizing: border-box;
   /* The dialog's margins, which the row covers (see above). At the sides,
      they keep 32px between two cards while both are in view. */
-  padding: calc(var(--bar) + env(safe-area-inset-top)) 16px
-    calc(16px + env(safe-area-inset-bottom));
+  padding: calc(var(--bar) + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
   display: flex;
   justify-content: center;
   align-items: center;

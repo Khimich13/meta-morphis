@@ -2,8 +2,7 @@
   box-sizing: border-box;
   max-width: 480px;
   margin: 0 auto;
-  padding: calc(16px + env(safe-area-inset-top)) 16px
-    calc(16px + env(safe-area-inset-bottom));
+  padding: calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
 }
 
 .formats h1 {

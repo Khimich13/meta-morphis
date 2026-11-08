@@ -3,14 +3,7 @@
 // view first opens (see CardPicture.tsx and CardList.tsx), not with the
 // rest of the app.
 
-import {
-  type ReactNode,
-  type TouchEvent,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { type ReactNode, type TouchEvent, useContext, useEffect, useRef, useState } from 'react';
 import { TransformComponent, TransformWrapper, useTransformInit } from 'react-zoom-pan-pinch';
 
 import { type Card, isHorizontal, visibleName } from '../lib/cards';
@@ -255,7 +248,8 @@ function EaseNewSize() {
       // old size, place and angle
       const style = getComputedStyle(area);
       const shown = parseFloat(style.scale) || 1;
-      const [x = 0, y = 0] = style.translate === 'none' ? [] : style.translate.split(' ').map(parseFloat);
+      const [x = 0, y = 0] =
+        style.translate === 'none' ? [] : style.translate.split(' ').map(parseFloat);
       const angle = turning ? angleAt(spun) : 0;
       stop();
       turning = true;
@@ -287,7 +281,9 @@ function EaseNewSize() {
       const row = area.closest<HTMLElement>('.card-row');
       const slide = area.closest('.card-slide');
       const inView =
-        row === null || slide === null || [...row.children].indexOf(slide) === Number(row.dataset.shown);
+        row === null ||
+        slide === null ||
+        [...row.children].indexOf(slide) === Number(row.dataset.shown);
       if (!inView) {
         // A card beside it is hidden over the turn. In the old layout it
         // was just past the old screen's edge, and the turning frame grows

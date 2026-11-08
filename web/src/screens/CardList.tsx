@@ -84,7 +84,9 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
   const columns = choice === null ? null : Math.max(choice, fewest);
   const chooseColumns = useCallback((count: number) => {
     const sideways = isLandscape();
-    setChosen((before) => (sideways ? { ...before, sideways: count } : { ...before, upright: count }));
+    setChosen((before) =>
+      sideways ? { ...before, sideways: count } : { ...before, upright: count },
+    );
     saveColumns(count, sideways);
   }, []);
   usePinchColumns(grid, columns, chooseColumns, open);
@@ -115,7 +117,6 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
       behavior: reduceMotion ? 'auto' : 'smooth',
     });
   }
-
 
   return (
     <main className="card-list">
@@ -156,12 +157,7 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
           <p className="position" aria-live="polite">
             {index + 1} / {cards.length}
           </p>
-          <CardRow
-            rowRef={row}
-            startAt={index}
-            onSettle={setIndex}
-            count={cards.length}
-          >
+          <CardRow rowRef={row} startAt={index} onSettle={setIndex} count={cards.length}>
             {cards.map((card, position) => (
               <div className="card-slide" key={card.oracle_id}>
                 {/* Only the cards near the one in view hold a picture; the
@@ -230,7 +226,9 @@ function useKeepPlaceOnResize(grid: RefObject<HTMLElement | null>, largeViewOpen
         top = null;
         return;
       }
-      const first = [...grid.current.children].find((card) => card.getBoundingClientRect().bottom > 0);
+      const first = [...grid.current.children].find(
+        (card) => card.getBoundingClientRect().bottom > 0,
+      );
       // Still the card remembered, if it is in the top row: with more cards
       // per row, as on a phone turned sideways, it may share that row with
       // the cards before it, and turning back should bring back that card

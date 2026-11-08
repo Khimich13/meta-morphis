@@ -28,7 +28,7 @@ test('a list file is named like the exporter names it', () => {
   expect(listFile({ format: 'pauper', kind: 'creatures' })).toBe('pauper-creatures');
 });
 
-test('listsOf gives a format\'s lists in a fixed order', () => {
+test("listsOf gives a format's lists in a fixed order", () => {
   const file = { formats: ['pauper'], lists: { pauper: ['lands', 'all', 'creatures'] } };
   expect(listsOf(file, 'pauper')).toEqual(['all', 'creatures', 'lands']);
 });

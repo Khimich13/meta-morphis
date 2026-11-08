@@ -60,7 +60,11 @@ test('recordAnswer counts right and wrong answers per card', () => {
 test('a new card answered right goes to box 1, due tomorrow', () => {
   const progress = recordAnswer(EMPTY_PROGRESS, 'hydroblast', true, TODAY);
   expect(progress.cards.hydroblast).toEqual({
-    right: 1, wrong: 0, box: 1, due: TOMORROW, last: TODAY,
+    right: 1,
+    wrong: 0,
+    box: 1,
+    due: TOMORROW,
+    last: TODAY,
   });
 });
 
@@ -120,7 +124,11 @@ test('a right answer before the due day still moves the card up', () => {
   // Due in three days, asked again today
   const after = recordAnswer(progress, 'hydroblast', true, TODAY);
   expect(after.cards.hydroblast).toEqual({
-    right: 3, wrong: 0, box: 3, due: addDays(TODAY, BOX_WAIT_DAYS[3]), last: TODAY,
+    right: 3,
+    wrong: 0,
+    box: 3,
+    due: addDays(TODAY, BOX_WAIT_DAYS[3]),
+    last: TODAY,
   });
 });
 

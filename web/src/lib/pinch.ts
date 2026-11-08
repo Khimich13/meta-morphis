@@ -204,7 +204,10 @@ export function usePinchColumns(
       if (start === null || event.touches.length !== 2 || element === null) return;
       // The card between the two fingers
       const [a, b] = [event.touches[0], event.touches[1]];
-      const under = document.elementFromPoint((a.clientX + b.clientX) / 2, (a.clientY + b.clientY) / 2);
+      const under = document.elementFromPoint(
+        (a.clientX + b.clientX) / 2,
+        (a.clientY + b.clientY) / 2,
+      );
       const card = under?.closest('.card-grid > li');
       const spread = distance(event.touches) / start.spread;
       const fewest = fewestColumns(element.clientWidth, window.innerHeight);

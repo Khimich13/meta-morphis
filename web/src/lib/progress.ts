@@ -176,9 +176,7 @@ export function parseProgress(text: string | null, today: string = localDay()): 
   try {
     const saved = JSON.parse(text);
     const valid =
-      typeof saved?.cards === 'object' &&
-      saved.cards !== null &&
-      Array.isArray(saved.lessonDays);
+      typeof saved?.cards === 'object' && saved.cards !== null && Array.isArray(saved.lessonDays);
     if (valid && saved.version === 2) {
       return saved as Progress;
     }

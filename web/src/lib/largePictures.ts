@@ -10,10 +10,7 @@ import { useEffect, useState } from 'react';
  * and are made ready to draw in the background, so swapping them in shows
  * no gap. Offline, or without large pictures, the normal ones stay.
  */
-export function useLargePictures(
-  large: string[] | undefined,
-  zoomedIn: boolean,
-): string[] | null {
+export function useLargePictures(large: string[] | undefined, zoomedIn: boolean): string[] | null {
   const [ready, setReady] = useState<string[] | null>(null);
   useEffect(() => {
     if (!zoomedIn || ready !== null || large === undefined || large.length === 0) return;
