@@ -152,6 +152,15 @@
   width: min(100cqw, 100cqh * 488 / 680);
 }
 
+/* Behind the large view that turning the phone opened (see useOpenOnTurn
+   in CardPicture.tsx): the lesson, laid out sideways, is hidden. Showing
+   through the dimming as it faded in, it looked out of place. It fades
+   back in once the view's card is back in its place (.leaving). */
+.lesson:has(.enlarged.opened-by-turn[open]:not(.leaving)) > :not(.picture),
+.lesson:has(.enlarged.opened-by-turn[open]:not(.leaving)) .picture > :not(dialog) {
+  visibility: hidden;
+}
+
 .credit {
   font-size: 0.8rem;
   opacity: 0.7;

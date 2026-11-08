@@ -18,7 +18,7 @@ export function useLargeView() {
     history.pushState({ enlarged: true }, '');
     setOpen(true);
   }, []);
-  const close = () => history.back();
+  const close = useCallback(() => history.back(), []);
 
   useEffect(() => {
     if (!isOpen) return;

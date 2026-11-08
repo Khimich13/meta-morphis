@@ -4,17 +4,18 @@ import {
   type RefObject,
   Suspense,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
 import { flushSync } from 'react-dom';
 
 import { type Card, isHorizontal, SIDEWAYS_ART_BOX, visibleName } from '../lib/cards';
-import { isLandscape, useLandscape, useLandscapeAllowed } from '../lib/landscape';
+import { useLandscape, useLandscapeAllowed } from '../lib/landscape';
 import { useLargeView } from '../lib/largeView';
 import { canSpeak, sayName } from '../lib/speech';
 import './CardPicture.css';
-import type { TurnedFrom } from './LargeCard';
+import type { TurnBack, TurnedFrom } from './LargeCard';
 import LargeView from './LargeView';
 
 // The large view's card, with the zoom library: loaded the first time a
@@ -82,16 +83,22 @@ export default function CardPicture({
   const large = useLargeView();
   const LargeCard = loadedLargeCard ?? LazyLargeCard;
   const picture = useRef<HTMLDivElement>(null);
-  const { turnedFrom, openByTap } = useOpenOnTurn(
+  const { turnedFrom, turnBack, goingBack, openByTap, followsPhone } = useOpenOnTurn(
     openOnTurn && isHorizontal(card, showingBack),
     picture,
-    large.isOpen,
-    large.open,
+    large,
   );
+  // While the large view's card eases back into this one's place, the view's
+  // copy of it stands in for it (see TurnBack in LargeCard.tsx)
+  const standIn = goingBack !== false && large.isOpen;
 
   return (
     <>
-      <div ref={picture} className={pictureClass(card)} style={buttonCorner(card, showingBack)}>
+      <div
+        ref={picture}
+        className={pictureClass(card)}
+        style={{ ...buttonCorner(card, showingBack), visibility: standIn ? 'hidden' : undefined }}
+      >
         <button
           className="enlarge"
           aria-label={`Enlarge ${card.name}`}
@@ -107,13 +114,21 @@ export default function CardPicture({
         <FlipButton card={card} showingBack={showingBack} onFlip={flip} />
       </div>
       {large.isOpen && (
-        <LargeView onClose={large.close}>
+        <LargeView
+          onClose={large.close}
+          uprightToClose={followsPhone}
+          // For the page's and the view's rules (see Lesson.css and LargeView.css)
+          className={[turnedFrom && 'opened-by-turn', goingBack === 'landed' && 'leaving']
+            .filter(Boolean)
+            .join(' ')}
+        >
           <Suspense fallback={<div className="card-placeholder" />}>
             <LargeCard
               card={card}
               showingBack={showingBack}
               onFlip={flip}
               turnedFrom={turnedFrom}
+              turnBack={turnBack}
             />
           </Suspense>
         </LargeView>
@@ -123,26 +138,62 @@ export default function CardPicture({
 }
 
 /**
- * Turning a phone sideways opens the large view, where a side printed
- * sideways is shown the right way up, while `enabled`. The card eases
- * from its place here into the view, as a card in the large view does
- * when the phone turns (see EaseNewSize in LargeCard.tsx).
+ * While `enabled`, the large view follows the phone: turned sideways, it
+ * opens, showing a side printed sideways the right way up; turned back
+ * upright, it closes again - unless a tap had opened it before the turn,
+ * and then it stays open. The card eases from its place here into the
+ * view, as a card in the large view does when the phone turns, and back
+ * into its place here before the view closes (see EaseNewSize in
+ * LargeCard.tsx). Sideways, the view can't be closed by hand (see
+ * uprightToClose in LargeView.tsx): the screen around the card is built
+ * for an upright phone, and the page may turn sideways only for the
+ * view. Only on touch screens: a computer's window is often wider than
+ * tall anyway.
  *
- * The page may turn sideways only for this: closed again while sideways,
- * the view leaves "Turn your phone upright" (see index.html), as the
- * screen around the card is built for an upright phone. Only on touch
- * screens: a computer's window is often wider than tall anyway.
+ * Turned back upright, the view stays dark while its card eases back,
+ * and only once the card is in its place, after the phone's own turn,
+ * does the page fade in around it, before the view closes. As an iPhone
+ * turns, it fills the edges of its turning frame with the page's
+ * background color a moment late: fading while the phone turned, the
+ * edges were darker than the page.
  *
- * Gives where the card was when the turn opened the view, if it did,
- * and how to open the view by tapping, which forgets that.
+ * Gives where the card was when the turn opened the view, if it did, and
+ * how turning back closes the view; how far the card is on its way back;
+ * how to open the view by tapping, which forgets the turn; and whether
+ * the view follows the phone.
  */
 function useOpenOnTurn(
   enabled: boolean,
   picture: RefObject<HTMLDivElement | null>,
-  isOpen: boolean,
-  open: () => void,
-): { turnedFrom: TurnedFrom | undefined; openByTap: () => void } {
+  { isOpen, open, close }: { isOpen: boolean; open: () => void; close: () => void },
+): {
+  turnedFrom: TurnedFrom | undefined;
+  turnBack: TurnBack | undefined;
+  goingBack: GoingBack;
+  openByTap: () => void;
+  followsPhone: boolean;
+} {
   const [turnedFrom, setTurnedFrom] = useState<TurnedFrom | undefined>(undefined);
+  const [goingBack, setGoingBack] = useState<GoingBack>(false);
+  // The same every time: the large view keeps the one it opened with
+  const turnBack = useMemo<TurnBack>(
+    () => ({
+      place: () => placeOf(picture.current),
+      // Before the frame is drawn, so the card here hides as its copy
+      // starts out from the view
+      onStart: () => flushSync(() => setGoingBack('easing')),
+      onDone: () => setGoingBack('landed'),
+    }),
+    [picture],
+  );
+  // Back in its place: the page fades in around the card (.leaving in
+  // LargeView.css), then the view closes
+  useEffect(() => {
+    if (goingBack !== 'landed' || !isOpen) return;
+    const fading = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : FADE_IN_TIME;
+    const timer = setTimeout(close, fading);
+    return () => clearTimeout(timer);
+  }, [goingBack, isOpen, close]);
   const active = enabled && matchMedia('(pointer: coarse)').matches;
   const landscape = useLandscape();
   useLandscapeAllowed(active && (!landscape || isOpen));
@@ -151,16 +202,22 @@ function useOpenOnTurn(
     if (!active || isOpen) return;
     // The large view's code, loaded ahead, so the view opens with the turn
     void loadLargeCard();
+    // Sideways by the page's own layout. Not by the window's size: as an
+    // iPhone turns, the page is laid out sideways a frame before the
+    // window's size follows, and the card, measured in that frame as if
+    // upright, was in its sideways place.
+    const root = document.documentElement;
+    const sideways = () => root.clientWidth > root.clientHeight;
     // The card's place is measured while upright: once the phone has
     // turned, the page is laid out anew
-    const measure = () => (isLandscape() ? null : placeOf(picture.current));
+    const measure = () => (sideways() ? null : placeOf(picture.current));
     let place = measure();
-    // The window's resize event comes before the new layout's first frame
-    // is drawn, so the view opens in that frame. Not a ResizeObserver:
-    // opening the view from one starts the view's own observers in the
-    // middle of it, which the browser reports as an error.
-    const onResize = () => {
-      if (!isLandscape()) {
+    // Watching the page's own box hears a turn before the new layout's
+    // first frame is drawn, so the view opens in that frame (see
+    // usePageSize in LargeView.tsx). On an iPhone, the window's resize
+    // event can come frames later, after the turn has begun.
+    const observer = new ResizeObserver(() => {
+      if (!sideways()) {
         place = measure();
         return;
       }
@@ -168,19 +225,37 @@ function useOpenOnTurn(
       const from = place;
       flushSync(() => {
         setTurnedFrom(from);
+        setGoingBack(false);
         open();
       });
-    };
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
+    });
+    observer.observe(root);
+    return () => observer.disconnect();
   }, [active, isOpen, open, picture]);
 
   const openByTap = () => {
     setTurnedFrom(undefined);
+    setGoingBack(false);
     open();
   };
-  return { turnedFrom, openByTap };
+  return {
+    turnedFrom,
+    // Only a view the turn opened closes by turning back
+    turnBack: turnedFrom === undefined ? undefined : turnBack,
+    goingBack,
+    openByTap,
+    followsPhone: active,
+  };
 }
+
+/**
+ * A view's card on its way back into the page, as the phone turns
+ * upright (see useOpenOnTurn): not, easing back, or there
+ */
+type GoingBack = false | 'easing' | 'landed';
+
+/** How long the page takes to fade in around it; keep in step with .leaving in LargeView.css */
+const FADE_IN_TIME = 300;
 
 /** Where a card's picture is on the screen, see TurnedFrom */
 function placeOf(element: HTMLElement | null): TurnedFrom | null {

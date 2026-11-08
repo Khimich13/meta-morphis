@@ -21,6 +21,7 @@ export default function LargeCard({
   onFlip,
   lazy = false,
   turnedFrom,
+  turnBack,
 }: {
   card: Card;
   showingBack: boolean;
@@ -29,6 +30,8 @@ export default function LargeCard({
   lazy?: boolean;
   /** Opened by turning the phone: where the card was before the turn */
   turnedFrom?: TurnedFrom;
+  /** Opened by turning the phone: turning it back closes the view */
+  turnBack?: TurnBack;
 }) {
   // Zoomed in: the large view pauses moving to other cards, and hides
   // its buttons and the page behind
@@ -44,6 +47,7 @@ export default function LargeCard({
         contentClass={horizontal ? 'zoom-content horizontal' : 'zoom-content'}
         onZoomedChange={reportZoomed}
         turnedFrom={turnedFrom}
+        turnBack={turnBack}
       >
         {(pictures) => (
           <div className={pictureClass(card)} style={buttonCorner(card, showingBack)}>
@@ -73,6 +77,20 @@ export interface TurnedFrom {
 }
 
 /**
+ * A view that turning the phone opened, which turning it back upright
+ * closes: the card eases back into its place on the page underneath,
+ * then the view closes
+ */
+export interface TurnBack {
+  /** Where the card on the page is now, upright, to ease into */
+  place: () => TurnedFrom | null;
+  /** The easing back starts: the card on the page hides */
+  onStart: () => void;
+  /** The card is back in its place: the page shows, and the view closes */
+  onDone: () => void;
+}
+
+/**
  * A card that zooms, with the react-zoom-pan-pinch library: a double tap
  * goes to 2x and back, a pinch up to 4x, and one finger moves around the
  * zoomed card. At normal size, one finger is left to the page (the large
@@ -86,6 +104,7 @@ function Zoomable({
   contentClass,
   onZoomedChange,
   turnedFrom,
+  turnBack,
   children,
 }: {
   card: Card;
@@ -94,6 +113,7 @@ function Zoomable({
   /** Hears when the card is zoomed in, and back out */
   onZoomedChange: (zoomed: boolean) => void;
   turnedFrom?: TurnedFrom;
+  turnBack?: TurnBack;
   children: (pictures: string[] | undefined) => ReactNode;
 }) {
   const [zoomedIn, setZoomedIn] = useState(false);
@@ -152,7 +172,7 @@ function Zoomable({
     >
       {({ resetTransform }) => (
         <>
-          <EaseNewSize turnedFrom={turnedFrom} />
+          <EaseNewSize turnedFrom={turnedFrom} turnBack={turnBack} />
           <TransformComponent
             wrapperClass={zoomedIn ? `${areaClass} zoomed` : areaClass}
             contentClass={contentClass}
@@ -185,6 +205,16 @@ const EASE_TIME = 300;
 /** The most the card's easing moves on in one drawn frame, in ms: a frame's time at 60 frames a second */
 const EASE_STEP = 17;
 
+/** A move of the card from its place: its scale, and how far its middle moves */
+interface Move {
+  scale: number;
+  x: number;
+  y: number;
+}
+
+/** No move: the card where it is */
+const STILL: Move = { scale: 1, x: 0, y: 0 };
+
 /** The same curve as CSS's ease-in-out, near enough, for t from 0 to 1 */
 function easeInOut(t: number): number {
   return t < 0.5 ? 4 * t ** 3 : 1 - (2 - 2 * t) ** 3 / 2;
@@ -196,19 +226,21 @@ function easeInOut(t: number): number {
  * of a frame that only gradually changes from the old screen's shape to
  * the new one as it rotates, so the card, in the middle of the new
  * screen, was drawn far from the middle of that frame, half off the
- * screen, and slid back as the turn ended. Instead, the area the card
- * zooms in is drawn at the card's old size and in the old screen's
- * middle, and eased to its new size and place over the turn, keeping the
- * card in the middle of the turning frame, as in a photo app. Only the
- * drawing moves: the layout, and the zoom library's sense of where the
- * card is, are already the new ones.
+ * screen, and slid back as the turn ended. Instead, a copy of the card
+ * is drawn at the card's old size and in the old screen's middle, and
+ * eased to its new size and place over the turn, keeping the card in the
+ * middle of the turning frame, as in a photo app. Only the drawing moves:
+ * the layout, and the zoom library's sense of where the card is, are
+ * already the new ones.
  *
- * The card in view moves as a copy in the page itself, above the dimmed
- * page and below the view. While the phone turns, it draws the view only
- * inside the new screen, and the card, still at its old size, was cut off
- * at the new screen's edge. The page is drawn in the whole turning frame.
- * The card itself is hidden until the copy is done. In the card list, the
- * cards beside it are hidden over the turn.
+ * The copy is in the page itself, above the dimmed page and below the
+ * view. While the phone turns, it draws the view only inside the new
+ * screen, and the card, still at its old size, was cut off at the new
+ * screen's edge. The page is drawn in the whole turning frame. The card
+ * itself is hidden until the copy is done, and stays where it is: eased
+ * along with the copy while hidden, iOS drew it for a frame at the
+ * easing's start as it showed it again. In the card list, the cards
+ * beside it are hidden over the turn.
  *
  * The easing moves on frame by frame, by at most a frame's time each: as
  * it turns, the phone may draw no frames for a moment, and an easing by
@@ -226,9 +258,11 @@ function easeInOut(t: number): number {
  *
  * A view that the turn itself opened (turnedFrom: a lesson's answer card
  * printed sideways, see CardPicture.tsx) eases the same way, from the
- * small card's place and size before the turn.
+ * small card's place and size before the turn. Turned back upright, its
+ * card eases back into that place on the page instead (turnBack), and the
+ * view closes.
  */
-function EaseNewSize({ turnedFrom }: { turnedFrom?: TurnedFrom }) {
+function EaseNewSize({ turnedFrom, turnBack }: { turnedFrom?: TurnedFrom; turnBack?: TurnBack }) {
   // The library's two boxes, once it has set them up
   useTransformInit(({ instance }) => {
     const area = instance.wrapperComponent;
@@ -237,9 +271,18 @@ function EaseNewSize({ turnedFrom }: { turnedFrom?: TurnedFrom }) {
     // The card's own width, without its quarter turn: the box around a
     // card printed sideways is as wide as the card is long, in landscape
     const cardWidth = () => (content.firstElementChild as HTMLElement | null)?.offsetWidth ?? 0;
-    let width = cardWidth();
-    let areaWidth = area.offsetWidth;
-    let areaHeight = area.offsetHeight;
+    const measure = () => ({
+      width: cardWidth(),
+      areaWidth: area.offsetWidth,
+      areaHeight: area.offsetHeight,
+    });
+    // The card's and its area's sizes as drawn, which a turn starts from
+    let { width, areaWidth, areaHeight } = measure();
+    const take = (sizes: ReturnType<typeof measure>) => {
+      ({ width, areaWidth, areaHeight } = sizes);
+    };
+    // A frame's request to take new sizes once they are drawn (see below)
+    let settle = 0;
     // The copy's turn: from this many degrees from the card's angle after
     // the phone's turn, to 0, and how far along it is, in ms. It has a
     // clock of its own, so a second change of size during the easing,
@@ -248,9 +291,11 @@ function EaseNewSize({ turnedFrom }: { turnedFrom?: TurnedFrom }) {
     let spinFrom = 0;
     let spun = 0;
     const angleAt = (time: number) => spinFrom * (1 - easeInOut(Math.min(time / EASE_TIME, 1)));
-    // Whether a turn is being eased; during one, the area's move and the
-    // copy's, the card's copy, and the next frame's request
+    // Whether a turn is being eased; during one, the copy's move, the
+    // card's copy, and the next frame's request
     let turning = false;
+    // Easing back into the page, to close (see turnBack)
+    let goingBack = false;
     let moving: Animation[] = [];
     let copy: HTMLElement | null = null;
     let frame = 0;
@@ -269,18 +314,28 @@ function EaseNewSize({ turnedFrom }: { turnedFrom?: TurnedFrom }) {
     };
     const observer = new ResizeObserver(() => {
       const before = { width, areaWidth, areaHeight };
-      width = cardWidth();
-      areaWidth = area.offsetWidth;
-      areaHeight = area.offsetHeight;
-      const landscape = areaWidth > areaHeight;
-      // Laid out for the first time, as the view opens
-      if (before.width === 0 && width > 0) startFromTurn();
-      if (before.width === 0 || width === 0) return;
+      const sizes = measure();
+      const landscape = sizes.areaWidth > sizes.areaHeight;
       // A turn: the area, the whole screen, changed from upright to
       // sideways or back. Not a window being resized, unless during a
       // turn's easing.
       const turned = before.areaWidth > before.areaHeight !== landscape;
-      if (!turned && !turning) return;
+      cancelAnimationFrame(settle);
+      if (before.width > 0 && sizes.width > 0 && !turned && !turning) {
+        // Not a turn: the new sizes count once drawn, from the next frame.
+        // As an iPhone turns, the card may take its new size a step before
+        // its area does, within one frame: the view follows the page's new
+        // size a step after the page. The turn, seen at the second step,
+        // must start from the card's size on the screen, not from the
+        // first step's, which no frame showed: from that, the card shrank
+        // at once as the turn began.
+        settle = requestAnimationFrame(() => take(sizes));
+        return;
+      }
+      take(sizes);
+      // Laid out for the first time, as the view opens
+      if (before.width === 0 && width > 0) startFromTurn();
+      if (before.width === 0 || width === 0) return;
       // During the easing, the area alone may change: upright, the screen's
       // height can settle a moment after its width, leaving the card as
       // wide as before but its middle higher. The copy, aimed at the old
@@ -290,13 +345,27 @@ function EaseNewSize({ turnedFrom }: { turnedFrom?: TurnedFrom }) {
         areaWidth !== before.areaWidth ||
         areaHeight !== before.areaHeight;
       if (!resized) return;
-      if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      // Turned back upright, in a view the turn opened: back into the page
+      // underneath, then closed. Its place there is measured again on each
+      // change of size, as the screen settles.
+      const back = turnBack !== undefined && !landscape && (turned || goingBack);
+      const target = back ? turnBack.place() : null;
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches || (back && target === null)) {
+        if (back) turnBack.onDone();
+        return;
+      }
+      if (back && !goingBack) {
+        goingBack = true;
+        turnBack.onStart();
+      }
       // During an easing: from where the card is on screen, not from its
-      // old size, place and angle
-      const style = getComputedStyle(area);
-      const shown = parseFloat(style.scale) || 1;
+      // old size, place and angle. The copy shows it there.
+      const style = copy === null ? null : getComputedStyle(copy);
+      const shown = (style && parseFloat(style.scale)) || 1;
       const [x = 0, y = 0] =
-        style.translate === 'none' ? [] : style.translate.split(' ').map(parseFloat);
+        style === null || style.translate === 'none'
+          ? []
+          : style.translate.split(' ').map(parseFloat);
       const angle = turning ? angleAt(spun) : 0;
       // The quarter turn a card printed sideways has in landscape, which
       // its copy starts without, or with, to look as before
@@ -310,6 +379,7 @@ function EaseNewSize({ turnedFrom }: { turnedFrom?: TurnedFrom }) {
           y: y + (before.areaHeight - areaHeight) / 2,
         },
         turned ? angle + quarter : null,
+        target,
       );
     });
 
@@ -338,17 +408,34 @@ function EaseNewSize({ turnedFrom }: { turnedFrom?: TurnedFrom }) {
     };
 
     /**
-     * Eases the card from `from` - the area's scale and move that show it
-     * where it was - to its place now. `spin`: the angle its copy starts
-     * at, from the card's own; null carries on with the turn under way.
+     * Eases the card from `from` - the scale and move from its place now
+     * that show it where it was - to its place now, or to `to` on the page
+     * underneath. `spin`: the angle its copy starts at, from the card's
+     * own; null carries on with the turn under way.
      */
-    const begin = (from: { scale: number; x: number; y: number }, spin: number | null) => {
+    const begin = (from: Move, spin: number | null, to: TurnedFrom | null = null) => {
       stop();
       turning = true;
       if (spin !== null) {
         spinFrom = spin;
         spun = 0;
       }
+      // The move that shows the card at its place now, or at `to`
+      const goal = (target: TurnedFrom | null): Move =>
+        target === null
+          ? STILL
+          : {
+              scale: target.width / width,
+              x: target.x - areaWidth / 2,
+              y: target.y - areaHeight / 2,
+            };
+      // From where it was to there
+      const movesTo = (target: TurnedFrom | null) =>
+        [from, goal(target)].map((move) => ({
+          scale: move.scale,
+          translate: `${move.x}px ${move.y}px`,
+        }));
+      let aim = to;
       // The card's new place on the screen: the middle of its area, which
       // fills the screen from the top left corner once the card row is on
       // its card. Worked out rather than measured where it's drawn now. As
@@ -379,15 +466,16 @@ function EaseNewSize({ turnedFrom }: { turnedFrom?: TurnedFrom }) {
         // Before and after the turn, it's off the screen anyway.
         area.style.visibility = 'hidden';
       } else {
-        const moves = [
-          { scale: from.scale, translate: `${from.x}px ${from.y}px` },
-          { scale: 1, translate: '0px 0px' },
-        ];
-        const timing = { duration: EASE_TIME, easing: 'ease-in-out' };
-        moving = [area.animate(moves, timing)];
-        // Its copy, put in the page where the card is on the screen, makes
-        // the same move. The card is in the middle of its area, so both
-        // grow and shrink around the same point.
+        const moves = movesTo(aim);
+        // Held at its end, which the last frame shows
+        const timing: KeyframeAnimationOptions = {
+          duration: EASE_TIME,
+          easing: 'ease-in-out',
+          fill: 'forwards',
+        };
+        // The copy, put in the page where the card is on the screen, makes
+        // the move. The card is in the middle of its area, so the moves are
+        // the area's middle's.
         copy = content.cloneNode(true) as HTMLElement;
         // For the view's rules for a card printed sideways (see LargeView.css)
         copy.classList.add('turn-copy');
@@ -409,7 +497,7 @@ function EaseNewSize({ turnedFrom }: { turnedFrom?: TurnedFrom }) {
         });
         document.body.append(copy);
         area.style.visibility = 'hidden';
-        moving.push(copy.animate(moves, timing));
+        moving = [copy.animate(moves, timing)];
         // The close button and the card count have other spots upright and
         // sideways: hidden until the turn is done (see LargeView.css)
         view = area.closest('dialog');
@@ -429,15 +517,30 @@ function EaseNewSize({ turnedFrom }: { turnedFrom?: TurnedFrom }) {
         last = now;
         done = Math.min(done + passed, EASE_TIME);
         spun = Math.min(spun + passed, EASE_TIME);
-        if (done >= EASE_TIME && spun >= EASE_TIME) {
-          stop();
-          return;
+        // Easing back into the page: aimed at where the card there is now.
+        // As the phone turns upright, the page has its new width first and
+        // its new height a moment later, so the card there, small at
+        // first, grows to its size: aimed at once, the copy shrank to the
+        // small card, and the page's card then showed at its full size.
+        if (aim !== null && turnBack !== undefined) {
+          const now = turnBack.place();
+          if (now !== null && (now.x !== aim.x || now.y !== aim.y || now.width !== aim.width)) {
+            aim = now;
+            for (const move of moving) (move.effect as KeyframeEffect).setKeyframes(movesTo(aim));
+          }
         }
         for (const move of moving) move.currentTime = done;
         turnCopy();
         // If the page scrolls during the turn, the copy moves back by as
         // much, in the same frame
         if (copy !== null) copy.style.top = `${top + scrollY - scrolled}px`;
+        if (done >= EASE_TIME && spun >= EASE_TIME) {
+          // Back on the page: the copy stays there, exactly over the
+          // page's card, until the view closes
+          if (goingBack) turnBack?.onDone();
+          else stop();
+          return;
+        }
         frame = requestAnimationFrame(step);
       };
       frame = requestAnimationFrame(step);
@@ -449,6 +552,7 @@ function EaseNewSize({ turnedFrom }: { turnedFrom?: TurnedFrom }) {
     observer.observe(area);
     return () => {
       observer.disconnect();
+      cancelAnimationFrame(settle);
       stop();
     };
   });

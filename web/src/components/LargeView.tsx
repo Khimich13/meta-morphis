@@ -8,7 +8,7 @@ import {
   useState,
 } from 'react';
 
-import { useLandscapeAllowed } from '../lib/landscape';
+import { isLandscape, useLandscapeAllowed } from '../lib/landscape';
 import type { Direction } from '../lib/swipe';
 import './LargeView.css';
 
@@ -31,6 +31,15 @@ interface LargeViewProps {
   onMove?: (direction: Direction) => void;
   hasPrevious?: boolean;
   hasNext?: boolean;
+  /**
+   * While the phone is sideways, only turning it upright closes the view:
+   * no close button, and Esc and taps outside the card do nothing. For a
+   * lesson's sideways answer card, whose screen is built for an upright
+   * phone (see useOpenOnTurn in CardPicture.tsx).
+   */
+  uprightToClose?: boolean;
+  /** More classes for the view, for the rules of the page it's on */
+  className?: string;
 }
 
 export default function LargeView({
@@ -39,7 +48,13 @@ export default function LargeView({
   onMove,
   hasPrevious,
   hasNext,
+  uprightToClose = false,
+  className,
 }: LargeViewProps) {
+  // Closing by hand is off while sideways, see uprightToClose
+  const closeByHand = () => {
+    if (!(uprightToClose && isLandscape())) onClose();
+  };
   const dialog = useRef<HTMLDialogElement>(null);
   const [zoomed, setZoomed] = useState(false);
   // When the view opened: a quick second tap right after the one that
@@ -67,11 +82,13 @@ export default function LargeView({
     <dialog
       ref={dialog}
       tabIndex={-1}
-      className={zoomed ? 'enlarged zoomed' : 'enlarged'}
+      className={['enlarged', zoomed && 'zoomed', uprightToClose && 'upright-to-close', className]
+        .filter(Boolean)
+        .join(' ')}
       // Esc: close it the same way as the other ways, through history
       onCancel={(event) => {
         event.preventDefault();
-        onClose();
+        closeByHand();
       }}
       onKeyDown={(event) => {
         if (onMove === undefined || zoomed) return;
@@ -83,7 +100,7 @@ export default function LargeView({
       // A tap anywhere but on the card or a button counts as outside it
       onClick={(event) => {
         if (performance.now() - openedAt.current < 400) return;
-        if (!(event.target as Element).closest('.card-picture, button')) onClose();
+        if (!(event.target as Element).closest('.card-picture, button')) closeByHand();
       }}
     >
       <button className="close" aria-label="Close" onClick={onClose}>
@@ -99,6 +116,8 @@ export default function LargeView({
         </button>
       )}
       <ZoomedContext value={setZoomed}>{children}</ZoomedContext>
+      {/* Only on a sideways phone, see LargeView.css */}
+      {uprightToClose && <p className="upright-hint">↻ Turn your phone upright to continue</p>}
       {onMove !== undefined && hasNext && (
         <button className="move next" aria-label="Next card" onClick={() => onMove('next')}>
           ›
@@ -128,9 +147,14 @@ function usePageSize(dialog: RefObject<HTMLDialogElement | null>) {
     };
     update();
     const observer = new ResizeObserver(update);
-    observer.observe(root);
+    // From the next frame: the view may open from another observer of the
+    // page, as the phone turns (see useOpenOnTurn in CardPicture.tsx), and
+    // the browser reports one starting on the same box meanwhile as an
+    // error. The size is already set for this frame.
+    const start = requestAnimationFrame(() => observer.observe(root));
     window.addEventListener('resize', update);
     return () => {
+      cancelAnimationFrame(start);
       observer.disconnect();
       window.removeEventListener('resize', update);
     };
