@@ -332,8 +332,6 @@ function EaseNewSize() {
           transform: 'none',
           transformOrigin: 'center',
         });
-        // The buttons' size in the view (.enlarged .card-button)
-        copy.style.setProperty('--size', '56px');
         document.body.append(copy);
         area.style.visibility = 'hidden';
         moving.push(copy.animate(moves, timing));

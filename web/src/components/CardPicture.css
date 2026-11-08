@@ -2,6 +2,8 @@
    the pair around its vertical axis, so the back comes into view. */
 .card-picture {
   position: relative;
+  /* Lets the buttons over the card measure its width with cqw units */
+  container-type: inline-size;
 }
 
 .card-sides {
@@ -68,9 +70,13 @@
    set from the card's art box by buttonCorner in CardPicture.tsx), far
    from the artist name and copyright at the bottom. A card without a
    known art box keeps them over the right part of where artwork usually
-   is. */
+   is.
+   They grow and shrink with the card: about a sixth of its width (cqw is
+   a hundredth of it), the same look on a small card and a large one.
+   They stop at 32px on a small card, still easy to see and tap, and at
+   64px on a computer's large card, plenty to see and click. */
 .card-button {
-  --size: 48px;
+  --size: clamp(32px, 16cqw, 64px);
   position: absolute;
   top: var(--button-top, 30%);
   right: var(--button-right, 8%);
@@ -91,6 +97,24 @@
   transition:
     background 0.2s,
     color 0.2s;
+}
+
+/* A finger needs about 44px to hit a button reliably: a smaller button
+   takes taps from an invisible ring around it, so it doesn't have to
+   cover more of the artwork to be easy to tap */
+.card-button::before {
+  content: '';
+  position: absolute;
+  inset: min(0px, (var(--size) - 44px) / 2);
+  border-radius: 50%;
+}
+
+/* On a card this small they would be too tiny to see or tap: a tap
+   opens the large view, which has them at a usable size */
+@container (max-width: 99.9px) {
+  .card-button {
+    display: none;
+  }
 }
 
 /* Easy to find once pointed at or reached with the keyboard */
@@ -123,9 +147,9 @@
 
 /* The speaker takes the corner wherever it shows, so it is always in
    the same place; the flip button of a double-faced card goes right
-   below it */
+   below it, a gap of a sixth of a button between them */
 .card-picture:has(.say-on-card) .flip {
-  top: calc(var(--button-top, 30%) + var(--size) + 8px);
+  top: calc(var(--button-top, 30%) + var(--size) * 7 / 6);
 }
 
 .say-on-card svg {

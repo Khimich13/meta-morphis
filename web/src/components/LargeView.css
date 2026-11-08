@@ -316,10 +316,6 @@ html:has(.enlarged[open]) body::after {
   background: #000;
 }
 
-.enlarged .card-button {
-  --size: 56px;
-}
-
 /* While the phone turns (see EaseNewSize in LargeCard.tsx): the close
    button and the card count, which have other spots upright and sideways,
    are hidden at once rather than jumping, and fade back in at their new
