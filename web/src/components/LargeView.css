@@ -24,7 +24,8 @@
      below: the card's size below (.zoom-content) counts on these */
   padding: calc(var(--bar) + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
   border: none;
-  background: transparent;
+  /* Clear, darkening to black as the card zooms in (see below) */
+  background: rgb(0 0 0 / var(--zoom-fade, 0));
   /* The card is sized to fit, so nothing here ever needs scrolling. The
      browser would otherwise show a scrollbar for a moment while a card
      turns over, since the 3D turn briefly makes its near edge larger,
@@ -296,9 +297,22 @@ html:has(.enlarged[open]) body::after {
   }
 }
 
-/* While zoomed in: the row stays on the card, and the buttons and the
-   card count step aside */
+/* Zooming in: the larger the card, the darker the page behind (the
+   view's background, above) and the fainter the buttons and the card
+   count, until at 2x only the card shows. --zoom-fade goes from 0 to 1
+   with the card's scale, set frame by frame (see Zoomable in
+   LargeCard.tsx). */
+.enlarged .move,
+.enlarged .card-button,
+.enlarged .close,
+.enlarged .position,
+.enlarged .turn-hint {
+  opacity: calc(1 - var(--zoom-fade, 0));
+}
 
+/* While zoomed in: the row stays on the card, and the fading buttons
+   can't be tapped. Their fade follows the fingers, without the close
+   button's and the card count's own easing (below). */
 .enlarged.zoomed .card-row {
   overflow-x: hidden;
 }
@@ -306,14 +320,9 @@ html:has(.enlarged[open]) body::after {
 .enlarged.zoomed .move,
 .enlarged.zoomed .card-button,
 .enlarged.zoomed .close,
-.enlarged.zoomed .position,
-.enlarged.zoomed .turn-hint {
-  display: none;
-}
-
-/* The whole screen is the card's: nothing of the page shows behind it */
-.enlarged.zoomed::backdrop {
-  background: #000;
+.enlarged.zoomed .position {
+  pointer-events: none;
+  transition: none;
 }
 
 /* While the phone turns (see EaseNewSize in LargeCard.tsx): the close

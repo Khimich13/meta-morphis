@@ -87,6 +87,8 @@ function Zoomable({
     };
   }, [zoomedIn, onZoomedChange]);
   const large = useLargePictures(card.large_images, zoomedIn);
+  // The card's scale when it last set the view's fade
+  const lastScale = useRef(1);
   // When and where the last tap while zoomed in ended
   const lastTap = useRef<{ time: number; x: number; y: number } | null>(null);
   // Just shown: the end of the double tap or click that opened the large
@@ -116,7 +118,19 @@ function Zoomable({
       panning={{ disabled: !zoomedIn }}
       // The mouse wheel and touchpad keep scrolling and moving between cards
       wheel={{ disabled: true }}
-      onTransform={(_, { scale }) => setZoomedIn(scale > 1.05)}
+      onTransform={(ref, { scale }) => {
+        setZoomedIn(scale > 1.05);
+        // The page behind darkens and the buttons fade as the card grows,
+        // fully by 2x (see --zoom-fade in LargeView.css). Only when this
+        // card's scale changes: the cards beside it, at normal size, are
+        // also placed again when the phone turns, and would undo the fade.
+        if (scale === lastScale.current) return;
+        lastScale.current = scale;
+        const fade = Math.min(Math.max(scale - 1, 0), 1);
+        ref.instance.wrapperComponent
+          ?.closest('dialog')
+          ?.style.setProperty('--zoom-fade', String(fade));
+      }}
     >
       {({ resetTransform }) => (
         <>
