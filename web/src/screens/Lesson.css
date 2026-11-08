@@ -305,6 +305,23 @@
   pointer-events: none;
 }
 
+/* A card printed sideways shows its art turned a quarter to the left,
+   while the artwork asked about is the right way up. The landing box is
+   the art area's shape the right way up - its width and height swapped,
+   around the same middle - turned the same way, so the artwork turns as
+   it flies. */
+.art-target.sideways {
+  --box-w: calc(var(--width) * var(--box-width));
+  --box-h: calc(var(--height) * var(--box-height));
+  left: calc(
+    (100cqw - var(--width)) / 2 + var(--width) * var(--box-left) + (var(--box-w) - var(--box-h)) / 2
+  );
+  top: calc(var(--height) * var(--box-top) + (var(--box-h) - var(--box-w)) / 2);
+  width: var(--box-h);
+  height: var(--box-w);
+  rotate: -90deg;
+}
+
 /* The animation, after a right answer or a wrong one (which then also
    pulses or shakes the card, see Lesson.tsx): the artwork moves and shrinks onto
    the art box, fully visible until nearly there, then gives way to the

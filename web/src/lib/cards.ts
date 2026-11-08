@@ -80,6 +80,17 @@ export function isHorizontal(card: Card, showingBack: boolean): boolean {
 }
 
 /**
+ * Where the artwork is on a side printed sideways (split cards, Rooms),
+ * in the picture as it is stored - upright, with the card's writing
+ * running up the side: left, top, width, height, as shares of the
+ * card's width and height, like art_box. Turned the right way up, a
+ * quarter clockwise, its top left corner becomes the artwork's top right
+ * one. Measured on Wear // Tear and Unholy Annex on 2026-11-05 and
+ * 2026-11-07, whose art areas are within 2% of each other.
+ */
+export const SIDEWAYS_ART_BOX = [0.145, 0.05, 0.39, 0.85];
+
+/**
  * The name of the side being looked at. A double-faced card's name is
  * its two face names joined by " // ", in the same order as its two
  * pictures. A split card has " // " in its name too, but both halves

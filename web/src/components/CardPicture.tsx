@@ -1,6 +1,6 @@
 import { type CSSProperties, lazy, Suspense, useState } from 'react';
 
-import { type Card, isHorizontal, visibleName } from '../lib/cards';
+import { type Card, isHorizontal, SIDEWAYS_ART_BOX, visibleName } from '../lib/cards';
 import { useLargeView } from '../lib/largeView';
 import { canSpeak, sayName } from '../lib/speech';
 import './CardPicture.css';
@@ -87,16 +87,6 @@ export function pictureClass(card: Card): string {
 }
 
 /**
- * Where the artwork's top right corner is on a side printed sideways
- * (split cards, Rooms), in the picture as it is stored - upright, with
- * the card's writing running up the side: [left, top]. Turned the right
- * way up, a quarter clockwise, this corner of the picture becomes the
- * artwork's top right one. Measured on Wear // Tear and Unholy Annex on
- * 2026-11-05, whose artwork corners are within 2% of each other.
- */
-const SIDEWAYS_ART_CORNER = [0.145, 0.05];
-
-/**
  * Where the buttons over a card go: the top right corner of its artwork,
  * a little inside it, from the card's art box (see art_box in
  * meta_morphis/export.py). Artwork on the left half of the card (classes
@@ -110,7 +100,8 @@ const SIDEWAYS_ART_CORNER = [0.145, 0.05];
 export function buttonCorner(card: Card, showingBack: boolean): CSSProperties | undefined {
   // CSS variables, which React's style types don't list
   if (isHorizontal(card, showingBack)) {
-    const [left, top] = SIDEWAYS_ART_CORNER;
+    // The box's top left corner: the artwork's top right one, turned
+    const [left, top] = SIDEWAYS_ART_BOX;
     return {
       '--button-top': `${(top + 0.015) * 100}%`,
       '--button-left': `${(left + 0.02) * 100}%`,

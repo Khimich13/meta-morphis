@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom';
 
 import CardPicture from '../components/CardPicture';
 import StandingLabel, { type PipChange } from '../components/StandingLabel';
-import type { Card } from '../lib/cards';
+import { type Card, isHorizontal, SIDEWAYS_ART_BOX } from '../lib/cards';
 import {
   type CardProgress,
   cardStanding,
@@ -192,7 +192,11 @@ export default function Lesson({
                 The full card shows its own artist and copyright. */}
             <CardPicture key={card.oracle_id} card={card} speaker />
             {/* Where the artwork lands after an answer: the card's art box */}
-            <div className="art-target" aria-hidden="true" style={artTarget(card)} />
+            <div
+              className={isHorizontal(card, false) ? 'art-target sideways' : 'art-target'}
+              aria-hidden="true"
+              style={artTarget(card)}
+            />
           </div>
           <Feedback card={card} picked={picked} before={before} record={record} onContinue={next} />
         </>
@@ -202,17 +206,25 @@ export default function Lesson({
 }
 
 /**
- * The view transition the artwork takes part in after an answer (see
- * Lesson.css): flying into the card's art box, or, for a card without one,
- * shrinking towards the card's middle and fading
+ * Where the artwork lands on the card: its art box, or for a card printed
+ * sideways, its art area turned. Null for a card without either.
  */
-function artTransition(card: Card): string {
-  return card.art_box ? 'card-art' : 'card-art-soft';
+function landingBox(card: Card): number[] | null {
+  return isHorizontal(card, false) ? SIDEWAYS_ART_BOX : (card.art_box ?? null);
 }
 
-/** Where on the card the artwork lands: its art box, or the card's middle */
+/**
+ * The view transition the artwork takes part in after an answer (see
+ * Lesson.css): flying into the card's art, or, for a card without a known
+ * place for it, shrinking towards the card's middle and fading
+ */
+function artTransition(card: Card): string {
+  return landingBox(card) ? 'card-art' : 'card-art-soft';
+}
+
+/** Where on the card the artwork lands: its art, or the card's middle */
 function artTarget(card: Card): CSSProperties {
-  const [left, top, width, height] = card.art_box ?? [0.3, 0.3, 0.4, 0.4];
+  const [left, top, width, height] = landingBox(card) ?? [0.3, 0.3, 0.4, 0.4];
   return {
     viewTransitionName: artTransition(card),
     '--box-left': left,
