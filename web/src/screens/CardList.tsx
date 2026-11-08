@@ -208,17 +208,37 @@ function useKeepPlaceOnResize(grid: RefObject<HTMLElement | null>, largeViewOpen
   }, [largeViewOpen]);
   useEffect(() => {
     let resizedAt = -Infinity;
+    let size = '';
+    // True while a new window size is being laid out. An iPhone lays out
+    // and scrolls the turned page before its resize event, so the size is
+    // checked here too, not only when that event comes.
+    const resizing = () => {
+      const now = `${window.innerWidth}x${window.innerHeight}`;
+      if (now !== size) {
+        if (size !== '') resizedAt = performance.now();
+        size = now;
+      }
+      return performance.now() - resizedAt < RESIZE_LAYOUT_TIME;
+    };
     // The card at the top of the screen; null at the top of the page
     let top: Element | null = null;
 
     const remember = () => {
       // Not while a new size is being laid out: those scrolls aren't the player's
-      if (grid.current === null || performance.now() - resizedAt < RESIZE_LAYOUT_TIME) return;
-      top =
-        window.scrollY < 1
-          ? null
-          : ([...grid.current.children].find((card) => card.getBoundingClientRect().bottom > 0) ??
-            null);
+      if (grid.current === null || resizing()) return;
+      if (window.scrollY < 1) {
+        top = null;
+        return;
+      }
+      const first = [...grid.current.children].find((card) => card.getBoundingClientRect().bottom > 0);
+      // Still the card remembered, if it is in the top row: with more cards
+      // per row, as on a phone turned sideways, it may share that row with
+      // the cards before it, and turning back should bring back that card
+      const sameRow =
+        top !== null &&
+        first !== undefined &&
+        Math.abs(top.getBoundingClientRect().top - first.getBoundingClientRect().top) < 1;
+      if (!sameRow) top = first ?? null;
     };
     let measuring = false;
     const onScroll = () => {
@@ -229,22 +249,22 @@ function useKeepPlaceOnResize(grid: RefObject<HTMLElement | null>, largeViewOpen
         remember();
       });
     };
-    const onResize = () => {
-      resizedAt = performance.now();
-      if (paused.current) return;
-      // Once the new layout is in place
-      requestAnimationFrame(() => {
-        if (top === null) window.scrollTo(0, 0);
-        else top.scrollIntoView({ block: 'start' });
-      });
+    // Each time the list takes a new size while the new window size is
+    // laid out: first its new width, then its new number of cards per row,
+    // which React applies a moment later
+    const bringBack = () => {
+      if (!resizing() || paused.current) return;
+      if (top === null) window.scrollTo(0, 0);
+      else top.scrollIntoView({ block: 'start' });
     };
 
     remember();
     window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onResize);
+    const observer = new ResizeObserver(bringBack);
+    if (grid.current !== null) observer.observe(grid.current);
     return () => {
       window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onResize);
+      observer.disconnect();
     };
   }, [grid]);
 }
