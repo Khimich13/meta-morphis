@@ -1,0 +1,4 @@
+# Build output, generated card data and the lock file
+dist/
+public/
+package-lock.json

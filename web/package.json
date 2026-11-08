@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "check": "tsc",
     "test": "vitest run",
-    "icons": "pwa-assets-generator"
+    "icons": "pwa-assets-generator",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "react": "^19.3.0",
@@ -21,6 +23,7 @@
     "@types/react-dom": "^19.3.0",
     "@vite-pwa/assets-generator": "^2.0.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "prettier": "3.9.10",
     "typescript": "~6.0.3",
     "vite": "^8.3.3",
     "vite-plugin-pwa": "^2.0.0",
