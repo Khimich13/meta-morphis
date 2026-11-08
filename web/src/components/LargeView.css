@@ -235,17 +235,21 @@ html:has(.enlarged[open]) body::after {
   width: min(100cqw, 100cqh * 488 / 680);
 }
 
-/* A phone turned sideways (see lib/landscape.ts): little
-   height, so the card count moves to the top left corner, beside the
-   card rather than above it */
-@media (orientation: landscape) and (max-height: 500px) {
-  .enlarged {
-    --bar: 8px;
-  }
-
+/* A screen wider than tall (a computer, or a phone turned sideways):
+   the card count moves to the top left corner, beside the card rather
+   than above it, where the card's top edge would cover it */
+@media (orientation: landscape) {
   .enlarged .position {
     left: calc(16px + env(safe-area-inset-left));
     transform: none;
+  }
+}
+
+/* A phone turned sideways (see lib/landscape.ts): little height, so the
+   card takes the room above it too */
+@media (orientation: landscape) and (max-height: 500px) {
+  .enlarged {
+    --bar: 8px;
   }
 }
 
