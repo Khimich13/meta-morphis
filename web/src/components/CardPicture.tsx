@@ -1,14 +1,36 @@
-import { type CSSProperties, lazy, Suspense, useState } from 'react';
+import {
+  type CSSProperties,
+  lazy,
+  type RefObject,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
+import { flushSync } from 'react-dom';
 
 import { type Card, isHorizontal, SIDEWAYS_ART_BOX, visibleName } from '../lib/cards';
+import { isLandscape, useLandscape, useLandscapeAllowed } from '../lib/landscape';
 import { useLargeView } from '../lib/largeView';
 import { canSpeak, sayName } from '../lib/speech';
 import './CardPicture.css';
+import type { TurnedFrom } from './LargeCard';
 import LargeView from './LargeView';
 
 // The large view's card, with the zoom library: loaded the first time a
-// large view opens, so the rest of the app starts without it
-const LargeCard = lazy(() => import('./LargeCard'));
+// large view opens, so the rest of the app starts without it. Once
+// loaded, it is also kept here and used directly: lazy shows its
+// fallback for a moment the first time it draws, even when the code is
+// already there, and a view opened as the phone turns (useOpenOnTurn)
+// must show the card with the turn.
+let loadedLargeCard: typeof import('./LargeCard').default | null = null;
+function loadLargeCard() {
+  return import('./LargeCard').then((module) => {
+    loadedLargeCard = module.default;
+    return module;
+  });
+}
+const LazyLargeCard = lazy(loadLargeCard);
 
 interface CardPictureProps {
   card: Card;
@@ -28,6 +50,11 @@ interface CardPictureProps {
   onEnlarge?: () => void;
   /** Shows the button that reads the name aloud, as the large view does */
   speaker?: boolean;
+  /**
+   * A side printed sideways opens in the large view when a phone turns
+   * sideways, to read it the right way up: a lesson's answer card
+   */
+  openOnTurn?: boolean;
 }
 
 /**
@@ -47,22 +74,31 @@ export default function CardPicture({
   onFlip: parentFlip,
   onEnlarge,
   speaker = false,
+  openOnTurn = false,
 }: CardPictureProps) {
   const [ownBack, setOwnBack] = useState(false);
   const showingBack = parentBack ?? ownBack;
   const flip = parentFlip ?? (() => setOwnBack(!ownBack));
   const large = useLargeView();
+  const LargeCard = loadedLargeCard ?? LazyLargeCard;
+  const picture = useRef<HTMLDivElement>(null);
+  const { turnedFrom, openByTap } = useOpenOnTurn(
+    openOnTurn && isHorizontal(card, showingBack),
+    picture,
+    large.isOpen,
+    large.open,
+  );
 
   return (
     <>
-      <div className={pictureClass(card)} style={buttonCorner(card, showingBack)}>
+      <div ref={picture} className={pictureClass(card)} style={buttonCorner(card, showingBack)}>
         <button
           className="enlarge"
           aria-label={`Enlarge ${card.name}`}
-          onClick={onEnlarge ?? large.open}
+          onClick={onEnlarge ?? openByTap}
           // Two fingers on the card open the large view too, to pinch there
           onTouchStart={(event) => {
-            if (event.touches.length === 2 && onEnlarge === undefined) large.open();
+            if (event.touches.length === 2 && onEnlarge === undefined) openByTap();
           }}
         >
           <CardSides card={card} showingBack={showingBack} lazy={lazy} />
@@ -73,12 +109,89 @@ export default function CardPicture({
       {large.isOpen && (
         <LargeView onClose={large.close}>
           <Suspense fallback={<div className="card-placeholder" />}>
-            <LargeCard card={card} showingBack={showingBack} onFlip={flip} />
+            <LargeCard
+              card={card}
+              showingBack={showingBack}
+              onFlip={flip}
+              turnedFrom={turnedFrom}
+            />
           </Suspense>
         </LargeView>
       )}
     </>
   );
+}
+
+/**
+ * Turning a phone sideways opens the large view, where a side printed
+ * sideways is shown the right way up, while `enabled`. The card eases
+ * from its place here into the view, as a card in the large view does
+ * when the phone turns (see EaseNewSize in LargeCard.tsx).
+ *
+ * The page may turn sideways only for this: closed again while sideways,
+ * the view leaves "Turn your phone upright" (see index.html), as the
+ * screen around the card is built for an upright phone. Only on touch
+ * screens: a computer's window is often wider than tall anyway.
+ *
+ * Gives where the card was when the turn opened the view, if it did,
+ * and how to open the view by tapping, which forgets that.
+ */
+function useOpenOnTurn(
+  enabled: boolean,
+  picture: RefObject<HTMLDivElement | null>,
+  isOpen: boolean,
+  open: () => void,
+): { turnedFrom: TurnedFrom | undefined; openByTap: () => void } {
+  const [turnedFrom, setTurnedFrom] = useState<TurnedFrom | undefined>(undefined);
+  const active = enabled && matchMedia('(pointer: coarse)').matches;
+  const landscape = useLandscape();
+  useLandscapeAllowed(active && (!landscape || isOpen));
+
+  useEffect(() => {
+    if (!active || isOpen) return;
+    // The large view's code, loaded ahead, so the view opens with the turn
+    void loadLargeCard();
+    // The card's place is measured while upright: once the phone has
+    // turned, the page is laid out anew
+    const measure = () => (isLandscape() ? null : placeOf(picture.current));
+    let place = measure();
+    // The window's resize event comes before the new layout's first frame
+    // is drawn, so the view opens in that frame. Not a ResizeObserver:
+    // opening the view from one starts the view's own observers in the
+    // middle of it, which the browser reports as an error.
+    const onResize = () => {
+      if (!isLandscape()) {
+        place = measure();
+        return;
+      }
+      if (place === null) return;
+      const from = place;
+      flushSync(() => {
+        setTurnedFrom(from);
+        open();
+      });
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [active, isOpen, open, picture]);
+
+  const openByTap = () => {
+    setTurnedFrom(undefined);
+    open();
+  };
+  return { turnedFrom, openByTap };
+}
+
+/** Where a card's picture is on the screen, see TurnedFrom */
+function placeOf(element: HTMLElement | null): TurnedFrom | null {
+  if (element === null) return null;
+  const box = element.getBoundingClientRect();
+  return {
+    x: box.left + box.width / 2,
+    y: box.top + box.height / 2,
+    // Its own width, not changed by the pulse or shake after an answer
+    width: element.offsetWidth,
+  };
 }
 
 /** Only a double-faced card gets the 3D settings - see CardPicture.css */

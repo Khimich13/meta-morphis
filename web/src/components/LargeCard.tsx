@@ -20,12 +20,15 @@ export default function LargeCard({
   showingBack,
   onFlip,
   lazy = false,
+  turnedFrom,
 }: {
   card: Card;
   showingBack: boolean;
   onFlip: () => void;
   /** Load the picture only when it comes into view */
   lazy?: boolean;
+  /** Opened by turning the phone: where the card was before the turn */
+  turnedFrom?: TurnedFrom;
 }) {
   // Zoomed in: the large view pauses moving to other cards, and hides
   // its buttons and the page behind
@@ -40,6 +43,7 @@ export default function LargeCard({
         areaClass="zoom-area"
         contentClass={horizontal ? 'zoom-content horizontal' : 'zoom-content'}
         onZoomedChange={reportZoomed}
+        turnedFrom={turnedFrom}
       >
         {(pictures) => (
           <div className={pictureClass(card)} style={buttonCorner(card, showingBack)}>
@@ -57,6 +61,18 @@ export default function LargeCard({
 }
 
 /**
+ * Where a card was on the screen just before the phone turned: its
+ * middle, and its own width, without any quarter turn. In the page's
+ * coordinates as they are on the screen; the screen's top left corner
+ * stays put as the phone turns.
+ */
+export interface TurnedFrom {
+  x: number;
+  y: number;
+  width: number;
+}
+
+/**
  * A card that zooms, with the react-zoom-pan-pinch library: a double tap
  * goes to 2x and back, a pinch up to 4x, and one finger moves around the
  * zoomed card. At normal size, one finger is left to the page (the large
@@ -69,6 +85,7 @@ function Zoomable({
   areaClass,
   contentClass,
   onZoomedChange,
+  turnedFrom,
   children,
 }: {
   card: Card;
@@ -76,6 +93,7 @@ function Zoomable({
   contentClass: string;
   /** Hears when the card is zoomed in, and back out */
   onZoomedChange: (zoomed: boolean) => void;
+  turnedFrom?: TurnedFrom;
   children: (pictures: string[] | undefined) => ReactNode;
 }) {
   const [zoomedIn, setZoomedIn] = useState(false);
@@ -134,7 +152,7 @@ function Zoomable({
     >
       {({ resetTransform }) => (
         <>
-          <EaseNewSize />
+          <EaseNewSize turnedFrom={turnedFrom} />
           <TransformComponent
             wrapperClass={zoomedIn ? `${areaClass} zoomed` : areaClass}
             contentClass={contentClass}
@@ -205,8 +223,12 @@ function easeInOut(t: number): number {
  * with the screen, since it reads only one way up. Which way the phone
  * turned isn't known in time to do otherwise: iOS tells the page only
  * once its turn is over.
+ *
+ * A view that the turn itself opened (turnedFrom: a lesson's answer card
+ * printed sideways, see CardPicture.tsx) eases the same way, from the
+ * small card's place and size before the turn.
  */
-function EaseNewSize() {
+function EaseNewSize({ turnedFrom }: { turnedFrom?: TurnedFrom }) {
   // The library's two boxes, once it has set them up
   useTransformInit(({ instance }) => {
     const area = instance.wrapperComponent;
@@ -251,6 +273,8 @@ function EaseNewSize() {
       areaWidth = area.offsetWidth;
       areaHeight = area.offsetHeight;
       const landscape = areaWidth > areaHeight;
+      // Laid out for the first time, as the view opens
+      if (before.width === 0 && width > 0) startFromTurn();
       if (before.width === 0 || width === 0) return;
       // A turn: the area, the whole screen, changed from upright to
       // sideways or back. Not a window being resized, unless during a
@@ -274,14 +298,55 @@ function EaseNewSize() {
       const [x = 0, y = 0] =
         style.translate === 'none' ? [] : style.translate.split(' ').map(parseFloat);
       const angle = turning ? angleAt(spun) : 0;
+      // The quarter turn a card printed sideways has in landscape, which
+      // its copy starts without, or with, to look as before
+      const quarter = content.classList.contains('horizontal') ? (landscape ? -90 : 90) : 0;
+      // The area was in the old screen's middle. The screen's top left
+      // corner stays put.
+      begin(
+        {
+          scale: (shown * before.width) / width,
+          x: x + (before.areaWidth - areaWidth) / 2,
+          y: y + (before.areaHeight - areaHeight) / 2,
+        },
+        turned ? angle + quarter : null,
+      );
+    });
+
+    /**
+     * Opened by turning the phone (see turnedFrom): the card eases from
+     * where it was before the turn, at its size there and upright, as if
+     * the view had been open all along. Once, when the card is first laid
+     * out.
+     */
+    let startedFromTurn = false;
+    const startFromTurn = () => {
+      if (turnedFrom === undefined || startedFromTurn || width === 0) return;
+      startedFromTurn = true;
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const landscape = areaWidth > areaHeight;
+      const quarter = content.classList.contains('horizontal') && landscape ? -90 : 0;
+      // The area's middle, where the card is, moved onto the card's old middle
+      begin(
+        {
+          scale: turnedFrom.width / width,
+          x: turnedFrom.x - areaWidth / 2,
+          y: turnedFrom.y - areaHeight / 2,
+        },
+        quarter,
+      );
+    };
+
+    /**
+     * Eases the card from `from` - the area's scale and move that show it
+     * where it was - to its place now. `spin`: the angle its copy starts
+     * at, from the card's own; null carries on with the turn under way.
+     */
+    const begin = (from: { scale: number; x: number; y: number }, spin: number | null) => {
       stop();
       turning = true;
-      if (turned) {
-        // The quarter turn a card printed sideways has in landscape, which
-        // its copy starts without, or with, to look as before
-        const quarter = content.classList.contains('horizontal') ? (landscape ? -90 : 90) : 0;
-        const from = angle + quarter;
-        spinFrom = from;
+      if (spin !== null) {
+        spinFrom = spin;
         spun = 0;
       }
       // The card's new place on the screen: the middle of its area, which
@@ -314,12 +379,8 @@ function EaseNewSize() {
         // Before and after the turn, it's off the screen anyway.
         area.style.visibility = 'hidden';
       } else {
-        // The area was in the old screen's middle. The screen's top left
-        // corner stays put.
-        const fromX = x + (before.areaWidth - areaWidth) / 2;
-        const fromY = y + (before.areaHeight - areaHeight) / 2;
         const moves = [
-          { scale: (shown * before.width) / width, translate: `${fromX}px ${fromY}px` },
+          { scale: from.scale, translate: `${from.x}px ${from.y}px` },
           { scale: 1, translate: '0px 0px' },
         ];
         const timing = { duration: EASE_TIME, easing: 'ease-in-out' };
@@ -380,7 +441,10 @@ function EaseNewSize() {
         frame = requestAnimationFrame(step);
       };
       frame = requestAnimationFrame(step);
-    });
+    };
+
+    // Already laid out when the library set up: the view was open
+    startFromTurn();
     observer.observe(content);
     observer.observe(area);
     return () => {

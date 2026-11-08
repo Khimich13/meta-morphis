@@ -190,7 +190,7 @@ export default function Lesson({
           <div className="picture">
             {/* One side at a time, which a double-faced card can turn over.
                 The full card shows its own artist and copyright. */}
-            <CardPicture key={card.oracle_id} card={card} speaker />
+            <CardPicture key={card.oracle_id} card={card} speaker openOnTurn />
             {/* Where the artwork lands after an answer: the card's art box */}
             <div
               className={isHorizontal(card, false) ? 'art-target sideways' : 'art-target'}
