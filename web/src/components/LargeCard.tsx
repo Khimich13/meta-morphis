@@ -237,12 +237,21 @@ function EaseNewSize() {
       areaWidth = area.offsetWidth;
       areaHeight = area.offsetHeight;
       const landscape = areaWidth > areaHeight;
-      if (before.width === 0 || width === 0 || width === before.width) return;
+      if (before.width === 0 || width === 0) return;
       // A turn: the area, the whole screen, changed from upright to
       // sideways or back. Not a window being resized, unless during a
       // turn's easing.
       const turned = before.areaWidth > before.areaHeight !== landscape;
       if (!turned && !turning) return;
+      // During the easing, the area alone may change: upright, the screen's
+      // height can settle a moment after its width, leaving the card as
+      // wide as before but its middle higher. The copy, aimed at the old
+      // middle, landed too low and the card jumped up at the end.
+      const resized =
+        width !== before.width ||
+        areaWidth !== before.areaWidth ||
+        areaHeight !== before.areaHeight;
+      if (!resized) return;
       if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
       // During an easing: from where the card is on screen, not from its
       // old size, place and angle
@@ -361,6 +370,7 @@ function EaseNewSize() {
       frame = requestAnimationFrame(step);
     });
     observer.observe(content);
+    observer.observe(area);
     return () => {
       observer.disconnect();
       stop();
