@@ -94,9 +94,10 @@
   color: rgb(255 255 255 / 55%);
   font-size: calc(var(--size) * 0.55);
   line-height: 1;
+  /* Back to see-through after a tap: a moment's wait, then a slow fade */
   transition:
-    background 0.2s,
-    color 0.2s;
+    background 0.6s ease-out 0.4s,
+    color 0.6s ease-out 0.4s;
 }
 
 /* A finger needs about 44px to hit a button reliably: a smaller button
@@ -117,11 +118,24 @@
   }
 }
 
-/* Easy to find once pointed at or reached with the keyboard */
-.card-button:hover,
+/* Dark while pressed, at once, so the tap shows. Easy to find once
+   reached with the keyboard, or pointed at with a mouse: only there,
+   as a phone counts a tapped button as pointed at until the next tap
+   elsewhere, which kept it dark. */
+.card-button:active,
 .card-button:focus-visible {
   background: rgb(0 0 0 / 70%);
   color: rgb(255 255 255 / 85%);
+  transition: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .card-button:hover {
+    background: rgb(0 0 0 / 70%);
+    color: rgb(255 255 255 / 85%);
+    transition-duration: 0.2s;
+    transition-delay: 0s;
+  }
 }
 
 /* The device asks for less motion: turn instantly */
