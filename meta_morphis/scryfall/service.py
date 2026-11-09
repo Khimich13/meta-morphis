@@ -224,10 +224,12 @@ def _process_batch_request(
     data = raw.get("data", [])
     missing_names = [item["name"] for item in raw.get("not_found", [])]
 
-    # Scryfall answers in the order the names were asked for and leaves
-    # out the ones it didn't find, so skipping those pairs each answer
-    # with the name it answers. If the counts differ, the pairs can't be
-    # trusted: a wrong pair would hand one card's names to another.
+    # Scryfall's /cards/collection docs promise the cards in the order
+    # the names were asked for, with the names it didn't find left out
+    # and listed in not_found instead - so skipping those pairs each
+    # answer with the name it answers. If the counts differ, the pairs
+    # can't be trusted: a wrong pair would hand one card's names to
+    # another.
     found_names = [name for name in asked if name not in missing_names]
     paired = len(found_names) == len(data)
     if not paired:
@@ -242,8 +244,12 @@ def _process_batch_request(
             cards.append(card)
             if paired:
                 _remember_name(conn, found_names[i], card)
+        elif paired:
+            # Reported under the name that was asked, so a refresh serves
+            # the stale copy instead of dropping it - the answer's own
+            # name can differ when Scryfall renamed the card
+            unresolved_names.append(found_names[i])
         elif "name" in entry:
-            # Reported, so a refresh serves the stale copy instead of dropping it
             unresolved_names.append(entry["name"])
 
     if missing_names:

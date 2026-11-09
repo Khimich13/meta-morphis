@@ -481,6 +481,22 @@ def test_fetch_updates_for_outdated_keeps_card_with_malformed_refresh(conn: sqli
     assert [c.name for c in updates] == ["Counterspell"]
     assert [c.name for c in unrecognized] == ["Sai, Master Thopterist"]
 
+# The malformed entry is reported under the name that was asked, not the
+# name in the answer: for a renamed card the two differ, and the stale
+# card used to match neither list and vanish
+def test_fetch_updates_for_outdated_keeps_renamed_card_with_malformed_refresh(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
+    outdated = [_card("Old Name")]
+
+    monkeypatch.setattr(
+        "meta_morphis.scryfall.service.fetch_batch",
+        lambda names: {"data": [{"name": "New Name"}], "not_found": []}
+    )
+
+    updates, unrecognized = _fetch_updates_for_outdated(conn, outdated)
+
+    assert updates == []
+    assert [c.name for c in unrecognized] == ["Old Name"]
+
 # Scryfall can rename a card (an errata rename). A stale card cached under
 # its old name used to keep its old row: the refreshed card got a row of
 # its own, the old names still led to the stale one, and it was refreshed
