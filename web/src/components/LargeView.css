@@ -205,6 +205,8 @@ html:has(.enlarged[open]) body::after {
   .enlarged .move {
     display: block;
     position: absolute;
+    /* Above the card row, which covers the whole screen (see .close) */
+    z-index: 1;
     top: 50%;
     transform: translateY(-50%);
     border: none;
@@ -418,6 +420,10 @@ html:has(.enlarged.leaving[open]) {
 
 .enlarged .close {
   position: absolute;
+  /* Above the card row and a single card's zoom area: both cover the
+     whole screen and come later in the page, so they'd be drawn on top,
+     and a click meant for the button would land on them instead */
+  z-index: 1;
   top: calc(8px + env(safe-area-inset-top));
   right: calc(8px + env(safe-area-inset-right));
   border: none;
