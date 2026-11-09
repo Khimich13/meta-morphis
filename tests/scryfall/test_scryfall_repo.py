@@ -279,3 +279,18 @@ def test_get_card_from_cache_missing_field_is_a_miss(conn: sqlite3.Connection) -
     conn.execute("INSERT INTO card_aliases (alias, card_name) VALUES (?, ?)", (key, key))
 
     assert get_card_from_cache(conn, "Delver of Secrets // Insectile Aberration") is None
+
+# And for valid JSON of the wrong shape - a row that is `null` or a list,
+# or a card whose card_faces is null - which fails in from_raw with
+# TypeError or AttributeError rather than KeyError
+@pytest.mark.parametrize("blob", [
+    "null",
+    "[]",
+    json.dumps({"id": "4", "name": "Shock", "card_faces": None}),
+    json.dumps({"id": "4", "name": "Shock", "card_faces": ["Shock"]}),
+])
+def test_get_card_from_cache_wrong_shape_is_a_miss(conn: sqlite3.Connection, blob: str) -> None:
+    conn.execute("INSERT INTO cards VALUES (?, ?, ?, ?)", ("4", "shock", blob, int(time.time())))
+    conn.execute("INSERT INTO card_aliases (alias, card_name) VALUES (?, ?)", ("shock", "shock"))
+
+    assert get_card_from_cache(conn, "Shock") is None

@@ -29,12 +29,13 @@ def get_card_from_cache(conn: sqlite3.Connection, name: str) -> Card | None:
 
     json_blob, updated_at = row
 
-    # A row Card can't be built from (bad JSON, or a field from_raw needs
-    # is missing) is a cache miss: the card is fetched again and the
-    # row overwritten.
+    # A row Card can't be built from is a cache miss: the card is fetched
+    # again and the row overwritten. That is bad JSON, a field from_raw
+    # needs missing (KeyError), or valid JSON of the wrong shape - `null`,
+    # a list, a face that isn't an object (TypeError, AttributeError).
     try:
         card = Card.from_raw(json.loads(json_blob))
-    except (json.JSONDecodeError, KeyError):
+    except (json.JSONDecodeError, KeyError, TypeError, AttributeError):
         return None
     card.age = int(time.time()) - updated_at
     return card
@@ -60,9 +61,10 @@ def _cached_oracle_id(c: sqlite3.Cursor, card_key: str) -> str | None:
     row = c.execute("SELECT json FROM cards WHERE name = ?", (card_key,)).fetchone()
     if not row:
         return None
+    # A row that isn't a JSON object (`null`, a list) has no oracle_id
     try:
         oracle_id = json.loads(row[0]).get("oracle_id")
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, AttributeError):
         return None
     return oracle_id if isinstance(oracle_id, str) else None
 
@@ -189,9 +191,11 @@ def get_chosen_printing(conn: sqlite3.Connection, oracle_id: str) -> Card | None
         return None
 
     json_blob, updated_at = row
+    # Same tolerance as get_card_from_cache: a row Card can't be built
+    # from is a miss, and the printing is chosen again.
     try:
         card = Card.from_raw(json.loads(json_blob))
-    except (json.JSONDecodeError, KeyError):
+    except (json.JSONDecodeError, KeyError, TypeError, AttributeError):
         return None
     card.age = int(time.time()) - updated_at
     return card
