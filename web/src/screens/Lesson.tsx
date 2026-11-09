@@ -1,4 +1,4 @@
-import { type CSSProperties, useState } from 'react';
+import { type CSSProperties, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 
 import CardPicture from '../components/CardPicture';
@@ -54,8 +54,14 @@ export default function Lesson({
   const [picked, setPicked] = useState<Card | null>(null);
   // The card's record before this answer, to show how the answer changed it
   const [before, setBefore] = useState<Before | null>(null);
+  // Set at the first tap on an answer, before the screen changes: the
+  // buttons stay on screen until the animation swaps them out, and a
+  // second tap meanwhile must not answer again
+  const answered = useRef(false);
 
   function pick(option: Card) {
+    if (answered.current) return;
+    answered.current = true;
     const question = lesson.queue[0];
     const answer = () => {
       setPicked(option);
@@ -109,11 +115,13 @@ export default function Lesson({
     }
     setLesson(after);
     setPicked(null);
+    answered.current = false;
   }
 
   function restart() {
     setLesson(startLesson(cards, progress, localDay()));
     setPicked(null);
+    answered.current = false;
   }
 
   if (isFinished(lesson)) {
