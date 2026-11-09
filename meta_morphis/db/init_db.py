@@ -4,7 +4,7 @@ import sqlite3
 # block below with the migration steps. CREATE TABLE IF NOT EXISTS alone
 # can't detect an existing table whose columns have drifted from what the
 # code now expects - this guard makes that drift loud instead of silent.
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 def init_db(conn: sqlite3.Connection) -> None:
@@ -30,10 +30,14 @@ def init_db(conn: sqlite3.Connection) -> None:
         _migrate_to_v2(c)
         current_version = 2
 
+    if current_version < 3:
+        _migrate_to_v3(c)
+        current_version = 3
+
     # Next schema change adds a block here, e.g.:
-    # if current_version < 3:
-    #     _migrate_to_v3(c)
-    #     current_version = 3
+    # if current_version < 4:
+    #     _migrate_to_v4(c)
+    #     current_version = 4
 
     c.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     conn.commit()
@@ -96,3 +100,8 @@ def _migrate_to_v2(c: sqlite3.Cursor) -> None:
             updated_at INTEGER NOT NULL
         )
     """)
+
+def _migrate_to_v3(c: sqlite3.Cursor) -> None:
+    # The front face's name of a split card, which it used to be looked up
+    # by - see _classify_cards in scryfall/service.py for why it no longer is
+    c.execute("ALTER TABLE meta DROP COLUMN lookup_name")

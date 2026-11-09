@@ -94,7 +94,7 @@ def test_update_meta_timestamp_update(conn: sqlite3.Connection) -> None:
 
 def test_get_meta_from_cache(conn: sqlite3.Connection) -> None:
     conn.execute("""
-        INSERT INTO meta VALUES ('Bolt', 'pauper', 1, 25.0, 1, NULL)
+        INSERT INTO meta VALUES ('Bolt', 'pauper', 1, 25.0, 1)
     """)
 
     result = get_meta_from_cache(conn, "pauper")
@@ -107,9 +107,9 @@ def test_get_meta_from_cache(conn: sqlite3.Connection) -> None:
 def test_get_meta_from_cache_puts_unranked_last(conn: sqlite3.Connection) -> None:
     conn.execute("""
         INSERT INTO meta VALUES
-            ('Unranked', 'pauper', NULL, 5.0, 1, NULL),
-            ('Second', 'pauper', 2, 10.0, 1, NULL),
-            ('First', 'pauper', 1, 25.0, 1, NULL)
+            ('Unranked', 'pauper', NULL, 5.0, 1),
+            ('Second', 'pauper', 2, 10.0, 1),
+            ('First', 'pauper', 1, 25.0, 1)
     """)
 
     result = get_meta_from_cache(conn, "pauper")
@@ -119,7 +119,7 @@ def test_get_meta_from_cache_puts_unranked_last(conn: sqlite3.Connection) -> Non
 def test_save_meta_to_cache(conn: sqlite3.Connection) -> None:
     # old data
     conn.execute("""
-        INSERT INTO meta VALUES ('OldCard', 'pauper', 99, 1.0, 1, NULL)
+        INSERT INTO meta VALUES ('OldCard', 'pauper', 99, 1.0, 1)
     """)
 
     meta = [
@@ -146,11 +146,10 @@ def test_save_meta_to_cache_keeps_other_formats(conn: sqlite3.Connection) -> Non
 
     assert [m.name for m in get_meta_from_cache(conn, "modern")] == ["Counterspell"]
 
-# Every field must survive a save/load round trip, in rank order - including
-# lookup_name, which split cards need to hit the Scryfall cache
+# Every field must survive a save/load round trip, in rank order
 def test_meta_cache_round_trip(conn: sqlite3.Connection) -> None:
     bolt = MetaEntry("Lightning Bolt", rank=1, percent=25.0, avg_copies=3.5)
-    wear_tear = MetaEntry("Wear // Tear", rank=2, percent=10.0, avg_copies=1.5, lookup_name="Wear")
+    wear_tear = MetaEntry("Wear // Tear", rank=2, percent=10.0, avg_copies=1.5)
 
     save_meta_to_cache(conn, [wear_tear, bolt], "pauper")
 

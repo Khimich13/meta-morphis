@@ -119,14 +119,11 @@ def _parse_meta_table(html: str) -> tuple[list[MetaEntry], int] | None:
             skipped_count += 1
             continue
 
-        lookup_name = name.split("//")[0].strip() if "//" in name else None
-
         entries.append(MetaEntry(
             name=name,
             rank=rank,
             percent=percent,
             avg_copies=avg_copies,
-            lookup_name=lookup_name,
         ))
 
     return entries, skipped_count

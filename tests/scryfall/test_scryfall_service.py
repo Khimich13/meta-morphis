@@ -362,15 +362,23 @@ def test_process_batch_request_does_not_record_failure_on_outage(
     assert "Bad name" not in caplog.text
     assert "Counterspell" in caplog.text
 
-# Split cards are looked up by their lookup_name ("Wear"), not Goldfish's
-# full "A // B" name - that's what gets queued and sent to Scryfall
-def test_classify_cards_uses_lookup_name(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
-    monkeypatch.setattr("meta_morphis.scryfall.service.should_skip_lookup", lambda conn, name: False)
-    monkeypatch.setattr("meta_morphis.scryfall.service.get_card_from_cache", lambda conn, name: None)
+# A split card is looked up by its full name, not by one face: Start // Fire
+# is cached and owns the face name "Fire", so looking up Fire // Ice by "Fire"
+# would hand back the wrong card
+def test_classify_cards_looks_up_a_split_card_by_its_full_name(conn: sqlite3.Connection) -> None:
+    start_fire = Card.from_raw({
+        "id": "sf", "name": "Start // Fire", "type_line": "Sorcery",
+        "card_faces": [
+            {"name": "Start", "mana_cost": "2W", "type_line": "Sorcery"},
+            {"name": "Fire", "mana_cost": "2R", "type_line": "Sorcery"},
+        ],
+    })
+    save_cards_to_cache(conn, [start_fire])
 
-    _, _, missing = _classify_cards(conn, [MetaEntry(name="Wear // Tear", lookup_name="Wear")])
+    fresh, outdated, missing = _classify_cards(conn, [MetaEntry(name="Fire // Ice")])
 
-    assert missing == ["Wear"]
+    assert fresh == [] and outdated == []
+    assert missing == ["Fire // Ice"]
 
 # Refreshed and newly fetched cards are each read back through a second
 # connection, which only sees committed data. They're tested separately on

@@ -39,20 +39,19 @@ def update_meta_timestamp(conn: sqlite3.Connection, format_name: str) -> None:
 def get_meta_from_cache(conn: sqlite3.Connection, format_name: str) -> list[MetaEntry]:
     c = conn.cursor()
     rows = c.execute("""
-        SELECT name, rank, percent, avg_copies, lookup_name
+        SELECT name, rank, percent, avg_copies
         FROM meta
         WHERE format = ?
         ORDER BY rank IS NULL, rank
     """, (format_name,)).fetchall()
 
     meta: list[MetaEntry] = []
-    for name, rank, percent, avg_copies, lookup_name in rows:
+    for name, rank, percent, avg_copies in rows:
         meta.append(MetaEntry(
             name=name,
             rank=rank,
             percent=percent,
             avg_copies=avg_copies,
-            lookup_name=lookup_name,
         ))
 
     return meta
@@ -68,13 +67,12 @@ def save_meta_to_cache(conn: sqlite3.Connection, meta: list[MetaEntry], format_n
 
     for entry in meta:
         c.execute("""
-            INSERT INTO meta (name, format, rank, percent, avg_copies, lookup_name)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO meta (name, format, rank, percent, avg_copies)
+            VALUES (?, ?, ?, ?, ?)
         """, (
             entry.name,
             format_name,
             entry.rank,
             entry.percent,
             entry.avg_copies,
-            entry.lookup_name
         ))

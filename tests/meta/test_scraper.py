@@ -144,7 +144,6 @@ def test_parse_meta_table_double_name() -> None:
     entry = entries[0]
 
     assert entry.name == "Fire // Ice"
-    assert entry.lookup_name == "Fire"
 
 def test_parse_meta_table_row_with_too_few_columns_is_skipped() -> None:
     html = _table("""

@@ -127,7 +127,11 @@ def _classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[li
     missing: list[str] = []
 
     for entry in meta:
-        name = entry.lookup_name or entry.name
+        # A split card is looked up by its full name ("Fire // Ice"), never
+        # by one face: "Fire" is also a face of Start // Fire. Scryfall's
+        # batch lookup doesn't find full split names, so a split card
+        # missing from the cache is fetched on its own by fetch_single.
+        name = entry.name
 
         cached = get_card_from_cache(conn, name)
 

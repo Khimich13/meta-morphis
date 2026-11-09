@@ -82,6 +82,8 @@ def test_init_db_upgrades_a_version_1_database() -> None:
         )
     """)
     conn.execute("INSERT INTO cards VALUES ('1', 'lightning bolt', '{}', 0)")
+    # Every version 1 database has this table, and version 3 changes it
+    conn.execute("CREATE TABLE meta (name TEXT, format TEXT, lookup_name TEXT)")
     conn.execute("PRAGMA user_version = 1")
 
     init_db(conn)
@@ -89,3 +91,24 @@ def test_init_db_upgrades_a_version_1_database() -> None:
     assert conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
     assert conn.execute("SELECT name FROM cards").fetchall() == [("lightning bolt",)]
     assert conn.execute("SELECT COUNT(*) FROM chosen_printings").fetchone()[0] == 0
+
+def test_init_db_upgrades_a_version_2_database() -> None:
+    # A database whose meta table still has lookup_name keeps its rows
+    # and loses the column
+    conn = sqlite3.connect(":memory:")
+    conn.execute("""
+        CREATE TABLE meta (
+            name TEXT NOT NULL, format TEXT NOT NULL, rank INTEGER,
+            percent REAL, avg_copies FLOAT, lookup_name TEXT,
+            PRIMARY KEY (format, name)
+        )
+    """)
+    conn.execute("INSERT INTO meta VALUES ('Wear // Tear', 'modern', 1, 10.0, 1.5, 'Wear')")
+    conn.execute("PRAGMA user_version = 2")
+
+    init_db(conn)
+
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
+    columns = [row[1] for row in conn.execute("PRAGMA table_info(meta)")]
+    assert columns == ["name", "format", "rank", "percent", "avg_copies"]
+    assert conn.execute("SELECT name FROM meta").fetchall() == [("Wear // Tear",)]
