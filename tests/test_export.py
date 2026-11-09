@@ -1,3 +1,4 @@
+import errno
 import json
 import logging
 import sqlite3
@@ -17,6 +18,7 @@ from meta_morphis.export import (
     art_box,
     horizontal_sides,
     is_basic_land,
+    write_json,
 )
 from meta_morphis.models.card import Card
 from meta_morphis.models.meta import MetaEntry
@@ -276,6 +278,26 @@ def test_export_format_fails_with_too_few_cards(
         export_format(conn, "pauper", tmp_path / "data")
 
     assert not (tmp_path / "data" / "pauper.json").exists()
+
+def test_write_json_keeps_the_old_file_when_writing_fails(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    path = tmp_path / "pauper.json"
+    path.write_text('{"old": true}', encoding="utf-8")
+    real_write_text = Path.write_text
+
+    def disk_full(self: Path, text: str, *args: Any, **kwargs: Any) -> int:
+        # Half the file gets written, then the disk is full
+        real_write_text(self, text[: len(text) // 2], *args, **kwargs)
+        raise OSError(errno.ENOSPC, "No space left on device")
+
+    monkeypatch.setattr(Path, "write_text", disk_full)
+    with pytest.raises(OSError, match="No space left"):
+        write_json(path, {"format": "pauper", "cards": []})
+
+    assert json.loads(path.read_text(encoding="utf-8")) == {"old": True}
+    # Nor is the half-written file left behind to be published
+    assert list(tmp_path.iterdir()) == [path]
 
 def test_export_format_uses_the_chosen_printing(
     conn: sqlite3.Connection, tmp_path: Path, monkeypatch: MonkeyPatch

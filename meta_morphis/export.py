@@ -180,13 +180,28 @@ def build_export(format_name: str, cards: list[Card], list_updated: str) -> Expo
     exported.sort(key=lambda c: c["name"])
     return {"format": format_name, "list_updated": list_updated, "cards": exported}
 
+def write_json(path: Path, data: object) -> None:
+    """Writes the whole file under a temporary name first, then swaps it
+    in for the old one. A run that stops halfway - killed, or the disk
+    full - leaves the old file whole, never a cut-off one the app can't
+    read.
+    """
+    temp = path.with_name(path.name + ".tmp")
+    try:
+        temp.write_text(
+            json.dumps(data, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        temp.replace(path)
+    finally:
+        # Gone already after the swap; after a failed write, don't leave
+        # the half-written file to be published
+        temp.unlink(missing_ok=True)
+
 def write_export(data: ExportFile, out_dir: Path) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"{data['format']}.json"
-    path.write_text(
-        json.dumps(data, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+    write_json(path, data)
     return path
 
 def is_basic_land(card: Card) -> bool:
@@ -272,7 +287,7 @@ def write_formats(out_dir: Path, formats: list[str], kinds: list[str]) -> Path:
         "lists": {name: lists[name] for name in available},
     }
     path = out_dir / "formats.json"
-    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    write_json(path, data)
     return path
 
 def main() -> int:
