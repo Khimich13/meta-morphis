@@ -262,3 +262,20 @@ def test_get_card_from_cache_corrupt_json_is_a_miss(conn: sqlite3.Connection) ->
     conn.execute("INSERT INTO card_aliases (alias, card_name) VALUES (?, ?)", ("shock", "shock"))
 
     assert get_card_from_cache(conn, "Shock") is None
+
+# Same for valid JSON that lacks a field Card.from_raw needs - here a face
+# without type_line - instead of the KeyError ending the whole export
+def test_get_card_from_cache_missing_field_is_a_miss(conn: sqlite3.Connection) -> None:
+    key = normalize_name("Delver of Secrets // Insectile Aberration")
+    raw = {
+        "id": "3",
+        "name": "Delver of Secrets // Insectile Aberration",
+        "card_faces": [
+            {"name": "Delver of Secrets"},
+            {"name": "Insectile Aberration", "type_line": "Creature — Human Insect"},
+        ],
+    }
+    conn.execute("INSERT INTO cards VALUES (?, ?, ?, ?)", ("3", key, json.dumps(raw), int(time.time())))
+    conn.execute("INSERT INTO card_aliases (alias, card_name) VALUES (?, ?)", (key, key))
+
+    assert get_card_from_cache(conn, "Delver of Secrets // Insectile Aberration") is None

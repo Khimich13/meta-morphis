@@ -29,12 +29,13 @@ def get_card_from_cache(conn: sqlite3.Connection, name: str) -> Card | None:
 
     json_blob, updated_at = row
 
+    # A row Card can't be built from (bad JSON, or a field from_raw needs
+    # is missing) is a cache miss: the card is fetched again and the
+    # row overwritten.
     try:
-        raw: dict[str, Any] = json.loads(json_blob)
-    except json.JSONDecodeError:
+        card = Card.from_raw(json.loads(json_blob))
+    except (json.JSONDecodeError, KeyError):
         return None
-
-    card = Card.from_raw(raw)
     card.age = int(time.time()) - updated_at
     return card
 
