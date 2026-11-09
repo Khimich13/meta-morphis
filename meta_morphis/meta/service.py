@@ -16,18 +16,23 @@ from .scraper import scrape_meta_cards
 log = logging.getLogger(__name__)
 
 
-def get_meta_cards(conn: sqlite3.Connection, format_name: str) -> list[MetaEntry]:
-    # Validated before the cache check, so an unknown format always fails
+def get_meta_cards(
+    conn: sqlite3.Connection, format_name: str, kind: str
+) -> list[MetaEntry]:
+    """One list of one format, e.g. "pauper" and "lands" - see
+    GOLDFISH_LISTS in config.py. It is cached under its list name."""
+    name = config.list_name(format_name, kind)
+    # Validated before the cache check, so an unknown list always fails
     # the same way - otherwise it depended on the database: a leftover
     # cache row for it was served silently, and no row meant a bare KeyError.
-    url = config.GOLDFISH_LIST_URLS.get(format_name)
+    url = config.GOLDFISH_LIST_URLS.get(name)
     if url is None:
         known = ", ".join(config.GOLDFISH_LIST_URLS)
-        raise ValueError(f"Unknown format {format_name!r}, expected one of: {known}")
+        raise ValueError(f"Unknown list {name!r}, expected one of: {known}")
 
-    if not should_refresh_meta(conn, format_name):
+    if not should_refresh_meta(conn, name):
         log.info("Using cached meta data")
-        return get_meta_from_cache(conn, format_name)
+        return get_meta_from_cache(conn, name)
 
     log.info("Refreshing meta data from MTGGoldfish...")
 
@@ -36,31 +41,31 @@ def get_meta_cards(conn: sqlite3.Connection, format_name: str) -> list[MetaEntry
     # A list too short to export counts as a failed fetch. Saving it would
     # replace the cached list, and its new timestamp would stop the next
     # runs from trying again until GOLDFISH_REFRESH_RATE has passed.
-    minimum = config.min_cards(format_name)
+    minimum = config.min_cards(kind)
     if meta is not None and len(meta) < minimum:
         log.warning(
-            f"MTGGoldfish's {format_name} list has only {_cards(len(meta))}, "
+            f"MTGGoldfish's {name} list has only {_cards(len(meta))}, "
             f"expected at least {minimum} - its page may have been cut short"
         )
         meta = None
 
     if not meta:
         log.warning("Failed fetching data from MTGGoldfish...")
-        cached = get_meta_from_cache(conn, format_name)
+        cached = get_meta_from_cache(conn, name)
         if cached:
             log.warning("Using cached meta data instead")
             return cached
         raise RuntimeError("Program has failed to find meta info!")
 
     # Read before saving, which replaces it
-    previous = get_meta_from_cache(conn, format_name)
+    previous = get_meta_from_cache(conn, name)
 
     with conn:
-        save_meta_to_cache(conn, meta, format_name)
-        update_meta_timestamp(conn, format_name)
+        save_meta_to_cache(conn, meta, name)
+        update_meta_timestamp(conn, name)
 
     if previous:
-        _log_list_changes(format_name, previous, meta)
+        _log_list_changes(name, previous, meta)
     return meta
 
 def list_changes(

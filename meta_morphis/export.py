@@ -211,19 +211,22 @@ def is_basic_land(card: Card) -> bool:
     """
     return "Basic" in card.type_line.split("—")[0].split()
 
-def export_format(conn: sqlite3.Connection, format_name: str, out_dir: Path) -> Path:
-    """Exports one list; format_name is its name, e.g. "pauper-lands" -
-    see list_name in config.py."""
-    meta = get_meta_cards(conn, format_name)
-    list_updated = _check_list_age(conn, format_name)
+def export_format(
+    conn: sqlite3.Connection, format_name: str, kind: str, out_dir: Path
+) -> Path:
+    """Exports one list of one format, e.g. "pauper" and "lands", to a
+    file named after the list - see list_name in config.py."""
+    name = config.list_name(format_name, kind)
+    meta = get_meta_cards(conn, format_name, kind)
+    list_updated = _check_list_age(conn, name)
     cards = [card for card in fetch_cards(conn, meta) if not is_basic_land(card)]
     # The printing each card is shown with - see scryfall/artwork.py
     cards = get_display_printings(conn, cards)
-    data = build_export(format_name, cards, list_updated)
-    minimum = config.min_cards(format_name)
+    data = build_export(name, cards, list_updated)
+    minimum = config.min_cards(kind)
     if len(data["cards"]) < minimum:
         raise RuntimeError(
-            f"Only {len(data['cards'])} usable cards for {format_name}, "
+            f"Only {len(data['cards'])} usable cards for {name}, "
             f"expected at least {minimum} - not writing the file"
         )
     path = write_export(data, out_dir)
@@ -259,7 +262,7 @@ def export_all(
         for kind in kinds:
             name = config.list_name(format_name, kind)
             try:
-                export_format(conn, name, out_dir)
+                export_format(conn, format_name, kind, out_dir)
             except Exception:
                 # With the full error, so the log says why
                 log.exception(f"Could not export {name} - keeping its previous file, if any")

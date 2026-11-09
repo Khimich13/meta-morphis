@@ -75,12 +75,12 @@ EXPORT_MIN_CARDS = 45
 EXPORT_MIN_LANDS = 35
 
 
-def min_cards(list_name: str) -> int:
-    """The fewest cards list_name needs to be exported. A list scraped
-    with fewer isn't saved either, so it can't replace a good one - see
-    meta/service.py.
+def min_cards(kind: str) -> int:
+    """The fewest cards a list of this kind needs to be exported. A list
+    scraped with fewer isn't saved either, so it can't replace a good
+    one - see meta/service.py.
     """
-    return EXPORT_MIN_LANDS if list_name.endswith("-lands") else EXPORT_MIN_CARDS
+    return EXPORT_MIN_LANDS if kind == "lands" else EXPORT_MIN_CARDS
 
 
 # An MTGGoldfish list older than this makes the export fail, so a lasting

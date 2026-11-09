@@ -33,7 +33,7 @@ def test_get_meta_cards_uses_cache(conn: sqlite3.Connection, monkeypatch: Monkey
         lambda conn, fmt: [MetaEntry("cached", 0, 0, 0)]
     )
 
-    result = get_meta_cards(conn, "pauper")
+    result = get_meta_cards(conn, "pauper", "all")
 
     assert [m.name for m in result] == ["cached"]
 
@@ -65,7 +65,7 @@ def test_get_meta_cards_scraper_success(conn: sqlite3.Connection, monkeypatch: M
         lambda conn, fmt: updated.append(fmt)
     )
 
-    result = get_meta_cards(conn, "pauper")
+    result = get_meta_cards(conn, "pauper", "all")
 
     assert [m.name for m in result] == ["new-meta"]
     assert saved == [[MetaEntry("new-meta", 0, 0, 0)]]
@@ -85,7 +85,7 @@ def test_get_meta_cards_saves_rows_with_unparseable_fields(conn: sqlite3.Connect
         lambda url: [MetaEntry("Weird Row")]
     )
 
-    result = get_meta_cards(conn, "pauper")
+    result = get_meta_cards(conn, "pauper", "all")
 
     assert [m.name for m in result] == ["Weird Row"]
 
@@ -113,7 +113,7 @@ def test_get_meta_cards_scraper_returns_empty_list_uses_cache(conn: sqlite3.Conn
         lambda url: []
     )
 
-    result = get_meta_cards(conn, "pauper")
+    result = get_meta_cards(conn, "pauper", "all")
 
     assert [m.name for m in result] == ["cached-meta"]
     assert [m.name for m in get_meta_from_cache(conn, "pauper")] == ["cached-meta"]
@@ -139,7 +139,7 @@ def test_get_meta_cards_scraper_fail_uses_cache(conn: sqlite3.Connection, monkey
         lambda conn, fmt: [MetaEntry("cached-meta", 0, 0, 0)]
     )
 
-    result = get_meta_cards(conn, "pauper")
+    result = get_meta_cards(conn, "pauper", "all")
 
     assert [m.name for m in result] == ["cached-meta"]
 
@@ -165,7 +165,7 @@ def test_get_meta_cards_scraper_fail_and_no_cache(conn: sqlite3.Connection, monk
     )
 
     with pytest.raises(RuntimeError):
-        get_meta_cards(conn, "pauper")
+        get_meta_cards(conn, "pauper", "all")
 
 # A page cut short must not replace the cached list or mark it fresh -
 # or the next runs would reuse the short list until GOLDFISH_REFRESH_RATE
@@ -184,7 +184,7 @@ def test_get_meta_cards_keeps_cache_when_scraped_list_is_too_short(
         lambda url: _entries("Hydroblast", "Ponder"),
     )
 
-    result = get_meta_cards(conn, "pauper")
+    result = get_meta_cards(conn, "pauper", "all")
 
     expected = ["Hydroblast", "Ponder", "Lightning Bolt"]
     assert [m.name for m in result] == expected
@@ -200,7 +200,7 @@ def test_get_meta_cards_unknown_format_raises(conn: sqlite3.Connection, monkeypa
     )
 
     with pytest.raises(ValueError, match="legacy"):
-        get_meta_cards(conn, "legacy")
+        get_meta_cards(conn, "legacy", "all")
 
 # Validation happens before the cache check, so a leftover cache row for a
 # format no longer in config can't be served silently
@@ -210,7 +210,7 @@ def test_get_meta_cards_unknown_format_raises_even_with_cached_rows(conn: sqlite
         update_meta_timestamp(conn, "legacy")
 
     with pytest.raises(ValueError, match="legacy"):
-        get_meta_cards(conn, "legacy")
+        get_meta_cards(conn, "legacy", "all")
 
 # Read back through a second connection, which only sees committed data -
 # the shared `conn` fixture can't tell whether a write was ever committed
@@ -221,7 +221,7 @@ def test_get_meta_cards_commits_scraped_meta(db_file: Path, monkeypatch: MonkeyP
     )
 
     writer = sqlite3.connect(db_file)
-    get_meta_cards(writer, "pauper")
+    get_meta_cards(writer, "pauper", "all")
     writer.close()
 
     reader = sqlite3.connect(db_file)
@@ -265,7 +265,7 @@ def test_refresh_logs_cards_that_entered_and_left(
     caplog.set_level(logging.INFO)
     _refresh(monkeypatch, _entries("Hydroblast", "Ponder"), _entries("Hydroblast", "Guttersnipe"))
 
-    get_meta_cards(conn, "pauper")
+    get_meta_cards(conn, "pauper", "all")
 
     assert "1 card entered the pauper list: Guttersnipe" in caplog.text
     assert "1 card left the pauper list: Ponder" in caplog.text
@@ -276,7 +276,7 @@ def test_refresh_logs_an_unchanged_list(
     caplog.set_level(logging.INFO)
     _refresh(monkeypatch, _entries("Hydroblast"), _entries("Hydroblast"))
 
-    get_meta_cards(conn, "pauper")
+    get_meta_cards(conn, "pauper", "all")
 
     assert "The pauper list did not change" in caplog.text
 
@@ -287,7 +287,7 @@ def test_first_refresh_logs_no_changes(
     caplog.set_level(logging.INFO)
     _refresh(monkeypatch, [], _entries("Hydroblast", "Ponder"))
 
-    get_meta_cards(conn, "pauper")
+    get_meta_cards(conn, "pauper", "all")
 
     assert "entered" not in caplog.text
     assert "did not change" not in caplog.text

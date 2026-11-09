@@ -234,14 +234,14 @@ def test_export_format_writes_the_file(
 ) -> None:
     meta = [MetaEntry(name="Lórien Revealed", rank=1)]
     cards = [Card.from_raw(_raw("Lórien Revealed", oracle_id="l"))]
-    monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, name: meta)
+    monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, format_name, kind: meta)
     _list_fetched(monkeypatch, FETCHED)
     monkeypatch.setattr("meta_morphis.export.fetch_cards", lambda conn, meta: cards)
     monkeypatch.setattr("meta_morphis.export.get_display_printings", lambda conn, cards: cards)
     monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 1)
 
     caplog.set_level(logging.INFO)
-    path = export_format(conn, "pauper", tmp_path / "data")
+    path = export_format(conn, "pauper", "all", tmp_path / "data")
 
     assert path == tmp_path / "data" / "pauper.json"
     assert f"Wrote {path}: 1 card" in caplog.text
@@ -268,14 +268,14 @@ def test_export_format_fails_with_too_few_cards(
     conn: sqlite3.Connection, tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
     cards = [Card.from_raw(_raw("Hydroblast", oracle_id="h"))]
-    monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, name: [])
+    monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, format_name, kind: [])
     _list_fetched(monkeypatch, FETCHED)
     monkeypatch.setattr("meta_morphis.export.fetch_cards", lambda conn, meta: cards)
     monkeypatch.setattr("meta_morphis.export.get_display_printings", lambda conn, cards: cards)
     monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 2)
 
     with pytest.raises(RuntimeError, match="Only 1 usable cards"):
-        export_format(conn, "pauper", tmp_path / "data")
+        export_format(conn, "pauper", "all", tmp_path / "data")
 
     assert not (tmp_path / "data" / "pauper.json").exists()
 
@@ -307,13 +307,13 @@ def test_export_format_uses_the_chosen_printing(
                             "id": "m10",
                             "artist": "Christopher Moeller",
                             "image_uris": {"grid": "grid/m10.webp", "art": "art/m10.webp"}})
-    monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, name: [])
+    monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, format_name, kind: [])
     _list_fetched(monkeypatch, FETCHED)
     monkeypatch.setattr("meta_morphis.export.fetch_cards", lambda conn, meta: [default])
     monkeypatch.setattr("meta_morphis.export.get_display_printings", lambda conn, cards: [chosen])
     monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 1)
 
-    path = export_format(conn, "pauper", tmp_path)
+    path = export_format(conn, "pauper", "all", tmp_path)
 
     [card] = json.loads(path.read_text(encoding="utf-8"))["cards"]
     assert card["images"] == ["grid/m10.webp"]
@@ -331,34 +331,37 @@ def test_export_format_refuses_an_old_list(
     # A list this old means fetching it has failed for days: fail the run,
     # so GitHub reports it, rather than publish the old list again
     cards = [Card.from_raw(_raw("Hydroblast", oracle_id="h"))]
-    monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, name: [])
+    monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, format_name, kind: [])
     monkeypatch.setattr("meta_morphis.export.fetch_cards", lambda conn, meta: cards)
     monkeypatch.setattr("meta_morphis.export.get_display_printings", lambda conn, cards: cards)
     monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 1)
     _list_fetched(monkeypatch, FETCHED, now=FETCHED + age_days * 24 * 60 * 60)
 
     if publishes:
-        export_format(conn, "pauper", tmp_path)
+        export_format(conn, "pauper", "all", tmp_path)
         assert (tmp_path / "pauper.json").exists()
     else:
         with pytest.raises(RuntimeError, match="4 days ago - not publishing"):
-            export_format(conn, "pauper", tmp_path)
+            export_format(conn, "pauper", "all", tmp_path)
         assert not (tmp_path / "pauper.json").exists()
 
 def test_export_format_fails_without_any_list(
     conn: sqlite3.Connection, tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, name: [])
+    monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, format_name, kind: [])
     _list_fetched(monkeypatch, None)
 
     with pytest.raises(RuntimeError, match="never fetched"):
-        export_format(conn, "pauper", tmp_path)
+        export_format(conn, "pauper", "all", tmp_path)
 
 def _fake_export(
     fails: tuple[str, ...] = (),
-) -> Callable[[sqlite3.Connection, str, Path], Path]:
+) -> Callable[[sqlite3.Connection, str, str, Path], Path]:
     """export_format that writes an empty file, or fails for the named lists"""
-    def fake_export(conn: sqlite3.Connection, name: str, out_dir: Path) -> Path:
+    def fake_export(
+        conn: sqlite3.Connection, format_name: str, kind: str, out_dir: Path
+    ) -> Path:
+        name = config.list_name(format_name, kind)
         if name in fails:
             raise RuntimeError("MTGGoldfish's page changed")
         path = out_dir / f"{name}.json"
@@ -420,7 +423,7 @@ def test_export_format_leaves_out_basic_lands_and_needs_fewer_lands(
         Card.from_raw(_raw("Mountain", oracle_id="m", type_line="Basic Land — Mountain")),
         Card.from_raw(_raw("Bojuka Bog", oracle_id="b", type_line="Land")),
     ]
-    monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, name: [])
+    monkeypatch.setattr("meta_morphis.export.get_meta_cards", lambda conn, format_name, kind: [])
     _list_fetched(monkeypatch, FETCHED)
     monkeypatch.setattr("meta_morphis.export.fetch_cards", lambda conn, meta: cards)
     monkeypatch.setattr("meta_morphis.export.get_display_printings", lambda conn, cards: cards)
@@ -428,12 +431,12 @@ def test_export_format_leaves_out_basic_lands_and_needs_fewer_lands(
     monkeypatch.setattr(config, "EXPORT_MIN_LANDS", 1)
     monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 2)
 
-    path = export_format(conn, "pauper-lands", tmp_path)
+    path = export_format(conn, "pauper", "lands", tmp_path)
 
     written = json.loads(path.read_text(encoding="utf-8"))["cards"]
     assert [card["name"] for card in written] == ["Bojuka Bog"]
     with pytest.raises(RuntimeError, match="expected at least 2"):
-        export_format(conn, "pauper-creatures", tmp_path)
+        export_format(conn, "pauper", "creatures", tmp_path)
 
 def test_list_names_and_addresses() -> None:
     assert config.list_name("pauper", "all") == "pauper"
