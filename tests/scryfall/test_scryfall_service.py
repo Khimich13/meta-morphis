@@ -9,6 +9,7 @@ from meta_morphis import config
 from meta_morphis.models.card import Card
 from meta_morphis.models.meta import MetaEntry
 from meta_morphis.scryfall.repo import (
+    add_alias,
     get_card_from_cache,
     record_bad_name_attempt,
     save_cards_to_cache,
@@ -582,3 +583,27 @@ def test_process_batch_request_pairs_nothing_when_the_counts_differ(
     found = get_card_from_cache(conn, "Counterspell")
     assert found is not None and found.name == "Counterspell"
     assert "not checking them for renamed cards" in caplog.text
+
+# Two names on the list can point at one cached card (here an old
+# spelling and the new one). When it goes stale, Scryfall is asked about
+# it once: asking twice would fetch and save it twice, and if Scryfall
+# answered once, the pair check would fail for the whole batch.
+def test_fetch_cards_asks_once_for_a_stale_card_two_names_share(
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: LogCaptureFixture
+) -> None:
+    card = {"id": "1", "oracle_id": "o1", "name": "New"}
+    save_cards_to_cache(conn, [Card.from_raw(card)])
+    add_alias(conn, "Old", "New")
+    conn.execute("UPDATE cards SET updated_at = 0")
+
+    asked: list[list[str]] = []
+    def answer(names: list[str]) -> dict[str, Any]:
+        asked.append(names)
+        return {"data": [card], "not_found": []}
+    monkeypatch.setattr("meta_morphis.scryfall.service.fetch_batch", answer)
+
+    result = fetch_cards(conn, [MetaEntry(name="Old"), MetaEntry(name="New")])
+
+    assert asked == [["New"]]
+    assert [c.name for c in result] == ["New"]
+    assert "not checking them for renamed cards" not in caplog.text

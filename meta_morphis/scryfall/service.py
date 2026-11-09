@@ -165,7 +165,10 @@ def _fetch_updates_for_outdated(conn: sqlite3.Connection, outdated: list[Card]) 
     # legitimately give a card a different name than it was cached under,
     # and comparing old-name-in-new-names used to put the same physical
     # card in both `updates` and `unrecognized`.
-    names = [card.name for card in outdated]
+    # Two list names can lead to one cached card, e.g. an old spelling
+    # and the new one after Scryfall renamed it - that card is in
+    # `outdated` twice, and is asked about once
+    names = list(dict.fromkeys(card.name for card in outdated))
     updates: list[Card] = []
     unresolved_names: set[str] = set()
 
