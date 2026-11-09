@@ -208,6 +208,22 @@ def test_build_export_sorts_by_name_and_skips_unusable_cards() -> None:
     assert data["format"] == "pauper"
     assert [c["name"] for c in data["cards"]] == ["Hydroblast", "Pyroblast"]
 
+# Two names on the list can lead to one card, e.g. after a rename
+def test_build_export_keeps_one_copy_of_each_card(caplog: pytest.LogCaptureFixture) -> None:
+    cards = [
+        # Unusable, so it doesn't stop the usable copy after it
+        Card.from_raw(_raw("Mixed", oracle_id="m", image_uris={
+            "grid": "grid/id-Mixed.webp",
+            "art": "art/another-printing.webp",
+        })),
+        Card.from_raw(_raw("New Name", oracle_id="n")),
+        Card.from_raw(_raw("Old Name", oracle_id="n")),
+        Card.from_raw(_raw("Mixed Fixed", oracle_id="m")),
+    ]
+    data = build_export("pauper", cards, "2026-10-17T19:18:03Z")
+    assert [c["name"] for c in data["cards"]] == ["Mixed Fixed", "New Name"]
+    assert "Leaving out 'Old Name' - the same card as 'New Name'" in caplog.text
+
 def test_export_format_writes_the_file(
     conn: sqlite3.Connection,
     tmp_path: Path,

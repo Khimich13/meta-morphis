@@ -159,12 +159,21 @@ def build_card(card: Card) -> ExportCard | None:
 
 def build_export(format_name: str, cards: list[Card], list_updated: str) -> ExportFile:
     exported: list[ExportCard] = []
+    # The app tells cards apart by oracle id, so each may appear only once.
+    # Two names on the list can still lead to one card, e.g. an old
+    # spelling and the new one after Scryfall renamed it.
+    kept: dict[str, str] = {}
     for card in cards:
         built = build_card(card)
         if built is None:
             log.warning(f"Leaving out '{card.name}' - no oracle id, picture or artist, "
                   "or pictures of different printings")
             continue
+        oracle_id = built["oracle_id"]
+        if oracle_id in kept:
+            log.warning(f"Leaving out '{card.name}' - the same card as '{kept[oracle_id]}'")
+            continue
+        kept[oracle_id] = card.name
         exported.append(built)
 
     # Sorted so the file doesn't reshuffle between runs
