@@ -53,10 +53,13 @@ afterEach(() => {
 
 const NEW_FORMAT = [card('New', ['new.webp'], 'new-art.webp')];
 
+/** The format has no other lists */
+const NOTHING_ELSE = async () => [];
+
 test('new pictures are saved, then the old ones deleted', async () => {
   const urls = fakeCaches(['old.webp', 'old-art.webp']);
 
-  await savePictures(NEW_FORMAT, () => {});
+  await savePictures(NEW_FORMAT, NOTHING_ELSE, () => {});
 
   expect([...urls].sort()).toEqual(['new-art.webp', 'new.webp']);
 });
@@ -66,7 +69,7 @@ test("large pictures of the list's cards stay, other ones go", async () => {
   const zoomed = { ...card('New', ['new.webp'], 'new-art.webp'), large_images: ['new-large.jpg'] };
   const urls = fakeCaches(['new.webp', 'new-art.webp', 'new-large.jpg', 'old-large.jpg']);
 
-  await savePictures([zoomed], () => {});
+  await savePictures([zoomed], NOTHING_ELSE, () => {});
 
   expect([...urls].sort()).toEqual(['new-art.webp', 'new-large.jpg', 'new.webp']);
 });
@@ -75,16 +78,49 @@ test('old pictures stay when the new ones cannot all be downloaded', async () =>
   // Switched format, then went offline before the artwork downloaded
   const urls = fakeCaches(['old.webp', 'old-art.webp'], ['new-art.webp']);
 
-  await savePictures(NEW_FORMAT, () => {});
+  await savePictures(NEW_FORMAT, NOTHING_ELSE, () => {});
 
   expect([...urls].sort()).toEqual(['new.webp', 'old-art.webp', 'old.webp']);
+});
+
+test("pictures of the format's other lists stay", async () => {
+  // Switched from the format's creature list to its spell list
+  const creatures = [
+    { ...card('Elf', ['elf.webp'], 'elf-art.webp'), large_images: ['elf-large.jpg'] },
+  ];
+  const urls = fakeCaches(['elf.webp', 'elf-art.webp', 'elf-large.jpg', 'old.webp']);
+
+  await savePictures(
+    NEW_FORMAT,
+    async () => creatures,
+    () => {},
+  );
+
+  expect([...urls].sort()).toEqual([
+    'elf-art.webp',
+    'elf-large.jpg',
+    'elf.webp',
+    'new-art.webp',
+    'new.webp',
+  ]);
+});
+
+test("nothing is deleted when the format's other lists cannot load", async () => {
+  const urls = fakeCaches(['old.webp']);
+  const offline = async () => {
+    throw new Error('offline');
+  };
+
+  await savePictures(NEW_FORMAT, offline, () => {});
+
+  expect([...urls].sort()).toEqual(['new-art.webp', 'new.webp', 'old.webp']);
 });
 
 test('progress counts the pictures saved, out of all wanted', async () => {
   fakeCaches(['new.webp']);
   const reports: [number, number][] = [];
 
-  await savePictures(NEW_FORMAT, (saved, total) => reports.push([saved, total]));
+  await savePictures(NEW_FORMAT, NOTHING_ELSE, (saved, total) => reports.push([saved, total]));
 
   expect(reports).toEqual([
     [1, 2],

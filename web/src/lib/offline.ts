@@ -1,10 +1,12 @@
-// Saves every card picture of the chosen format on the device, so
+// Saves every card picture of the chosen list on the device, so
 // lessons work without a connection. Pictures of other formats' cards
-// are deleted, which keeps only one format's pictures (about 5 MB).
+// are deleted, but those of the format's other lists stay, so switching
+// lists offline still shows them.
 // The service worker (set up in vite.config.ts) serves pictures from
 // this same cache.
 
-import type { Card } from './cards';
+import { type Card, loadCards } from './cards';
+import { listFile, listsOf, loadFormats } from './formats';
 
 /** Must match the cacheName for card pictures in vite.config.ts */
 export const PICTURE_CACHE = 'card-pictures';
@@ -13,6 +15,16 @@ export const PICTURE_CACHE = 'card-pictures';
 export function pictureUrls(cards: readonly Card[]): string[] {
   const urls = cards.flatMap((card) => [...card.images, card.art]);
   return [...new Set(urls)];
+}
+
+/**
+ * The cards of all of a format's lists. Fails if a list can't be loaded
+ * (e.g. offline, for a list never opened), so nothing is deleted then.
+ */
+export async function formatCards(format: string): Promise<Card[]> {
+  const kinds = listsOf(await loadFormats(), format);
+  const files = await Promise.all(kinds.map((kind) => loadCards(listFile({ format, kind }))));
+  return files.flatMap((file) => file.cards);
 }
 
 /** Must match the cacheName for card files in vite.config.ts */
@@ -46,6 +58,8 @@ export async function saveCardFile(file: string): Promise<void> {
  */
 export async function savePictures(
   cards: readonly Card[],
+  /** Cards whose pictures stay too, asked for only before deleting */
+  alsoKeep: () => Promise<readonly Card[]>,
   onProgress: (saved: number, total: number) => void,
   /** Checked before each step: true stops the saving, e.g. after a format switch */
   isStopped: () => boolean = () => false,
@@ -74,11 +88,21 @@ export async function savePictures(
     }
   }
 
-  // Pictures of cards that left the list, or of another format. The large
-  // pictures of cards still in the list stay: they are saved only for the
+  // Pictures of cards that left the format's lists, or of another format.
+  // Large pictures stay for the cards kept: they are saved only for the
   // cards the player zoomed into, and would otherwise download again.
   if (done < wanted.length) return;
-  const kept = new Set([...wanted, ...cards.flatMap((card) => card.large_images ?? [])]);
+  let keptCards: readonly Card[];
+  try {
+    keptCards = [...cards, ...(await alsoKeep())];
+  } catch {
+    // Unsure what to keep: delete nothing this time
+    return;
+  }
+  const kept = new Set([
+    ...pictureUrls(keptCards),
+    ...keptCards.flatMap((card) => card.large_images ?? []),
+  ]);
   for (const url of saved) {
     if (isStopped()) return;
     if (!kept.has(url)) {

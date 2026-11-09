@@ -13,7 +13,7 @@ import {
   startFormat,
   startKind,
 } from './lib/formats';
-import { saveCardFile, savePictures } from './lib/offline';
+import { formatCards, saveCardFile, savePictures } from './lib/offline';
 import { localDay, recordAnswer, recordLesson } from './lib/progress';
 import {
   loadFormat,
@@ -105,21 +105,25 @@ export default function App() {
     };
   }, [format, shownKind]);
 
-  // Once a format's cards are here, save their pictures for offline use;
-  // a format switch stops the saving for the old one
+  // Once a list's cards are here, save their pictures for offline use,
+  // keeping those of the format's other lists; a switch stops the saving
+  // for the old list. lastLoaded is set along with the cards, so it names
+  // their format.
+  const cardsFormat = lastLoaded?.format;
   useEffect(() => {
-    if (cards === null) return;
+    if (cards === null || cardsFormat === undefined) return;
     let stopped = false;
     setPictures({ saved: 0, total: 0 });
     savePictures(
       cards,
+      () => formatCards(cardsFormat),
       (saved, total) => setPictures({ saved, total }),
       () => stopped,
     );
     return () => {
       stopped = true;
     };
-  }, [cards]);
+  }, [cards, cardsFormat]);
 
   // Switch to a newly published version of the app, but never mid-lesson
   useAppUpdate(screen !== 'lesson');
