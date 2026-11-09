@@ -1,6 +1,7 @@
 import {
   type CSSProperties,
   lazy,
+  memo,
   type ReactNode,
   type RefObject,
   Suspense,
@@ -49,20 +50,30 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
   // The double-faced cards showing their back, by oracle_id. Kept here so
   // the large view shows the same side as the small picture.
   const [backs, setBacks] = useState<Set<string>>(new Set());
-  function flip(card: Card) {
+  // The same function every time, like open below, so the grid is drawn
+  // again only when its cards change
+  const flip = useCallback((card: Card) => {
     setBacks((before) => {
       const after = new Set(before);
       if (after.has(card.oracle_id)) after.delete(card.oracle_id);
       else after.add(card.oracle_id);
       return after;
     });
-  }
+  }, []);
 
   // One large view for the whole list: a sideways row of every card,
   // which the browser scrolls with the finger and settles on one card
   const large = useLargeView();
   const [index, setIndex] = useState(0);
   const row = useRef<HTMLDivElement>(null);
+  const openLarge = large.open;
+  const open = useCallback(
+    (position: number) => {
+      setIndex(position);
+      openLarge();
+    },
+    [openLarge],
+  );
 
   // The list can turn sideways with the phone, keeping the card at the
   // top of the screen in view
@@ -90,11 +101,6 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
     saveColumns(count, sideways);
   }, []);
   usePinchColumns(grid, columns, chooseColumns, open);
-
-  function open(position: number) {
-    setIndex(position);
-    large.open();
-  }
 
   // Closing the large view: the list shows the card last looked at
   // there, which may be far from the one opened
@@ -126,27 +132,15 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
           Most played {what}in {formatLabel(selection.format)}
         </h1>
       </header>
-      <ul
-        ref={grid}
-        className={columns === null ? 'card-grid' : 'card-grid chosen'}
-        style={columns === null ? undefined : ({ '--columns': columns } as CSSProperties)}
-      >
-        {cards.map((card, position) => (
-          <li key={card.oracle_id}>
-            {/* How the card is doing, above it */}
-            <div className="card-progress">
-              <StandingLabel record={progress.cards[card.oracle_id]} />
-            </div>
-            <CardPicture
-              card={card}
-              lazy
-              showingBack={backs.has(card.oracle_id)}
-              onFlip={() => flip(card)}
-              onEnlarge={() => open(position)}
-            />
-          </li>
-        ))}
-      </ul>
+      <CardGrid
+        gridRef={grid}
+        cards={cards}
+        progress={progress}
+        backs={backs}
+        columns={columns}
+        onFlip={flip}
+        onEnlarge={open}
+      />
       {large.isOpen && (
         <LargeView
           onClose={large.close}
@@ -181,6 +175,54 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
     </main>
   );
 }
+
+/**
+ * The list's grid of small cards. memo skips drawing it again when its
+ * props are the same as last time: swiping in the large view changes only
+ * which card is shown there, and would otherwise draw every card here too.
+ */
+const CardGrid = memo(function CardGrid({
+  gridRef,
+  cards,
+  progress,
+  backs,
+  columns,
+  onFlip,
+  onEnlarge,
+}: {
+  gridRef: RefObject<HTMLUListElement | null>;
+  cards: Card[];
+  progress: Progress;
+  backs: Set<string>;
+  /** Cards per row; null: as many as fit */
+  columns: number | null;
+  onFlip: (card: Card) => void;
+  onEnlarge: (position: number) => void;
+}) {
+  return (
+    <ul
+      ref={gridRef}
+      className={columns === null ? 'card-grid' : 'card-grid chosen'}
+      style={columns === null ? undefined : ({ '--columns': columns } as CSSProperties)}
+    >
+      {cards.map((card, position) => (
+        <li key={card.oracle_id}>
+          {/* How the card is doing, above it */}
+          <div className="card-progress">
+            <StandingLabel record={progress.cards[card.oracle_id]} />
+          </div>
+          <CardPicture
+            card={card}
+            lazy
+            showingBack={backs.has(card.oracle_id)}
+            onFlip={() => onFlip(card)}
+            onEnlarge={() => onEnlarge(position)}
+          />
+        </li>
+      ))}
+    </ul>
+  );
+});
 
 /** How long after a change of size the browser may still be laying the page out, in ms */
 const RESIZE_LAYOUT_TIME = 500;
