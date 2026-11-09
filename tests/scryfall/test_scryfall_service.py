@@ -493,7 +493,7 @@ def test_fetch_cards_moves_old_names_to_a_renamed_card(
     conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: LogCaptureFixture, batch_finds_it: bool
 ) -> None:
     save_cards_to_cache(conn, [Card.from_raw({
-        "id": "1", "name": "Old Front // Old Back",
+        "id": "1", "oracle_id": "o1", "name": "Old Front // Old Back",
         "card_faces": [
             {"name": "Old Front", "type_line": "Creature"},
             {"name": "Old Back", "type_line": "Creature"},
@@ -502,7 +502,7 @@ def test_fetch_cards_moves_old_names_to_a_renamed_card(
     conn.execute("UPDATE cards SET updated_at = 0")
 
     renamed = {
-        "id": "1", "name": "New Front // New Back",
+        "id": "1", "oracle_id": "o1", "name": "New Front // New Back",
         "card_faces": [
             {"name": "New Front", "type_line": "Creature"},
             {"name": "New Back", "type_line": "Creature"},
@@ -524,6 +524,30 @@ def test_fetch_cards_moves_old_names_to_a_renamed_card(
     assert asked == [["Old Front // Old Back"]]
     assert conn.execute("SELECT name FROM cards").fetchall() == [("new front // new back",)]
     assert "already belongs to another card" not in caplog.text
+
+# The single lookup falls back to Scryfall's fuzzy matching, which can
+# answer a stale card's name with an unrelated card. A name collision
+# alone is not a rename: the old row moves only to a card with the same
+# oracle_id. Otherwise it stays, and the other card's row is left alone.
+def test_fetch_cards_keeps_a_stale_card_the_fuzzy_lookup_answers_with_another(
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: LogCaptureFixture
+) -> None:
+    save_cards_to_cache(conn, [Card.from_raw({"id": "1", "oracle_id": "o-old", "name": "Old"})])
+    conn.execute("UPDATE cards SET updated_at = 0")
+
+    other = {"id": "2", "oracle_id": "o-other", "name": "Other"}
+    monkeypatch.setattr(
+        "meta_morphis.scryfall.service.fetch_batch",
+        lambda names: {"data": [], "not_found": [{"name": n} for n in names]},
+    )
+    monkeypatch.setattr("meta_morphis.scryfall.service.fetch_single", lambda name: other)
+
+    fetch_cards(conn, [MetaEntry(name="Old")])
+
+    assert sorted(conn.execute("SELECT name FROM cards").fetchall()) == [("old",), ("other",)]
+    found = get_card_from_cache(conn, "Old")
+    assert found is not None and found.name == "Old"
+    assert "answered it with a different card 'other'" in caplog.text
 
 # Each card in a batch answer is paired with the name it answers by
 # skipping the names Scryfall didn't find. If one went missing without a

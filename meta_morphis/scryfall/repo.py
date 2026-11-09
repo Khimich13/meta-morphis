@@ -53,6 +53,18 @@ def _claim_alias(c: sqlite3.Cursor, alias: str, card_name: str) -> bool:
     """, (alias, card_name))
     return c.rowcount > 0
 
+def _cached_oracle_id(c: sqlite3.Cursor, card_key: str) -> str | None:
+    """The oracle_id of the cached card named `card_key` (normalized):
+    None when there is no such row or its JSON has none.
+    """
+    row = c.execute("SELECT json FROM cards WHERE name = ?", (card_key,)).fetchone()
+    if not row:
+        return None
+    try:
+        return json.loads(row[0]).get("oracle_id")
+    except json.JSONDecodeError:
+        return None
+
 def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> None:
     """Register an extra lookup alias for an already-cached card - e.g.
     the exact spelling that was searched for, when Scryfall's own
@@ -61,19 +73,28 @@ def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> None:
     The card must already have a row in `cards`, since card_aliases.card_name
     is a foreign key into it.
 
-    If `alias` is itself the name of a cached card, Scryfall now knows
-    that card by a new name (an errata rename, say). Every alias of the
-    old row moves to the new card and the old row is dropped - otherwise
-    the old row keeps answering for those names, stays stale, and is
-    refreshed again every run.
+    If `alias` is itself the name of a cached card with the same
+    oracle_id, Scryfall now knows that card by a new name (an errata
+    rename, say). Every alias of the old row moves to the new card and
+    the old row is dropped - otherwise the old row keeps answering for
+    those names, stays stale, and is refreshed again every run. A cached
+    card with a different oracle_id is another card that Scryfall's
+    fuzzy matching answered the name with: it is kept, and the alias is
+    not claimed.
     """
     c = conn.cursor()
     alias_key = normalize_name(alias)
     card_key = normalize_name(card_name)
 
-    old_row = c.execute("SELECT 1 FROM cards WHERE name = ?", (alias_key,)).fetchone()
+    old_oracle_id = _cached_oracle_id(c, alias_key)
     # Never drop the row the aliases are being moved to
-    if old_row and alias_key != card_key:
+    if old_oracle_id is not None and alias_key != card_key:
+        if old_oracle_id != _cached_oracle_id(c, card_key):
+            log.warning(
+                f"'{alias_key}' is a cached card, but Scryfall answered it with a different card "
+                f"'{card_key}' - keeping both"
+            )
+            return
         c.execute("UPDATE card_aliases SET card_name = ? WHERE card_name = ?", (card_key, alias_key))
         c.execute("DELETE FROM cards WHERE name = ?", (alias_key,))
         return
