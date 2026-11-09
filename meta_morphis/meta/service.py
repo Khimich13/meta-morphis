@@ -33,6 +33,17 @@ def get_meta_cards(conn: sqlite3.Connection, format_name: str) -> list[MetaEntry
 
     meta = scrape_meta_cards(url)
 
+    # A list too short to export counts as a failed fetch. Saving it would
+    # replace the cached list, and its new timestamp would stop the next
+    # runs from trying again until GOLDFISH_REFRESH_RATE has passed.
+    minimum = config.min_cards(format_name)
+    if meta is not None and len(meta) < minimum:
+        log.warning(
+            f"MTGGoldfish's {format_name} list has only {_cards(len(meta))}, "
+            f"expected at least {minimum} - its page may have been cut short"
+        )
+        meta = None
+
     if not meta:
         log.warning("Failed fetching data from MTGGoldfish...")
         cached = get_meta_from_cache(conn, format_name)

@@ -73,6 +73,16 @@ EXPORT_MIN_CARDS = 45
 # them (Plains, Island, Swamp, Mountain, Forest and Wastes, each also
 # snow-covered), plus a small margin
 EXPORT_MIN_LANDS = 35
+
+
+def min_cards(list_name: str) -> int:
+    """The fewest cards list_name needs to be exported. A list scraped
+    with fewer isn't saved either, so it can't replace a good one - see
+    meta/service.py.
+    """
+    return EXPORT_MIN_LANDS if list_name.endswith("-lands") else EXPORT_MIN_CARDS
+
+
 # An MTGGoldfish list older than this makes the export fail, so a lasting
 # breakage of the scraper fails the daily run and GitHub reports it,
 # instead of the old list being published day after day. A short outage

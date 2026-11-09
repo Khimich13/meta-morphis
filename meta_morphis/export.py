@@ -205,9 +205,7 @@ def export_format(conn: sqlite3.Connection, format_name: str, out_dir: Path) -> 
     # The printing each card is shown with - see scryfall/artwork.py
     cards = get_display_printings(conn, cards)
     data = build_export(format_name, cards, list_updated)
-    minimum = (
-        config.EXPORT_MIN_LANDS if format_name.endswith("-lands") else config.EXPORT_MIN_CARDS
-    )
+    minimum = config.min_cards(format_name)
     if len(data["cards"]) < minimum:
         raise RuntimeError(
             f"Only {len(data['cards'])} usable cards for {format_name}, "

@@ -6,14 +6,22 @@ from pathlib import Path
 import pytest
 from pytest import MonkeyPatch
 
+from meta_morphis import config
 from meta_morphis.meta.repo import (
     get_meta_from_cache,
+    get_meta_timestamp,
     save_meta_to_cache,
     update_meta_timestamp,
 )
 from meta_morphis.meta.service import get_meta_cards, list_changes
 from meta_morphis.models.meta import MetaEntry
 
+
+@pytest.fixture(autouse=True)
+def _short_lists_allowed(monkeypatch: MonkeyPatch) -> None:
+    # Most tests here scrape a list of one or two cards, far below the
+    # real minimum. The test of the minimum sets its own.
+    monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 1)
 
 def test_get_meta_cards_uses_cache(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(
@@ -158,6 +166,32 @@ def test_get_meta_cards_scraper_fail_and_no_cache(conn: sqlite3.Connection, monk
 
     with pytest.raises(RuntimeError):
         get_meta_cards(conn, "pauper")
+
+# A page cut short must not replace the cached list or mark it fresh -
+# or the next runs would reuse the short list until GOLDFISH_REFRESH_RATE
+def test_get_meta_cards_keeps_cache_when_scraped_list_is_too_short(
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 3)
+    fetched = int(time.time()) - 2 * config.GOLDFISH_REFRESH_RATE
+    with conn:
+        save_meta_to_cache(conn, _entries("Hydroblast", "Ponder", "Lightning Bolt"), "pauper")
+        conn.execute(
+            "INSERT INTO meta_refresh (format, last_updated) VALUES ('pauper', ?)", (fetched,)
+        )
+    monkeypatch.setattr(
+        "meta_morphis.meta.service.scrape_meta_cards",
+        lambda url: _entries("Hydroblast", "Ponder"),
+    )
+
+    result = get_meta_cards(conn, "pauper")
+
+    expected = ["Hydroblast", "Ponder", "Lightning Bolt"]
+    assert [m.name for m in result] == expected
+    assert [m.name for m in get_meta_from_cache(conn, "pauper")] == expected
+    assert get_meta_timestamp(conn, "pauper") == fetched
+    assert "only 2 cards, expected at least 3" in caplog.text
+
 # An unknown format used to escape as a bare KeyError after the cache check
 def test_get_meta_cards_unknown_format_raises(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(
