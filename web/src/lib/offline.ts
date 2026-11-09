@@ -27,28 +27,6 @@ export async function formatCards(format: string): Promise<Card[]> {
   return files.flatMap((file) => file.cards);
 }
 
-/** Must match the cacheName for card files in vite.config.ts */
-export const DATA_CACHE = 'card-data';
-
-/**
- * Saves a card file and the list of formats on the device. The
- * service worker saves them too when it handles their download, but on
- * the very first visit the page loads them before the service worker
- * has started, and they would be missing offline.
- */
-export async function saveCardFile(file: string): Promise<void> {
-  if (!('caches' in window)) return;
-  const cache = await caches.open(DATA_CACHE);
-  for (const path of ['data/formats.json', `data/${file}.json`]) {
-    try {
-      // The same full address the app asks for, so the service worker finds it
-      await cache.add(new URL(path, window.location.href));
-    } catch {
-      // Offline: the copy saved earlier, if any, stays
-    }
-  }
-}
-
 /**
  * Downloads the pictures that aren't saved yet, then deletes saved ones
  * that are no longer needed - but only once every new one is saved, so a

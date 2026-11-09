@@ -1,6 +1,6 @@
 // Which formats and lists the app can teach, and which it starts with.
 
-import { formatLabel } from './cards';
+import { formatLabel, loadDataFile } from './cards';
 
 /** The format a player who used the app before formats existed was using */
 export const FIRST_FORMAT = 'pauper';
@@ -29,12 +29,8 @@ export interface FormatsFile {
   lists?: Record<string, string[]>;
 }
 
-export async function loadFormats(): Promise<FormatsFile> {
-  const response = await fetch('data/formats.json');
-  if (!response.ok) {
-    throw new Error(`Could not load formats.json (HTTP ${response.status})`);
-  }
-  return response.json();
+export function loadFormats(): Promise<FormatsFile> {
+  return loadDataFile('formats');
 }
 
 /**

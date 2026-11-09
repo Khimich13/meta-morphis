@@ -43,10 +43,35 @@ export interface CardFile {
 }
 
 /** Loads a card file, named as listFile in formats.ts names it */
-export async function loadCards(file: string): Promise<CardFile> {
-  const response = await fetch(`data/${file}.json`);
+export function loadCards(file: string): Promise<CardFile> {
+  return loadDataFile(file);
+}
+
+/** Must match the cacheName for card files in vite.config.ts */
+export const DATA_CACHE = 'card-data';
+
+/**
+ * Loads data/<name>.json and saves a copy on the device for offline use.
+ * The service worker saves it too when it handles the download, but on
+ * the very first visit the page loads its first files before the service
+ * worker has started, and they would be missing offline.
+ */
+export async function loadDataFile<T>(name: string): Promise<T> {
+  const path = `data/${name}.json`;
+  const response = await fetch(path);
   if (!response.ok) {
-    throw new Error(`Could not load ${file}.json (HTTP ${response.status})`);
+    throw new Error(`Could not load ${name}.json (HTTP ${response.status})`);
+  }
+  if ('caches' in window) {
+    // A copy of this same download, under the full address the app asks
+    // for, so the service worker finds it
+    const copy = response.clone();
+    caches
+      .open(DATA_CACHE)
+      .then((cache) => cache.put(new URL(path, window.location.href), copy))
+      .catch(() => {
+        // The browser refused to store it: the app still works online
+      });
   }
   return response.json();
 }

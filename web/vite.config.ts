@@ -55,7 +55,7 @@ export default defineConfig({
           {
             // The card files: fresh from the network when there is one,
             // otherwise the copy saved last time. The cache name must
-            // match DATA_CACHE in src/lib/offline.ts, which also fills it.
+            // match DATA_CACHE in src/lib/cards.ts, which also fills it.
             urlPattern: /\/data\/[^/]+\.json$/,
             handler: 'NetworkFirst',
             options: { cacheName: 'card-data', networkTimeoutSeconds: 3 },

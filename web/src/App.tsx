@@ -13,7 +13,7 @@ import {
   startFormat,
   startKind,
 } from './lib/formats';
-import { formatCards, saveCardFile, savePictures } from './lib/offline';
+import { formatCards, savePictures } from './lib/offline';
 import { localDay, recordAnswer, recordLesson } from './lib/progress';
 import {
   loadFormat,
@@ -94,7 +94,6 @@ export default function App() {
         saveFormat(format);
         saveList(shownKind);
         setLastLoaded(selection);
-        saveCardFile(listFile(selection));
       })
       .catch(() => {
         if (!stale) setFailed(true);
