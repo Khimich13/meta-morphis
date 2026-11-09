@@ -2,7 +2,6 @@ import {
   createContext,
   type ReactNode,
   type RefObject,
-  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -61,7 +60,10 @@ export default function LargeView({
   // opened it (a double tap on the small card) must not close it again
   const openedAt = useRef(performance.now());
 
-  useEffect(() => {
+  // A layout effect, which React runs before every plain effect, so the
+  // view's content finds the dialog open in its own effects: only an open
+  // dialog has a size (CardRow in CardList.tsx scrolls by it)
+  useLayoutEffect(() => {
     const element = dialog.current;
     if (element === null) return;
     // Already open when React runs this a second time (StrictMode, in

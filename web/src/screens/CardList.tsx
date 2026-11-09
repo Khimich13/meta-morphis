@@ -343,10 +343,7 @@ function CardRow({
   useEffect(() => {
     const element = rowRef.current;
     if (element === null) return;
-    // The dialog must be open to have a size to scroll by; the large view
-    // opens it now if it hasn't yet
-    const dialog = element.closest('dialog');
-    if (dialog !== null && !dialog.open) dialog.showModal();
+    // The large view has opened its dialog by now, so the row has a size
     width.current = element.clientWidth;
     element.scrollLeft = startAt * element.clientWidth;
     markShown(element, startAt);
