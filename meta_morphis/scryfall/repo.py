@@ -61,9 +61,10 @@ def _cached_oracle_id(c: sqlite3.Cursor, card_key: str) -> str | None:
     if not row:
         return None
     try:
-        return json.loads(row[0]).get("oracle_id")
+        oracle_id = json.loads(row[0]).get("oracle_id")
     except json.JSONDecodeError:
         return None
+    return oracle_id if isinstance(oracle_id, str) else None
 
 def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> None:
     """Register an extra lookup alias for an already-cached card - e.g.
