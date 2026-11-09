@@ -62,8 +62,15 @@
 
 html:has(.enlarged[open]) {
   background: color-mix(in srgb, #000 85%, var(--page));
-  /* Darkening with the layer below, so that as a phone turns, the edges
-     beyond the page match the page */
+}
+
+/* Opened by turning the phone (see useOpenOnTurn in CardPicture.tsx):
+   darkening with the layer below, so that as the phone turns, the edges
+   beyond the page match the page. Only then: an iPhone app tints the
+   strip behind its clock with this color while the page can scroll, as
+   the card list's can, and it took the color as the fade began, so the
+   strip stayed the page's usual color above the dimmed view. */
+html:has(.enlarged.opened-by-turn[open]) {
   transition: background-color 0.4s ease-out;
 }
 
@@ -217,7 +224,7 @@ html:has(.enlarged[open]) body::after {
 
 @media (prefers-reduced-motion: reduce) {
   .enlarged[open],
-  html:has(.enlarged[open]),
+  html:has(.enlarged.opened-by-turn[open]),
   html:has(.enlarged[open]) body::after,
   .enlarged[open] > .zoom-area {
     transition: none;
