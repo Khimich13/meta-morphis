@@ -103,17 +103,19 @@ def get_display_printings(conn: sqlite3.Connection, cards: list[Card]) -> list[C
         for printing in printings:
             by_card.setdefault(printing.get("oracle_id", ""), []).append(printing)
 
-        for oracle_id in group:
-            chosen = choose_printing(by_card.get(oracle_id, []))
-            if chosen is None:
-                continue
-            try:
-                display = Card.from_raw(chosen)
-            except KeyError:
-                continue
-            with conn:
+        # One commit for the group's choices. The search is already done,
+        # so the transaction never waits on Scryfall
+        with conn:
+            for oracle_id in group:
+                chosen = choose_printing(by_card.get(oracle_id, []))
+                if chosen is None:
+                    continue
+                try:
+                    display = Card.from_raw(chosen)
+                except KeyError:
+                    continue
                 save_chosen_printing(conn, oracle_id, chosen)
-            shown[oracle_id] = display
+                shown[oracle_id] = display
 
     # The fallbacks, for every card that got no new choice
     return [
