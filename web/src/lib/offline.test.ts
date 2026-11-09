@@ -29,21 +29,30 @@ test('pictureUrls lists a shared picture once', () => {
 });
 
 /**
- * A stand-in for the browser's cache storage: the saved addresses, and
- * a set of addresses whose download fails (as when offline)
+ * A stand-in for the browser's cache storage and the picture server: the
+ * saved addresses, the addresses whose download fails (as when offline),
+ * and the addresses the server answers with an error status
  */
-function fakeCaches(saved: string[], unreachable: string[] = []) {
+function fakeCaches(
+  saved: string[],
+  unreachable: string[] = [],
+  statuses: Record<string, number> = {},
+) {
   const urls = new Set(saved);
   const cache = {
     keys: async () => [...urls].map((url) => ({ url })),
-    add: async (url: string) => {
-      if (unreachable.includes(url)) throw new Error('offline');
+    put: async (url: string) => {
       urls.add(url);
     },
     delete: async (url: string) => urls.delete(url),
   };
   vi.stubGlobal('window', { caches: {} });
   vi.stubGlobal('caches', { open: async () => cache });
+  vi.stubGlobal('fetch', async (url: string) => {
+    if (unreachable.includes(url)) throw new TypeError('offline');
+    const status = statuses[url] ?? 200;
+    return { ok: status === 200, status };
+  });
   return urls;
 }
 
@@ -81,6 +90,25 @@ test('old pictures stay when the new ones cannot all be downloaded', async () =>
   await savePictures(NEW_FORMAT, NOTHING_ELSE, () => {});
 
   expect([...urls].sort()).toEqual(['new.webp', 'old-art.webp', 'old.webp']);
+});
+
+test('a picture the server no longer has does not keep the old ones', async () => {
+  const urls = fakeCaches(['old.webp'], [], { 'new-art.webp': 404 });
+  const reports: [number, number][] = [];
+
+  await savePictures(NEW_FORMAT, NOTHING_ELSE, (saved, total) => reports.push([saved, total]));
+
+  expect([...urls].sort()).toEqual(['new.webp']);
+  // The missing picture leaves the total, so the saving can finish
+  expect(reports.at(-1)).toEqual([1, 1]);
+});
+
+test('old pictures stay after a passing server error', async () => {
+  const urls = fakeCaches(['old.webp'], [], { 'new-art.webp': 503 });
+
+  await savePictures(NEW_FORMAT, NOTHING_ELSE, () => {});
+
+  expect([...urls].sort()).toEqual(['new.webp', 'old.webp']);
 });
 
 test("pictures of the format's other lists stay", async () => {

@@ -50,6 +50,10 @@ export async function savePictures(
   const saved = new Set((await cache.keys()).map((request) => request.url));
 
   let done = wanted.filter((url) => saved.has(url)).length;
+  // Pictures the server no longer has: they will never download, so they
+  // neither count nor hold up deleting the old ones. Asked for again the
+  // next time the app opens, in case they come back.
+  let gone = 0;
   onProgress(done, wanted.length);
 
   // One at a time, to go easy on the picture server and the connection
@@ -57,11 +61,19 @@ export async function savePictures(
     if (isStopped()) return;
     if (saved.has(url)) continue;
     try {
-      await cache.add(url);
-      done += 1;
-      onProgress(done, wanted.length);
+      const response = await fetch(url);
+      if (response.ok) {
+        await cache.put(url, response);
+        done += 1;
+      } else if (response.status === 404 || response.status === 410) {
+        gone += 1;
+      } else {
+        // A passing server error: try again the next time the app opens
+        continue;
+      }
+      onProgress(done, wanted.length - gone);
     } catch {
-      // No connection or the picture is gone: skip it and try again
+      // No connection, or the browser refused to store it: try again
       // the next time the app opens
     }
   }
@@ -69,7 +81,7 @@ export async function savePictures(
   // Pictures of cards that left the format's lists, or of another format.
   // Large pictures stay for the cards kept: they are saved only for the
   // cards the player zoomed into, and would otherwise download again.
-  if (done < wanted.length) return;
+  if (done < wanted.length - gone) return;
   let keptCards: readonly Card[];
   try {
     keptCards = [...cards, ...(await alsoKeep())];
