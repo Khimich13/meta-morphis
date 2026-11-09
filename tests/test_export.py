@@ -226,6 +226,17 @@ def test_build_export_keeps_one_copy_of_each_card(caplog: pytest.LogCaptureFixtu
     assert [c["name"] for c in data["cards"]] == ["Mixed Fixed", "New Name"]
     assert "Leaving out 'Old Name' - the same card as 'New Name'" in caplog.text
 
+# During a rename the old name can still sit fresh in the cache while the
+# new one is fetched this run. fetch_cards returns cached cards first, so
+# the order can't decide: the newest Scryfall data has the current name.
+def test_build_export_keeps_the_newest_copy_of_a_card(caplog: pytest.LogCaptureFixture) -> None:
+    old = Card.from_raw(_raw("Old Name", oracle_id="n"))
+    old.age = 5 * config.DAY
+    new = Card.from_raw(_raw("New Name", oracle_id="n"))
+    data = build_export("pauper", [old, new], "2026-10-17T19:18:03Z")
+    assert [c["name"] for c in data["cards"]] == ["New Name"]
+    assert "Leaving out 'Old Name' - the same card as 'New Name'" in caplog.text
+
 def test_export_format_writes_the_file(
     conn: sqlite3.Connection,
     tmp_path: Path,

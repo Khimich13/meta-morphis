@@ -159,11 +159,12 @@ def build_card(card: Card) -> ExportCard | None:
     }
 
 def build_export(format_name: str, cards: list[Card], list_updated: str) -> ExportFile:
-    exported: list[ExportCard] = []
     # The app tells cards apart by oracle id, so each may appear only once.
     # Two names on the list can still lead to one card, e.g. an old
-    # spelling and the new one after Scryfall renamed it.
-    kept: dict[str, str] = {}
+    # spelling and the new one after Scryfall renamed it. The copy with
+    # the newest Scryfall data is kept - it carries the card's current
+    # name - whichever name the list put first.
+    kept: dict[str, tuple[Card, ExportCard]] = {}
     for card in cards:
         built = build_card(card)
         if built is None:
@@ -171,14 +172,16 @@ def build_export(format_name: str, cards: list[Card], list_updated: str) -> Expo
                   "or pictures of different printings")
             continue
         oracle_id = built["oracle_id"]
-        if oracle_id in kept:
-            log.warning(f"Leaving out '{card.name}' - the same card as '{kept[oracle_id]}'")
+        other = kept.get(oracle_id)
+        if other and other[0].age <= card.age:
+            log.warning(f"Leaving out '{card.name}' - the same card as '{other[0].name}'")
             continue
-        kept[oracle_id] = card.name
-        exported.append(built)
+        if other:
+            log.warning(f"Leaving out '{other[0].name}' - the same card as '{card.name}'")
+        kept[oracle_id] = (card, built)
 
     # Sorted so the file doesn't reshuffle between runs
-    exported.sort(key=lambda c: c["name"])
+    exported = sorted((built for _, built in kept.values()), key=lambda c: c["name"])
     return {"format": format_name, "list_updated": list_updated, "cards": exported}
 
 def write_json(path: Path, data: object) -> None:
