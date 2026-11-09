@@ -138,9 +138,13 @@ def _classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[li
         if cached:
             # Negative age = written by a clock that ran ahead, treat as stale
             if cached.age < 0 or cached.age > config.SCRYFALL_REFRESH_RATE:
-                if should_skip_lookup(conn, name):
+                # Checked under the cached card's name, not MTGGoldfish's:
+                # the refresh asks Scryfall for that name and records a
+                # failure under it. They differ for a double-faced card,
+                # which MTGGoldfish lists by its front face only.
+                if should_skip_lookup(conn, cached.name):
                     # A refresh was recently confirmed to fail for this
-                    # name - serve the stale copy instead of
+                    # card - serve the stale copy instead of
                     # hammering Scryfall again every run for the length
                     # of the cooldown.
                     fresh.append(cached)

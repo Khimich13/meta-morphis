@@ -10,6 +10,7 @@ from meta_morphis.models.card import Card
 from meta_morphis.models.meta import MetaEntry
 from meta_morphis.scryfall.repo import (
     get_card_from_cache,
+    record_bad_name_attempt,
     save_cards_to_cache,
     should_skip_lookup,
 )
@@ -379,6 +380,26 @@ def test_classify_cards_looks_up_a_split_card_by_its_full_name(conn: sqlite3.Con
 
     assert fresh == [] and outdated == []
     assert missing == ["Fire // Ice"]
+
+# MTGGoldfish lists a double-faced card by its front face, but a failed
+# refresh is recorded under the full name the refresh asked Scryfall for.
+# The cooldown has to find that record, or the card is retried every run.
+def test_classify_cards_skips_outdated_double_faced_card_within_cooldown(conn: sqlite3.Connection) -> None:
+    delver = Card.from_raw({
+        "id": "d", "name": "Delver of Secrets // Insectile Aberration",
+        "card_faces": [
+            {"name": "Delver of Secrets", "type_line": "Creature"},
+            {"name": "Insectile Aberration", "type_line": "Creature"},
+        ],
+    })
+    save_cards_to_cache(conn, [delver])
+    conn.execute("UPDATE cards SET updated_at = 0")
+    record_bad_name_attempt(conn, delver.name)
+
+    fresh, outdated, missing = _classify_cards(conn, [MetaEntry(name="Delver of Secrets")])
+
+    assert [c.name for c in fresh] == [delver.name]
+    assert outdated == [] and missing == []
 
 # Refreshed and newly fetched cards are each read back through a second
 # connection, which only sees committed data. They're tested separately on
