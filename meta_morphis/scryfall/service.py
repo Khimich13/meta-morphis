@@ -33,9 +33,6 @@ def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[Card]:
     if outdated:
         log.info("Trying to fetch outdated names...")
         updates, unrecognized = _fetch_updates_for_outdated(conn, outdated)
-
-        with conn:
-            save_cards_to_cache(conn, updates)
         log.info(f"{len(updates)} outdated cards were refreshed successfully")
         output.extend(updates)
 
@@ -53,8 +50,6 @@ def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[Card]:
                 continue
             if raw:
                 cards, _ = _process_batch_request(conn, raw, batch_names)
-                with conn:
-                    save_cards_to_cache(conn, cards)
                 output.extend(cards)
             else:
                 log.warning(f"Could not fetch {len(batch_names)} missing card(s) - no data received")
@@ -197,26 +192,26 @@ def _to_card(raw: dict[str, Any]) -> Card | None:
         log.warning(f"Skipping malformed card from Scryfall, missing field {e}")
         return None
 
-def _remember_name(conn: sqlite3.Connection, name: str, card: Card) -> None:
-    """Scryfall answered `name` with `card`. If the card has a different
-    name - a spelling Scryfall corrected, the front face of a
-    double-faced card, or the old name of a card Scryfall renamed - the
-    card is cached and `name` is pointed at it, so `name` hits cache next
-    run instead of asking Scryfall about it again forever. For a renamed
-    card, add_alias moves all of the old row's names to the new card.
+def _answers_another_name(name: str, card: Card) -> bool:
+    """Scryfall answered `name` with a card of a different name - a
+    spelling Scryfall corrected, the front face of a double-faced card,
+    or the old name of a card Scryfall renamed.
     """
-    if normalize_name(card.name) == normalize_name(name):
-        return
-    # The card row must exist first for the alias's foreign key
-    with conn:
-        save_cards_to_cache(conn, [card])
-        add_alias(conn, name, card.name)
+    return normalize_name(card.name) != normalize_name(name)
 
 def _process_batch_request(
     conn: sqlite3.Connection, raw: dict[str, Any], asked: list[str]
 ) -> tuple[list[Card], list[str]]:
-    """`asked` is the list of names that were sent to Scryfall for `raw`."""
+    """`asked` is the list of names that were sent to Scryfall for `raw`.
+    The cards found are saved to the cache before they are returned.
+    """
     cards: list[Card] = []
+    # (name asked, name of the card it got) for every name Scryfall
+    # answered with a card of a different name. The name is pointed at
+    # the card, so it hits cache next run instead of asking Scryfall
+    # about it again forever. For a renamed card, add_alias moves all of
+    # the old row's names to the new card.
+    aliases: list[tuple[str, str]] = []
     # Requested names that did NOT resolve to a card this run, whether
     # Scryfall confirmed the name doesn't exist, sent data we couldn't
     # parse, or we simply couldn't check because of an outage - either
@@ -245,8 +240,8 @@ def _process_batch_request(
         card = _to_card(entry)
         if card:
             cards.append(card)
-            if paired:
-                _remember_name(conn, found_names[i], card)
+            if paired and _answers_another_name(found_names[i], card):
+                aliases.append((found_names[i], card.name))
         elif paired:
             # Reported under the name that was asked, so a refresh serves
             # the stale copy instead of dropping it - the answer's own
@@ -266,7 +261,8 @@ def _process_batch_request(
             card = _to_card(fetched) if fetched else None
             if card:
                 cards.append(card)
-                _remember_name(conn, name, card)
+                if _answers_another_name(name, card):
+                    aliases.append((name, card.name))
             else:
                 log.warning(f"Bad name - {name} saved to card_lookup_failures")
                 with conn:
@@ -275,5 +271,14 @@ def _process_batch_request(
 
     if not cards:
         log.warning("Scryfall error: no data received")
+        return cards, unresolved_names
+
+    # One commit for the batch. Every lookup is done by now, so the
+    # transaction never waits on Scryfall. The card rows are saved first:
+    # an alias is a foreign key into them.
+    with conn:
+        save_cards_to_cache(conn, cards)
+        for name, card_name in aliases:
+            add_alias(conn, name, card_name)
 
     return cards, unresolved_names
