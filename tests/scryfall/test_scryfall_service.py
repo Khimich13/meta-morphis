@@ -126,7 +126,7 @@ def test_fetch_updates_for_outdated(conn: sqlite3.Connection, monkeypatch: Monke
 
     monkeypatch.setattr(
         "meta_morphis.scryfall.service._process_batch_request",
-        lambda conn, raw: (
+        lambda conn, raw, asked: (
             [_card(c["name"]) for c in raw["data"]],
             [item["name"] for item in raw.get("not_found", [])],
         )
@@ -154,7 +154,7 @@ def test_fetch_updates_for_outdated_renamed_card_not_also_unrecognized(conn: sql
     )
     monkeypatch.setattr(
         "meta_morphis.scryfall.service._process_batch_request",
-        lambda conn, raw: ([_card("Aether Vial")], [])
+        lambda conn, raw, asked: ([_card("Aether Vial")], [])
     )
 
     updates, unrecognized = _fetch_updates_for_outdated(conn, outdated)
@@ -221,7 +221,7 @@ def test_fetch_cards(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None
     )
     monkeypatch.setattr(
         "meta_morphis.scryfall.service._process_batch_request",
-        lambda conn, raw: ([_card(c["name"]) for c in raw["data"]], [])
+        lambda conn, raw, asked: ([_card(c["name"]) for c in raw["data"]], [])
     )
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.save_cards_to_cache",
@@ -278,13 +278,13 @@ def test_process_batch_request(conn: sqlite3.Connection, monkeypatch: MonkeyPatc
         lambda conn, name: None
     )
 
-    assert _process_batch_request(conn, raw) == ([], [])
+    assert _process_batch_request(conn, raw, []) == ([], [])
     assert "Scryfall error: no data received" in caplog.text
 
     # Start fresh, so the next check proves a second message was logged
     caplog.clear()
     raw = {"data": []}
-    assert _process_batch_request(conn, raw) == ([], [])
+    assert _process_batch_request(conn, raw, []) == ([], [])
     assert "Scryfall error: no data received" in caplog.text
 
     raw = {
@@ -300,7 +300,8 @@ def test_process_batch_request(conn: sqlite3.Connection, monkeypatch: MonkeyPatc
         lambda name: {"id": "3", "name": name} if name != "Unknown" else None
     )
 
-    assert _process_batch_request(conn, raw) == (
+    asked = ["Counterspell", "Unknown", "Duress", "Cancel"]
+    assert _process_batch_request(conn, raw, asked) == (
         [
             _card("Counterspell", card_id="1"),
             _card("Duress", card_id="2"),
@@ -326,7 +327,7 @@ def test_process_batch_request_accepts_fuzzy_match_with_different_name(
         "not_found": [{"name": "Snapcaster Mag"}],
     }
 
-    result = _process_batch_request(conn, raw)
+    result = _process_batch_request(conn, raw, ["Snapcaster Mag"])
 
     assert result == ([_card("Snapcaster Mage", card_id="1")], [])
     assert "Bad name" not in caplog.text
@@ -357,7 +358,7 @@ def test_process_batch_request_does_not_record_failure_on_outage(
         "not_found": [{"name": "Counterspell"}],
     }
 
-    result = _process_batch_request(conn, raw)
+    result = _process_batch_request(conn, raw, ["Counterspell"])
 
     assert result == ([], ["Counterspell"])
     assert "Bad name" not in caplog.text
@@ -448,7 +449,7 @@ def test_fetch_cards_commits_newly_fetched_card(db_file: Path, monkeypatch: Monk
 def test_process_batch_request_records_confirmed_bad_name(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr("meta_morphis.scryfall.service.fetch_single", lambda name: None)
 
-    _process_batch_request(conn, {"data": [], "not_found": [{"name": "Bogus Card"}]})
+    _process_batch_request(conn, {"data": [], "not_found": [{"name": "Bogus Card"}]}, ["Bogus Card"])
 
     assert should_skip_lookup(conn, "Bogus Card") is True
 
@@ -457,7 +458,7 @@ def test_process_batch_request_records_confirmed_bad_name(conn: sqlite3.Connecti
 def test_process_batch_request_skips_malformed_card(conn: sqlite3.Connection) -> None:
     raw: dict[str, Any] = {"data": [{"name": "No Id Card"}, {"id": "1", "name": "Shock"}]}
 
-    cards, unresolved = _process_batch_request(conn, raw)
+    cards, unresolved = _process_batch_request(conn, raw, ["No Id Card", "Shock"])
 
     assert [c.name for c in cards] == ["Shock"]
     assert unresolved == ["No Id Card"]
@@ -479,3 +480,65 @@ def test_fetch_updates_for_outdated_keeps_card_with_malformed_refresh(conn: sqli
 
     assert [c.name for c in updates] == ["Counterspell"]
     assert [c.name for c in unrecognized] == ["Sai, Master Thopterist"]
+
+# Scryfall can rename a card (an errata rename). A stale card cached under
+# its old name used to keep its old row: the refreshed card got a row of
+# its own, the old names still led to the stale one, and it was refreshed
+# again every run. A double-faced card listed by its front face shows that
+# every old name moves to the new card, not only the full name refreshed.
+# Scryfall can answer the old name in the batch itself, or report it not
+# found so that the single lookup finds the new name - both are covered.
+@pytest.mark.parametrize("batch_finds_it", [True, False])
+def test_fetch_cards_moves_old_names_to_a_renamed_card(
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: LogCaptureFixture, batch_finds_it: bool
+) -> None:
+    save_cards_to_cache(conn, [Card.from_raw({
+        "id": "1", "name": "Old Front // Old Back",
+        "card_faces": [
+            {"name": "Old Front", "type_line": "Creature"},
+            {"name": "Old Back", "type_line": "Creature"},
+        ],
+    })])
+    conn.execute("UPDATE cards SET updated_at = 0")
+
+    renamed = {
+        "id": "1", "name": "New Front // New Back",
+        "card_faces": [
+            {"name": "New Front", "type_line": "Creature"},
+            {"name": "New Back", "type_line": "Creature"},
+        ],
+    }
+    asked: list[list[str]] = []
+    def answer(names: list[str]) -> dict[str, Any]:
+        asked.append(names)
+        if batch_finds_it:
+            return {"data": [renamed], "not_found": []}
+        return {"data": [], "not_found": [{"name": n} for n in names]}
+    monkeypatch.setattr("meta_morphis.scryfall.service.fetch_batch", answer)
+    monkeypatch.setattr("meta_morphis.scryfall.service.fetch_single", lambda name: renamed)
+
+    fetch_cards(conn, [MetaEntry(name="Old Front")])
+    second_run = fetch_cards(conn, [MetaEntry(name="Old Front")])
+
+    assert [c.name for c in second_run] == ["New Front // New Back"]
+    assert asked == [["Old Front // Old Back"]]
+    assert conn.execute("SELECT name FROM cards").fetchall() == [("new front // new back",)]
+    assert "already belongs to another card" not in caplog.text
+
+# Each card in a batch answer is paired with the name it answers by
+# skipping the names Scryfall didn't find. If one went missing without a
+# not_found entry, every later pair would be wrong and would hand one
+# card's names to another - so nothing is paired then.
+def test_process_batch_request_pairs_nothing_when_the_counts_differ(
+    conn: sqlite3.Connection, caplog: LogCaptureFixture
+) -> None:
+    save_cards_to_cache(conn, [_card("Counterspell", card_id="1")])
+
+    raw: dict[str, Any] = {"data": [{"id": "2", "name": "Duress"}], "not_found": []}
+    cards, unresolved = _process_batch_request(conn, raw, ["Counterspell", "Duress"])
+
+    assert [c.name for c in cards] == ["Duress"]
+    assert unresolved == []
+    found = get_card_from_cache(conn, "Counterspell")
+    assert found is not None and found.name == "Counterspell"
+    assert "not checking them for renamed cards" in caplog.text

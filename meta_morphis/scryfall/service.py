@@ -52,7 +52,7 @@ def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[Card]:
                 log.warning(f"Could not fetch {len(batch_names)} missing card(s), Scryfall was unreachable ({e}) - will retry next run")
                 continue
             if raw:
-                cards, _ = _process_batch_request(conn, raw)
+                cards, _ = _process_batch_request(conn, raw, batch_names)
                 with conn:
                     save_cards_to_cache(conn, cards)
                 output.extend(cards)
@@ -175,7 +175,7 @@ def _fetch_updates_for_outdated(conn: sqlite3.Connection, outdated: list[Card]) 
             unresolved_names.update(batch_names)
             continue
         if raw:
-            cards, unresolved = _process_batch_request(conn, raw)
+            cards, unresolved = _process_batch_request(conn, raw, batch_names)
             updates.extend(cards)
             unresolved_names.update(unresolved)
         else:
@@ -192,7 +192,25 @@ def _to_card(raw: dict[str, Any]) -> Card | None:
         log.warning(f"Skipping malformed card from Scryfall, missing field {e}")
         return None
 
-def _process_batch_request(conn: sqlite3.Connection, raw: dict[str, Any]) -> tuple[list[Card], list[str]]:
+def _remember_name(conn: sqlite3.Connection, name: str, card: Card) -> None:
+    """Scryfall answered `name` with `card`. If the card has a different
+    name - a spelling Scryfall corrected, the front face of a
+    double-faced card, or the old name of a card Scryfall renamed - the
+    card is cached and `name` is pointed at it, so `name` hits cache next
+    run instead of asking Scryfall about it again forever. For a renamed
+    card, add_alias moves all of the old row's names to the new card.
+    """
+    if normalize_name(card.name) == normalize_name(name):
+        return
+    # The card row must exist first for the alias's foreign key
+    with conn:
+        save_cards_to_cache(conn, [card])
+        add_alias(conn, name, card.name)
+
+def _process_batch_request(
+    conn: sqlite3.Connection, raw: dict[str, Any], asked: list[str]
+) -> tuple[list[Card], list[str]]:
+    """`asked` is the list of names that were sent to Scryfall for `raw`."""
     cards: list[Card] = []
     # Requested names that did NOT resolve to a card this run, whether
     # Scryfall confirmed the name doesn't exist, sent data we couldn't
@@ -201,17 +219,32 @@ def _process_batch_request(conn: sqlite3.Connection, raw: dict[str, Any]) -> tup
     # miss is ever recorded via record_bad_name_attempt; an outage never is
     unresolved_names: list[str] = []
 
-    for entry in raw.get("data", []):
+    data = raw.get("data", [])
+    missing_names = [item["name"] for item in raw.get("not_found", [])]
+
+    # Scryfall answers in the order the names were asked for and leaves
+    # out the ones it didn't find, so skipping those pairs each answer
+    # with the name it answers. If the counts differ, the pairs can't be
+    # trusted: a wrong pair would hand one card's names to another.
+    found_names = [name for name in asked if name not in missing_names]
+    paired = len(found_names) == len(data)
+    if not paired:
+        log.warning(
+            f"Scryfall sent {len(data)} card(s) for {len(found_names)} name(s) - "
+            "not checking them for renamed cards"
+        )
+
+    for i, entry in enumerate(data):
         card = _to_card(entry)
         if card:
             cards.append(card)
+            if paired:
+                _remember_name(conn, found_names[i], card)
         elif "name" in entry:
             # Reported, so a refresh serves the stale copy instead of dropping it
             unresolved_names.append(entry["name"])
 
-    not_found = raw.get("not_found", [])
-    if not_found:
-        missing_names = [item["name"] for item in not_found]
+    if missing_names:
         for name in missing_names:
             try:
                 fetched = fetch_single(name)
@@ -222,17 +255,7 @@ def _process_batch_request(conn: sqlite3.Connection, raw: dict[str, Any]) -> tup
             card = _to_card(fetched) if fetched else None
             if card:
                 cards.append(card)
-                if normalize_name(card.name) != normalize_name(name):
-                    # Scryfall's own matching (fuzzy, or a lenient exact
-                    # match) resolved this to a different canonical name
-                    # than normalize_name would derive from what was
-                    # searched - register the searched spelling as an
-                    # alias too, so it hits cache next run instead of
-                    # asking Scryfall about it again forever. The card
-                    # row must exist first for the alias's foreign key.
-                    with conn:
-                        save_cards_to_cache(conn, [card])
-                        add_alias(conn, name, card.name)
+                _remember_name(conn, name, card)
             else:
                 log.warning(f"Bad name - {name} saved to card_lookup_failures")
                 with conn:

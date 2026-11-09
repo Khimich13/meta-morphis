@@ -59,10 +59,24 @@ def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> None:
     different canonical name than normalize_name would derive from it.
     The card must already have a row in `cards`, since card_aliases.card_name
     is a foreign key into it.
+
+    If `alias` is itself the name of a cached card, Scryfall now knows
+    that card by a new name (an errata rename, say). Every alias of the
+    old row moves to the new card and the old row is dropped - otherwise
+    the old row keeps answering for those names, stays stale, and is
+    refreshed again every run.
     """
     c = conn.cursor()
     alias_key = normalize_name(alias)
     card_key = normalize_name(card_name)
+
+    old_row = c.execute("SELECT 1 FROM cards WHERE name = ?", (alias_key,)).fetchone()
+    # Never drop the row the aliases are being moved to
+    if old_row and alias_key != card_key:
+        c.execute("UPDATE card_aliases SET card_name = ? WHERE card_name = ?", (card_key, alias_key))
+        c.execute("DELETE FROM cards WHERE name = ?", (alias_key,))
+        return
+
     if not _claim_alias(c, alias_key, card_key):
         log.warning(f"Alias '{alias_key}' already belongs to another card - not claimed by '{card_key}'")
 
