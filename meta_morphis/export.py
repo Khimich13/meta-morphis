@@ -188,7 +188,9 @@ def write_json(path: Path, data: object) -> None:
     """Writes the whole file under a temporary name first, then swaps it
     in for the old one. A run that stops halfway - killed, or the disk
     full - leaves the old file whole, never a cut-off one the app can't
-    read.
+    read. The temporary file is removed below when the write fails; one
+    left by a killed run is removed by export_all at the start of the
+    next.
     """
     temp = path.with_name(path.name + ".tmp")
     try:
@@ -260,6 +262,13 @@ def export_all(
     the file it had, and the others are still written. Then writes
     formats.json. Returns the lists that failed.
     """
+    # A run killed while write_json was writing - out of memory, or over
+    # the time limit - leaves its half-written .tmp file, and the daily
+    # run publishes this directory as it is. So clear those out first.
+    for stray in out_dir.glob("*.tmp"):
+        log.warning(f"Removing {stray} left by an interrupted run")
+        stray.unlink()
+
     failed: list[str] = []
     for format_name in formats:
         for kind in kinds:

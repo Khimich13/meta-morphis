@@ -405,6 +405,21 @@ def test_export_all_keeps_going_when_one_list_fails(
         "lists": {"pauper": ["all", "lands"], "modern": ["all", "lands"]},
     }
 
+def test_export_all_removes_a_half_written_file_of_a_killed_run(
+    conn: sqlite3.Connection, tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    # The last run was killed while writing pauper.json; its temporary
+    # file is still there, and the finished file from the run before
+    (tmp_path / "pauper.json").write_text('{"old": true}', encoding="utf-8")
+    (tmp_path / "pauper.json.tmp").write_text('{"form', encoding="utf-8")
+    monkeypatch.setattr("meta_morphis.export.export_format", _fake_export(("pauper",)))
+
+    export_all(conn, ["pauper"], ["all"], tmp_path)
+
+    # The half-written file is gone, not published; the old file stays
+    assert sorted(f.name for f in tmp_path.iterdir()) == ["formats.json", "pauper.json"]
+    assert json.loads((tmp_path / "pauper.json").read_text(encoding="utf-8")) == {"old": True}
+
 def test_export_all_reports_no_failures(
     conn: sqlite3.Connection, tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
