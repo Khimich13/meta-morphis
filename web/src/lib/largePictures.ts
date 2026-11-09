@@ -1,6 +1,6 @@
 // Sharper pictures for zooming into a card in the large view (the zoom
-// itself comes from the react-zoom-pan-pinch library, see LargeCard in
-// components/CardPicture.tsx).
+// itself comes from the react-zoom-pan-pinch library, see
+// components/LargeCard.tsx).
 
 import { useEffect, useState } from 'react';
 

@@ -27,8 +27,9 @@ what has been done is in the commit history.
   card's Scryfall `oracle_id`, which stays the same across reprints. So what
   a player knows about a card counts in every format and list it appears in.
 - **Cards come back by how well they're known** (Leitner boxes): a right
-  first answer makes a card wait longer before it is asked again, a wrong one
-  brings it back in the next lesson.
+  answer makes a card wait longer before it is asked again, a wrong one moves
+  it back a step and brings it back the next day. Only a card's first answer
+  each day counts.
 - **Each card is shown in its most familiar printing:** the artwork that
   appears on the most regular paper printings, in its newest printing. The
   question and the full card after answering always show the same printing.

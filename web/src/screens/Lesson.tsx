@@ -100,10 +100,14 @@ export default function Lesson({
       flushSync(answer);
       await cardPictureReady();
     });
-    transition.finished.finally(() => {
-      page.classList.remove('answer-animating');
-      afterwards();
-    });
+    transition.finished
+      .catch(() => {
+        // The animation failed: the answer is shown anyway, by flushSync
+      })
+      .finally(() => {
+        page.classList.remove('answer-animating');
+        afterwards();
+      });
   }
 
   function next() {

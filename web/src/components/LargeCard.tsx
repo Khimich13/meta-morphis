@@ -19,15 +19,12 @@ export default function LargeCard({
   card,
   showingBack,
   onFlip,
-  lazy = false,
   turnedFrom,
   turnBack,
 }: {
   card: Card;
   showingBack: boolean;
   onFlip: () => void;
-  /** Load the picture only when it comes into view */
-  lazy?: boolean;
   /** Opened by turning the phone: where the card was before the turn */
   turnedFrom?: TurnedFrom;
   /** Opened by turning the phone: turning it back closes the view */
@@ -51,7 +48,7 @@ export default function LargeCard({
       >
         {(pictures) => (
           <div className={pictureClass(card)} style={buttonCorner(card, showingBack)}>
-            <CardSides card={card} showingBack={showingBack} lazy={lazy} pictures={pictures} />
+            <CardSides card={card} showingBack={showingBack} lazy={false} pictures={pictures} />
             {/* The name of the side showing, not both of a double-faced card */}
             <SayOnCard name={visibleName(card, showingBack)} />
             <FlipButton card={card} showingBack={showingBack} onFlip={onFlip} />

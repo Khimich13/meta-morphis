@@ -141,7 +141,7 @@ html:has(.enlarged[open]) body::after {
   overscroll-behavior-x: contain;
   scrollbar-width: none;
   /* Sideways finger movements scroll the row. No browser zoom: a double
-     tap zooms the card itself (see LargeCard in CardPicture.tsx). */
+     tap zooms the card itself (see LargeCard.tsx). */
   touch-action: pan-x;
   animation: card-grow 0.4s ease-out;
 }
@@ -237,7 +237,7 @@ html:has(.enlarged[open]) body::after {
   }
 }
 
-/* The area the card zooms in (see Zoomable in CardPicture.tsx): the
+/* The area the card zooms in (see Zoomable in LargeCard.tsx): the
    whole screen, so a zoomed card can fill it. At normal size the card
    sits in its middle, and one finger swipes the row sideways. */
 .enlarged .zoom-area {

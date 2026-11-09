@@ -13,8 +13,8 @@ import type { Direction } from '../lib/swipe';
 import './LargeView.css';
 
 /**
- * Tells the large view when its card is zoomed in (see LargeCard in
- * CardPicture.tsx), which pauses moving to other cards until it is back
+ * Tells the large view when its card is zoomed in (see LargeCard.tsx),
+ * which pauses moving to other cards until it is back
  * to normal size
  */
 export const ZoomedContext = createContext<(zoomed: boolean) => void>(() => {});

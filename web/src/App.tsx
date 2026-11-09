@@ -119,7 +119,10 @@ export default function App() {
       () => formatCards(cardsFormat),
       (saved, total) => setPictures({ saved, total }),
       () => stopped,
-    );
+    ).catch(() => {
+      // The browser refused to store them (some private windows do, or the
+      // disk is full): the app still works online
+    });
     return () => {
       stopped = true;
     };
