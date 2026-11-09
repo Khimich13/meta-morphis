@@ -2,6 +2,7 @@ import { expect, test } from 'vitest';
 
 import {
   addDays,
+  backWhen,
   BOX_WAIT_DAYS,
   type CardProgress,
   cardStanding,
@@ -270,4 +271,13 @@ test('standingDetails gives the level', () => {
   // Levels above mastered only space out reviews, and aren't shown
   expect(standingDetails(record(3))).toBe('Level 3 of 3');
   expect(standingDetails(record(5))).toBe('Level 3 of 3');
+});
+
+test('backWhen says when a card answered today is asked again', () => {
+  expect(backWhen(TOMORROW, TODAY)).toBe('tomorrow');
+  expect(backWhen(addDays(TODAY, 3), TODAY)).toBe('in 3 days');
+  expect(backWhen('2026-11-01', '2026-10-31')).toBe('tomorrow');
+  expect(backWhen(addDays(TODAY, 35), TODAY)).toBe('in 35 days');
+  // Already due: today's answer is used up, so it counts from tomorrow
+  expect(backWhen(TODAY, TODAY)).toBe('tomorrow');
 });

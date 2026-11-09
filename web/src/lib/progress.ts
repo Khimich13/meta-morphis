@@ -98,6 +98,16 @@ export function previousDay(day: string): string {
   return addDays(day, -1);
 }
 
+/**
+ * When a card is asked again, in words: "tomorrow" or "in 3 days". A card
+ * already due counts as tomorrow too, since today's answer is used up.
+ */
+export function backWhen(due: string, today: string): string {
+  let days = 1;
+  while (addDays(today, days) < due) days += 1;
+  return days === 1 ? 'tomorrow' : `in ${days} days`;
+}
+
 /** True when a seen card's waiting time is over. YYYY-MM-DD compares as text. */
 export function isDue(card: CardProgress, today: string): boolean {
   return card.due <= today;

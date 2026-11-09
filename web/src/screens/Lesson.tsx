@@ -5,6 +5,7 @@ import CardPicture from '../components/CardPicture';
 import StandingLabel, { type PipChange } from '../components/StandingLabel';
 import { type Card, isHorizontal, SIDEWAYS_ART_BOX } from '../lib/cards';
 import {
+  backWhen,
   type CardProgress,
   cardStanding,
   localDay,
@@ -386,8 +387,10 @@ function Feedback({ card, picked, before, record, onContinue }: FeedbackProps) {
           </p>
         )}
         {!correct && <p className="feedback-line">You picked {picked.name}</p>}
-        {before !== null && !before.counted && (
-          <p className="practice-note">Counts once a day: back tomorrow</p>
+        {before !== null && !before.counted && record !== undefined && (
+          <p className="practice-note">
+            Counts once a day: back {backWhen(record.due, localDay())}
+          </p>
         )}
       </div>
       <button className="primary" onClick={onContinue} autoFocus>
