@@ -37,18 +37,6 @@ interface CardPictureProps {
   card: Card;
   /** Load the picture only when it scrolls into view (long lists) */
   lazy?: boolean;
-  /**
-   * Which side shows, and how to turn it over, when the parent keeps
-   * track - the card list does, so its large view opens on the same
-   * side. Otherwise this picture keeps track itself.
-   */
-  showingBack?: boolean;
-  onFlip?: () => void;
-  /**
-   * Opens the parent's large view - the card list's, which can move
-   * between cards. Otherwise this picture opens its own.
-   */
-  onEnlarge?: () => void;
   /** Shows the button that reads the name aloud, as the large view does */
   speaker?: boolean;
   /**
@@ -59,27 +47,19 @@ interface CardPictureProps {
 }
 
 /**
- * A card's full picture. Tapping it shows the card as large as the screen
- * allows, in the large view, where it can also zoom.
- * A double-faced card also gets a round button over its artwork that turns
- * it over to the back and back again, in both sizes.
- *
- * Card pictures are shown as they are: never stretched or dimmed. The
- * button sits over the artwork, never over the artist name or the
- * copyright at the bottom of the card, which Scryfall asks to keep visible.
+ * A card's full picture with its own large view: tapping it shows the
+ * card as large as the screen allows, where it can also zoom. A lesson's
+ * answer card. The card list, whose one large view moves between cards,
+ * uses PlainCardPicture instead.
  */
 export default function CardPicture({
   card,
   lazy = false,
-  showingBack: parentBack,
-  onFlip: parentFlip,
-  onEnlarge,
   speaker = false,
   openOnTurn = false,
 }: CardPictureProps) {
-  const [ownBack, setOwnBack] = useState(false);
-  const showingBack = parentBack ?? ownBack;
-  const flip = parentFlip ?? (() => setOwnBack(!ownBack));
+  const [showingBack, setShowingBack] = useState(false);
+  const flip = () => setShowingBack(!showingBack);
   const large = useLargeView();
   const LargeCard = loadedLargeCard ?? LazyLargeCard;
   const picture = useRef<HTMLDivElement>(null);
@@ -94,25 +74,18 @@ export default function CardPicture({
 
   return (
     <>
-      <div
+      <PlainCardPicture
         ref={picture}
-        className={pictureClass(card)}
-        style={{ ...buttonCorner(card, showingBack), visibility: standIn ? 'hidden' : undefined }}
-      >
-        <button
-          className="enlarge"
-          aria-label={`Enlarge ${card.name}`}
-          onClick={onEnlarge ?? openByTap}
-          // Two fingers on the card open the large view too, to pinch there
-          onTouchStart={(event) => {
-            if (event.touches.length === 2 && onEnlarge === undefined) openByTap();
-          }}
-        >
-          <CardSides card={card} showingBack={showingBack} lazy={lazy} />
-        </button>
-        {speaker && <SayOnCard name={visibleName(card, showingBack)} />}
-        <FlipButton card={card} showingBack={showingBack} onFlip={flip} />
-      </div>
+        card={card}
+        lazy={lazy}
+        showingBack={showingBack}
+        onFlip={flip}
+        onEnlarge={openByTap}
+        // Two fingers on the card open the large view too, to pinch there
+        onTwoFingers={openByTap}
+        speaker={speaker}
+        hidden={standIn}
+      />
       {large.isOpen && (
         <LargeView
           onClose={large.close}
@@ -134,6 +107,61 @@ export default function CardPicture({
         </LargeView>
       )}
     </>
+  );
+}
+
+/**
+ * A card's full picture, which asks its parent to show it larger, and
+ * to turn it over: the parent keeps track of the side showing.
+ * A double-faced card gets a round button over its artwork that turns
+ * it over to the back and back again.
+ *
+ * Card pictures are shown as they are: never stretched or dimmed. The
+ * button sits over the artwork, never over the artist name or the
+ * copyright at the bottom of the card, which Scryfall asks to keep visible.
+ */
+export function PlainCardPicture({
+  ref,
+  card,
+  lazy = false,
+  showingBack,
+  onFlip,
+  onEnlarge,
+  onTwoFingers,
+  speaker = false,
+  hidden = false,
+}: {
+  ref?: RefObject<HTMLDivElement | null>;
+  card: Card;
+  lazy?: boolean;
+  showingBack: boolean;
+  onFlip: () => void;
+  onEnlarge: () => void;
+  /** Two fingers touching the card; in the card list, they pinch the list instead */
+  onTwoFingers?: () => void;
+  speaker?: boolean;
+  /** Hidden but still taking its place */
+  hidden?: boolean;
+}) {
+  return (
+    <div
+      ref={ref}
+      className={pictureClass(card)}
+      style={{ ...buttonCorner(card, showingBack), visibility: hidden ? 'hidden' : undefined }}
+    >
+      <button
+        className="enlarge"
+        aria-label={`Enlarge ${card.name}`}
+        onClick={onEnlarge}
+        onTouchStart={(event) => {
+          if (event.touches.length === 2) onTwoFingers?.();
+        }}
+      >
+        <CardSides card={card} showingBack={showingBack} lazy={lazy} />
+      </button>
+      {speaker && <SayOnCard name={visibleName(card, showingBack)} />}
+      <FlipButton card={card} showingBack={showingBack} onFlip={onFlip} />
+    </div>
   );
 }
 

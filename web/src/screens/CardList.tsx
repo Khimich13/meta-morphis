@@ -11,7 +11,7 @@ import {
   useState,
 } from 'react';
 
-import CardPicture from '../components/CardPicture';
+import { PlainCardPicture } from '../components/CardPicture';
 import LargeView from '../components/LargeView';
 import StandingLabel from '../components/StandingLabel';
 import { type Card, formatLabel } from '../lib/cards';
@@ -211,7 +211,7 @@ const CardGrid = memo(function CardGrid({
           <div className="card-progress">
             <StandingLabel record={progress.cards[card.oracle_id]} />
           </div>
-          <CardPicture
+          <PlainCardPicture
             card={card}
             lazy
             showingBack={backs.has(card.oracle_id)}
