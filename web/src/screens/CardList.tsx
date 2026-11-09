@@ -22,6 +22,7 @@ import { useFewestColumns, usePinchColumns } from '../lib/pinch';
 import type { Progress } from '../lib/progress';
 import { loadColumns, saveColumns } from '../lib/storage';
 import { type Direction, step } from '../lib/swipe';
+import { topCard } from '../lib/topCard';
 
 // The large view's card, with the zoom library: loaded the first time the
 // large view opens, so the list starts without it
@@ -268,17 +269,15 @@ function useKeepPlaceOnResize(grid: RefObject<HTMLElement | null>, largeViewOpen
         top = null;
         return;
       }
-      const first = [...grid.current.children].find(
-        (card) => card.getBoundingClientRect().bottom > 0,
-      );
+      const first = topCard(grid.current.children);
       // Still the card remembered, if it is in the top row: with more cards
       // per row, as on a phone turned sideways, it may share that row with
       // the cards before it, and turning back should bring back that card
       const sameRow =
         top !== null &&
-        first !== undefined &&
+        first !== null &&
         Math.abs(top.getBoundingClientRect().top - first.getBoundingClientRect().top) < 1;
-      if (!sameRow) top = first ?? null;
+      if (!sameRow) top = first;
     };
     let measuring = false;
     const onScroll = () => {
