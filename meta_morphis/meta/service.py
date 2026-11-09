@@ -3,7 +3,7 @@ import sqlite3
 
 from meta_morphis import config
 from meta_morphis.models.meta import MetaEntry
-from meta_morphis.utils.text import normalize_name
+from meta_morphis.utils.text import card_count, normalize_name
 
 from .repo import (
     get_meta_from_cache,
@@ -44,7 +44,7 @@ def get_meta_cards(
     minimum = config.min_cards(kind)
     if meta is not None and len(meta) < minimum:
         log.warning(
-            f"MTGGoldfish's {name} list has only {_cards(len(meta))}, "
+            f"MTGGoldfish's {name} list has only {card_count(len(meta))}, "
             f"expected at least {minimum} - its page may have been cut short"
         )
         meta = None
@@ -89,9 +89,6 @@ def _log_list_changes(
         log.info(f"The {format_name} list did not change")
         return
     if entered:
-        log.info(f"{_cards(len(entered))} entered the {format_name} list: {', '.join(entered)}")
+        log.info(f"{card_count(len(entered))} entered the {format_name} list: {', '.join(entered)}")
     if left:
-        log.info(f"{_cards(len(left))} left the {format_name} list: {', '.join(left)}")
-
-def _cards(count: int) -> str:
-    return f"{count} card" if count == 1 else f"{count} cards"
+        log.info(f"{card_count(len(left))} left the {format_name} list: {', '.join(left)}")

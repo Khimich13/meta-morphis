@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-_DAY = 24 * 60 * 60
+DAY = 24 * 60 * 60
 
 # MTGGoldfish
 GOLDFISH_FORMATS = ["pauper", "premodern", "pioneer", "standard", "modern"]
@@ -56,9 +56,9 @@ SCRYFALL_HEADERS = {
     "User-Agent": "meta-morphis/0.1.0 (+https://github.com/Khimich13/meta-morphis)",
     "Accept": "application/json",
 }
-SCRYFALL_REFRESH_RATE = 30 * _DAY
+SCRYFALL_REFRESH_RATE = 30 * DAY
 SCRYFALL_BATCH_SIZE_LIMIT = 75
-SCRYFALL_BAD_NAMES_LOOKUP_COOLDOWN = 7 * _DAY
+SCRYFALL_BAD_NAMES_LOOKUP_COOLDOWN = 7 * DAY
 # /cards/collection and /cards/named are limited to 2 requests/second,
 # and a 429 locks the client out for 30 seconds
 # (https://scryfall.com/docs/api/rate-limits)
@@ -88,7 +88,7 @@ def min_cards(kind: str) -> int:
 # instead of the old list being published day after day. A short outage
 # still publishes the slightly older list. Keep in step with
 # LIST_OLD_AFTER_DAYS in web/src/lib/cards.ts, which shows a banner.
-EXPORT_STALE_AFTER = 3 * _DAY
+EXPORT_STALE_AFTER = 3 * DAY
 
 # Database
 PROJECT_ROOT = Path(__file__).resolve().parents[1]

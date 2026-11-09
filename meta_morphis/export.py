@@ -17,6 +17,7 @@ from meta_morphis.meta.repo import get_meta_timestamp
 from meta_morphis.meta.service import get_meta_cards
 from meta_morphis.models.card import Card
 from meta_morphis.scryfall.service import fetch_cards, get_display_printings
+from meta_morphis.utils.text import card_count
 
 log = logging.getLogger(__name__)
 
@@ -230,8 +231,7 @@ def export_format(
             f"expected at least {minimum} - not writing the file"
         )
     path = write_export(data, out_dir)
-    count = len(data["cards"])
-    log.info(f"Wrote {path}: {count} {'card' if count == 1 else 'cards'}")
+    log.info(f"Wrote {path}: {card_count(len(data['cards']))}")
     return path
 
 def _check_list_age(conn: sqlite3.Connection, format_name: str) -> str:
@@ -245,7 +245,7 @@ def _check_list_age(conn: sqlite3.Connection, format_name: str) -> str:
     if age > config.EXPORT_STALE_AFTER:
         raise RuntimeError(
             f"The {format_name} list was last fetched from MTGGoldfish "
-            f"{age // (24 * 60 * 60)} days ago - not publishing it. "
+            f"{age // config.DAY} days ago - not publishing it. "
             "The warnings above say why fetching failed."
         )
     return datetime.fromtimestamp(fetched, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
