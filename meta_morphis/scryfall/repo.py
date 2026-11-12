@@ -61,9 +61,16 @@ def _cached_oracle_id(c: sqlite3.Cursor, card_key: str) -> str | None:
     row = c.execute("SELECT json FROM cards WHERE name = ?", (card_key,)).fetchone()
     if not row:
         return None
-    # A row that isn't a JSON object (`null`, a list) has no oracle_id
+    # A row that isn't a JSON object (`null`, a list), or a face that
+    # isn't one, has no oracle_id
     try:
-        oracle_id = json.loads(row[0]).get("oracle_id")
+        raw = json.loads(row[0])
+        oracle_id = raw.get("oracle_id")
+        # A reversible card has no oracle_id of its own - each face
+        # carries one, the same on both
+        faces = raw.get("card_faces")
+        if oracle_id is None and isinstance(faces, list) and faces:
+            oracle_id = faces[0].get("oracle_id")
     except (json.JSONDecodeError, AttributeError):
         return None
     return oracle_id if isinstance(oracle_id, str) else None
