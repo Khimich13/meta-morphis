@@ -1,4 +1,4 @@
-import { type CSSProperties, useRef, useState } from 'react';
+import { type CSSProperties, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 
 import CardPicture from '../components/CardPicture';
@@ -23,6 +23,7 @@ import {
   segments,
   startLesson,
 } from '../lib/quiz';
+import { FILL_REACH, fillName } from '../lib/nameFill';
 import { playAnswerSound } from '../lib/sounds';
 import './Lesson.css';
 
@@ -179,7 +180,7 @@ export default function Lesson({
             {question.kind === 'picture' ? 'Which card is this?' : 'Which card has this artwork?'}
           </h2>
           {question.kind === 'picture' ? (
-            <NameHidden card={card} />
+            <NameHidden key={card.oracle_id} card={card} />
           ) : (
             /* A figure ties the credit to the artwork, for screen readers too */
             <figure className="artwork">
@@ -229,27 +230,94 @@ export default function Lesson({
 }
 
 /**
- * The question's full card with its title bar covered: everything on the
- * card but its name. The bar sits over the picture, which stays as it is,
- * and never over the artist or copyright.
+ * The question's full card with its name painted over by the title bar
+ * around it (see lib/nameFill.ts): everything on the card but its name.
+ * The paint is a layer over the picture, which stays as it is, and never
+ * covers the artist or copyright. Until it is painted - or if the
+ * picture's pixels can't be read - a plain bar covers the name instead.
  */
 function NameHidden({ card }: { card: Card }) {
-  const [left, top, width, height] = card.name_box ?? [0, 0, 0, 0];
+  const box = card.name_box ?? [0, 0, 0, 0];
+  const picture = useRef<HTMLImageElement>(null);
+  const canvas = useRef<HTMLCanvasElement>(null);
+  // Where the cover sits, as shares of the card: the name's box, then,
+  // once painted, the whole pixels it was painted on, so the paint lines
+  // up with the picture's own pixels exactly
+  const [place, setPlace] = useState<number[]>(box);
+  const [painted, setPainted] = useState(false);
+
+  function paint() {
+    const image = picture.current;
+    const target = canvas.current;
+    if (!image?.naturalWidth || !target) return;
+    const across = image.naturalWidth;
+    const down = image.naturalHeight;
+    const [x, w] = [box[0], box[2]].map((share) => Math.round(share * across));
+    const [y, h] = [box[1], box[3]].map((share) => Math.round(share * down));
+    const reach = Math.round(FILL_REACH * across);
+    try {
+      // The area with a row more above and below it, and room to each side
+      const around = document.createElement('canvas');
+      around.width = w + 2 * reach;
+      around.height = h + 2;
+      const context = around.getContext('2d', { willReadFrequently: true });
+      if (!context) return;
+      context.drawImage(
+        image,
+        x - reach,
+        y - 1,
+        around.width,
+        around.height,
+        0,
+        0,
+        around.width,
+        around.height,
+      );
+      const pixels = context.getImageData(0, 0, around.width, around.height).data;
+      target.width = w;
+      target.height = h;
+      target
+        .getContext('2d')
+        ?.putImageData(new ImageData(fillName(pixels, around.width, reach), w, h), 0, 0);
+      setPlace([x / across, y / down, w / across, h / down]);
+      setPainted(true);
+    } catch {
+      // The browser won't share the picture's pixels: the plain bar stays
+    }
+  }
+
+  // A picture already saved on the device may have loaded before onLoad
+  // was listening. Each card gets its own NameHidden (see its key), so
+  // this runs once per card.
+  useEffect(() => {
+    if (picture.current?.complete) paint();
+  }, []);
+
   return (
     <div className="name-hidden">
       <div className="name-hidden-card">
-        {/* The alt text must not give the answer away */}
-        <img className="card-side" src={card.images[0]} alt="Card with its name hidden" />
+        {/* The alt text must not give the answer away. crossOrigin lets
+            the picture's pixels be read, and the saved copy be used. */}
+        <img
+          ref={picture}
+          className="card-side"
+          src={card.images[0]}
+          alt="Card with its name hidden"
+          crossOrigin="anonymous"
+          onLoad={paint}
+        />
         <div
-          className="name-cover"
+          className={painted ? 'name-cover painted' : 'name-cover'}
           aria-hidden="true"
           style={{
-            left: `${left * 100}%`,
-            top: `${top * 100}%`,
-            width: `${width * 100}%`,
-            height: `${height * 100}%`,
+            left: `${place[0] * 100}%`,
+            top: `${place[1] * 100}%`,
+            width: `${place[2] * 100}%`,
+            height: `${place[3] * 100}%`,
           }}
-        />
+        >
+          <canvas ref={canvas} />
+        </div>
       </div>
     </div>
   );

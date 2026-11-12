@@ -31,12 +31,14 @@ what has been done is in the commit history.
   it back a step and brings it back the next day. Only a card's first answer
   each day counts.
 - **Two kinds of question:** a card's artwork alone, or its full picture with
-  the title bar covered. The second is asked only about a card whose name is
-  printed nowhere else on it: one name on one side, in English, not in its
-  rules or flavor text, and without "this creature" and the like in its
-  Oracle text unless the printing is from a new set from Foundations on
-  (older printings and reprints print the name there instead). A card that
-  can be asked both ways gets either, half the time each.
+  the name painted over by the title bar around it, the mana cost still
+  showing. The second is asked only about a card whose name is printed
+  nowhere else on it: one name on one side, in English, not a planeswalker
+  (its title bar has another shape), not in its rules or flavor text, and
+  without "this creature" and the like in its Oracle text unless the
+  printing is from a new set from Foundations on (older printings and
+  reprints print the name there instead). A card that can be asked both
+  ways gets either, half the time each.
 - **Each card is shown in its most familiar printing:** the artwork that
   appears on the most regular English paper printings, in its newest
   printing. The question and the full card after answering always show the
@@ -65,9 +67,9 @@ what has been done is in the commit history.
   - when the artwork is shown on its own, name the artist and the copyright
     next to it.
 
-  So buttons may sit over the artwork, and a question may cover the title
-  bar with a plain bar to hide the card's name, as a layer over the
-  picture, never drawn into it. Turning a card printed sideways the right
+  So buttons may sit over the artwork, and a question may hide the card's
+  name under a layer painted from the title bar around it, never drawn
+  into the picture itself. Turning a card printed sideways the right
   way up is fine too: the picture itself stays as it is, and Scryfall's
   own site has a button for it.
 - **Stay within Scryfall's rate limit** of 2 requests per second, and wait 30

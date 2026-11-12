@@ -148,11 +148,22 @@
   view-transition-name: card-whole;
 }
 
-/* A plain bar over the title bar - the name and the mana cost */
+/* Over the name: the title bar painted over it, or a plain bar until
+   then (see NameHidden in Lesson.tsx) */
 .name-cover {
   position: absolute;
   border-radius: 6px;
   background: #4a4a4a;
+}
+
+.name-cover.painted {
+  background: none;
+}
+
+.name-cover canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 /* The full card after a picture question: the covered card moves and
