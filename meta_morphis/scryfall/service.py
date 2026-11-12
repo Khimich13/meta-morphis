@@ -93,9 +93,13 @@ def get_display_printings(conn: sqlite3.Connection, cards: list[Card]) -> list[C
             continue
 
         # One search answers for the whole group: sort the printings back
-        # to their cards
+        # to their cards. A printing a Card can't be built from - a field
+        # missing, or the wrong shape - is left out here, so it can never
+        # be chosen, and the card gets its best good printing instead
         by_card: dict[str, list[dict[str, Any]]] = {}
         for printing in printings:
+            if _to_card(printing) is None:
+                continue
             by_card.setdefault(printing.get("oracle_id", ""), []).append(printing)
 
         # One commit for the group's choices. The search is already done,
@@ -105,12 +109,8 @@ def get_display_printings(conn: sqlite3.Connection, cards: list[Card]) -> list[C
                 chosen = choose_printing(by_card.get(oracle_id, []))
                 if chosen is None:
                     continue
-                try:
-                    display = Card.from_raw(chosen)
-                except KeyError:
-                    continue
                 save_chosen_printing(conn, oracle_id, chosen)
-                shown[oracle_id] = display
+                shown[oracle_id] = Card.from_raw(chosen)
 
     # The fallbacks, for every card that got no new choice
     return [

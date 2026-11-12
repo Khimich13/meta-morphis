@@ -131,3 +131,25 @@ def test_a_card_listed_twice_is_searched_once(
     asked = _searches(monkeypatch, [_raw("m10")])
     assert _shown(conn, DEFAULT, DEFAULT) == ["m10", "m10"]
     assert asked == [["oid"]]
+
+# A printing a Card can't be built from is never chosen, even when it
+# would win - here the newest printing of the most printed artwork. It
+# used to raise past the except, or crash on a null printing, and take
+# every card's choice with it
+@pytest.mark.parametrize("bad", [
+    None,
+    {**_raw("bad", released="2024-01-01"), "card_faces": None},
+    {**_raw("bad", released="2024-01-01"), "card_faces": [None]},
+    {key: value for key, value in _raw("bad", released="2024-01-01").items() if key != "id"},
+])
+def test_a_malformed_printing_is_never_chosen(
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, bad: Any
+) -> None:
+    monkeypatch.setattr(
+        "meta_morphis.scryfall.service.search_printings",
+        lambda oracle_ids: [bad, _raw("m10", released="2009-07-17")],
+    )
+
+    assert _shown(conn, DEFAULT) == ["m10"]
+    saved = get_chosen_printing(conn, "oid")
+    assert saved is not None and saved.id == "m10"
