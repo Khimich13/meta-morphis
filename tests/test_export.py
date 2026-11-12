@@ -229,6 +229,8 @@ def test_build_export_keeps_one_copy_of_each_card(caplog: pytest.LogCaptureFixtu
 # During a rename the old name can still sit fresh in the cache while the
 # new one is fetched this run. fetch_cards returns cached cards first, so
 # the order can't decide: the newest Scryfall data has the current name.
+# In the pipeline the two copies stay different only when no printing was
+# chosen for the card - otherwise both are the same chosen printing.
 def test_build_export_keeps_the_newest_copy_of_a_card(caplog: pytest.LogCaptureFixture) -> None:
     old = Card.from_raw(_raw("Old Name", oracle_id="n"))
     old.age = 5 * config.DAY

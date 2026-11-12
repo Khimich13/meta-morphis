@@ -168,9 +168,12 @@ def _staleness(card: Card) -> float:
 def build_export(format_name: str, cards: list[Card], list_updated: str) -> ExportFile:
     # The app tells cards apart by oracle id, so each may appear only once.
     # Two names on the list can still lead to one card, e.g. an old
-    # spelling and the new one after Scryfall renamed it. The copy with
-    # the newest Scryfall data is kept - it carries the card's current
-    # name - whichever name the list put first.
+    # spelling and the new one after Scryfall renamed it. Usually both
+    # copies are already one object here: get_display_printings gives
+    # every copy the same chosen printing, so the first copy is kept. Only
+    # a card with no choice, saved or new, reaches here as two different
+    # copies. Then the one with the newest Scryfall data is kept - it
+    # carries the card's current name - whichever name the list put first.
     kept: dict[str, tuple[Card, ExportCard]] = {}
     for card in cards:
         built = build_card(card)
