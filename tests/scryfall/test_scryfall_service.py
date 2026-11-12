@@ -464,6 +464,32 @@ def test_process_batch_request_skips_malformed_card(conn: sqlite3.Connection) ->
     assert [c.name for c in cards] == ["Shock"]
     assert unresolved == ["No Id Card"]
 
+# An entry of the wrong shape - null, or card_faces: null - is skipped the
+# same way. It used to raise TypeError past _to_card and lose the batch's
+# good cards with it
+def test_process_batch_request_skips_card_of_wrong_shape(conn: sqlite3.Connection) -> None:
+    raw: dict[str, Any] = {"data": [
+        None,
+        {"id": "1", "name": "No Faces", "card_faces": None},
+        {"id": "2", "name": "Shock"},
+    ]}
+
+    cards, unresolved = _process_batch_request(conn, raw, ["Null Card", "No Faces", "Shock"])
+
+    assert [c.name for c in cards] == ["Shock"]
+    assert unresolved == ["Null Card", "No Faces"]
+    found = get_card_from_cache(conn, "Shock")
+    assert found is not None
+
+# Unpaired, a null entry has no name to report - it is only skipped
+def test_process_batch_request_skips_null_card_when_the_counts_differ(conn: sqlite3.Connection) -> None:
+    raw: dict[str, Any] = {"data": [None, {"id": "2", "name": "Shock"}], "not_found": []}
+
+    cards, unresolved = _process_batch_request(conn, raw, ["Shock"])
+
+    assert [c.name for c in cards] == ["Shock"]
+    assert unresolved == []
+
 # An outdated card whose refreshed entry can't be parsed used to vanish
 # from the output instead of falling back to its stale cached copy
 def test_fetch_updates_for_outdated_keeps_card_with_malformed_refresh(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:

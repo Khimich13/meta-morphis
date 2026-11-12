@@ -186,10 +186,16 @@ def _fetch_updates_for_outdated(conn: sqlite3.Connection, outdated: list[Card]) 
     return updates, unrecognized
 
 def _to_card(raw: dict[str, Any]) -> Card | None:
+    # A missing field is a KeyError. An entry of the wrong shape - `null`,
+    # a list, card_faces: null - fails with TypeError or AttributeError
+    # instead, and must not take the rest of the batch down with it
     try:
         return Card.from_raw(raw)
     except KeyError as e:
         log.warning(f"Skipping malformed card from Scryfall, missing field {e}")
+        return None
+    except (TypeError, AttributeError) as e:
+        log.warning(f"Skipping malformed card from Scryfall, wrong shape ({e})")
         return None
 
 def _answers_another_name(name: str, card: Card) -> bool:
@@ -247,7 +253,7 @@ def _process_batch_request(
             # the stale copy instead of dropping it - the answer's own
             # name can differ when Scryfall renamed the card
             unresolved_names.append(found_names[i])
-        elif "name" in entry:
+        elif isinstance(entry, dict) and "name" in entry:
             unresolved_names.append(entry["name"])
 
     if missing_names:
