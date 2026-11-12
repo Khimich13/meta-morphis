@@ -5,6 +5,7 @@ Run with: uv run python -m meta_morphis.export
 import json
 import logging
 import math
+import re
 import sqlite3
 import time
 from datetime import datetime, timezone
@@ -36,6 +37,10 @@ class ExportCard(TypedDict):
     # into it after a right answer. None for a card without a single art
     # box, such as a split card, or a kind not measured.
     art_box: list[float] | None
+    # Where the title bar sits on the front picture, as [left, top,
+    # width, height]: the app covers it to ask which card it is from the
+    # full picture. None when the name shows elsewhere on the card too.
+    name_box: list[float] | None
     # The front side's artwork alone, and who painted it. Scryfall asks
     # for the artist to be named wherever the artwork is shown by itself.
     art: str
@@ -118,6 +123,58 @@ def art_box(card: Card) -> list[float] | None:
         box = found
     return list(box)
 
+# Where the title bar - the name and the mana cost - sits on each kind of
+# card front, as shares of the card's width and height: left, top, width,
+# height. Measured on Scryfall's pictures on 2026-11-12. The 1993 frame's
+# printings place the name a little differently, so its box is taller.
+NAME_BOXES = {
+    "1993": (0.065, 0.030, 0.870, 0.065),
+    "1997": (0.070, 0.044, 0.860, 0.054),
+    "2003": (0.070, 0.043, 0.860, 0.064),
+    "2015": (0.060, 0.045, 0.880, 0.058),
+}
+# Words a card's Oracle text uses for the card itself, where older
+# printings print its name instead, e.g. "This land enters tapped" on a
+# card printed "Volatile Fjord enters the battlefield tapped"
+SELF_REFERENCE = re.compile(
+    r"\bthis (creature|artifact|enchantment|land|permanent|planeswalker|battle"
+    r"|aura|equipment|vehicle|spell|card|saga|token)\b",
+    re.IGNORECASE,
+)
+# Printings from this date on print "this creature" and the like, as the
+# Oracle text does: Foundations was the first set printed that way. Only
+# for new sets - a reprint (The List, a Commander deck) can keep the old text.
+SELF_REFERENCE_PRINTED_FROM = "2024-11-15"
+NEW_CARD_SET_TYPES = {"expansion", "core"}
+
+def name_box(card: Card) -> list[float] | None:
+    """Where to hide the name on the front picture, for the question
+    "which card is this?" asked with the full card. None when the name
+    shows anywhere else on the picture, or might: then the question is
+    never asked about this card.
+    """
+    raw = card.raw
+    # One name on one side: a double-faced, split or adventure card
+    # prints more than one
+    if card.layout != "normal" or raw.get("lang") != "en":
+        return None
+    box = NAME_BOXES.get(card.frame or "")
+    if box is None:
+        return None
+    oracle_text = raw.get("oracle_text") or ""
+    text = oracle_text + "\n" + (raw.get("flavor_text") or "")
+    # The short name too: a legend's text calls it "Ragavan"
+    short_name = card.name.split(",")[0]
+    if card.name in text or short_name in text:
+        return None
+    printed_as_oracle = (
+        (raw.get("released_at") or "") >= SELF_REFERENCE_PRINTED_FROM
+        and raw.get("set_type") in NEW_CARD_SET_TYPES
+    )
+    if SELF_REFERENCE.search(oracle_text) and not printed_as_oracle:
+        return None
+    return list(box)
+
 def horizontal_sides(card: Card) -> list[bool]:
     """Which sides are printed sideways: both halves of a split card
     (Fire // Ice, the Rooms), and a battle's front. An aftermath card is
@@ -154,6 +211,7 @@ def build_card(card: Card) -> ExportCard | None:
         "images": images,
         "large_images": large_image_urls(card),
         "art_box": art_box(card),
+        "name_box": name_box(card),
         "art": art,
         "artist": front.artist,
         "horizontal": horizontal_sides(card),

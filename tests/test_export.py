@@ -18,6 +18,7 @@ from meta_morphis.export import (
     art_box,
     horizontal_sides,
     is_basic_land,
+    name_box,
     write_json,
 )
 from meta_morphis.models.card import Card
@@ -58,6 +59,7 @@ def test_build_card_single_faced() -> None:
         "images": ["grid/id-Hydroblast.webp"],
         "large_images": ["large/id-Hydroblast.jpg"],
         "art_box": [0.079, 0.114, 0.840, 0.440],
+        "name_box": None,
         "art": "art/id-Hydroblast.webp",
         "artist": "Some Artist",
         "horizontal": [False],
@@ -157,6 +159,50 @@ def test_no_art_box_without_a_single_measured_one() -> None:
     assert art_box(future) is None
     assert art_box(old_walker) is None
     assert art_box(unknown) is None
+
+def _english(name: str, **extra: Any) -> Card:
+    return Card.from_raw(_raw(name, lang="en", type_line="Instant", **extra))
+
+@pytest.mark.parametrize("frame, box", [
+    ("1993", [0.065, 0.030, 0.870, 0.065]),
+    ("1997", [0.070, 0.044, 0.860, 0.054]),
+    ("2003", [0.070, 0.043, 0.860, 0.064]),
+    ("2015", [0.060, 0.045, 0.880, 0.058]),
+])
+def test_name_box_follows_the_frame(frame: str, box: list[float]) -> None:
+    card = _english("Counterspell", frame=frame, oracle_text="Counter target spell.")
+    assert name_box(card) == box
+
+def test_no_name_box_when_the_name_shows_elsewhere() -> None:
+    # In the rules text, in the flavor text, or a legend's short name
+    in_text = _english("Lava Dart", oracle_text="Lava Dart deals 1 damage to any target.")
+    in_flavor = _english("Annul", flavor_text="Annul it all.")
+    legend = _english("Ragavan, Nimble Pilferer",
+                      oracle_text="Whenever Ragavan deals combat damage, create a Treasure.")
+    assert name_box(in_text) is None
+    assert name_box(in_flavor) is None
+    assert name_box(legend) is None
+
+def test_no_name_box_for_an_old_printing_that_refers_to_itself() -> None:
+    # Printed with its name where the Oracle text now says "this land"
+    old = _english("Volatile Fjord", oracle_text="This land enters tapped.",
+                   released_at="2021-02-05", set_type="expansion")
+    # A reprint keeps its old text, however new
+    reprint = _english("Baleful Strix", oracle_text="When this creature enters, draw a card.",
+                       released_at="2026-10-19", set_type="masters")
+    new = _english("Seam Rip", oracle_text="When this enchantment enters, exile a card.",
+                   released_at="2025-08-01", set_type="expansion")
+    assert name_box(old) is None
+    assert name_box(reprint) is None
+    assert name_box(new) == [0.060, 0.045, 0.880, 0.058]
+
+def test_no_name_box_for_more_than_one_name_another_language_or_frame() -> None:
+    adventure = _english("Bonecrusher Giant // Stomp", layout="adventure")
+    french = Card.from_raw(_raw("Triskelion", lang="fr", type_line="Artifact Creature"))
+    future = _english("Future Card", frame="future")
+    assert name_box(adventure) is None
+    assert name_box(french) is None
+    assert name_box(future) is None
 
 def test_horizontal_sides() -> None:
     upright = Card.from_raw(_raw("Counterspell"))
@@ -281,6 +327,7 @@ def test_export_format_writes_the_file(
             "images": ["grid/id-Lórien Revealed.webp"],
             "large_images": ["large/id-Lórien Revealed.jpg"],
             "art_box": [0.079, 0.114, 0.840, 0.440],
+            "name_box": None,
             "art": "art/id-Lórien Revealed.webp",
             "artist": "Some Artist",
             "horizontal": [False],
