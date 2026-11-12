@@ -41,8 +41,12 @@ what has been done is in the commit history.
 - **Show the fan-content notice** in the app, word for word, as the
   [Wizards of the Coast Fan Content Policy](https://company.wizards.com/en/legal/fancontentpolicy)
   requires.
-- **Keep it free, with no required sign-up.** Both Wizards of the Coast and
-  Scryfall require this.
+- **Free to use in full, with no required sign-up.** Every card, list and
+  quiz stays free for everyone; both Wizards of the Coast and Scryfall
+  require this. Income may come only from donations, ads, sponsors,
+  affiliate links and supporter perks that hide no content (no ads, themes,
+  a badge). Ads never cover a card.
+  A paid app or subscription would need Wizards' written permission.
 - **Never alter card pictures:** no covering, cropping, dimming or stretching.
   Buttons may sit over the artwork, but never over the artist name or the
   copyright at the bottom of a card. When the artwork is shown on its own,
