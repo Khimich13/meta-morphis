@@ -61,19 +61,53 @@ def _cached_oracle_id(c: sqlite3.Cursor, card_key: str) -> str | None:
     row = c.execute("SELECT json FROM cards WHERE name = ?", (card_key,)).fetchone()
     if not row:
         return None
-    # A row that isn't a JSON object (`null`, a list), or a face that
-    # isn't one, has no oracle_id
     try:
-        raw = json.loads(row[0])
+        return _oracle_id(json.loads(row[0]))
+    except json.JSONDecodeError:
+        return None
+
+def _oracle_id(raw: Any) -> str | None:
+    """The oracle_id in a card's Scryfall JSON: None when it has none."""
+    # JSON that isn't an object (`null`, a list), or a face that isn't
+    # one, has no oracle_id
+    try:
         oracle_id = raw.get("oracle_id")
         # A reversible card has no oracle_id of its own - each face
         # carries one, the same on both
         faces = raw.get("card_faces")
         if oracle_id is None and isinstance(faces, list) and faces:
             oracle_id = faces[0].get("oracle_id")
-    except (json.JSONDecodeError, AttributeError):
+    except AttributeError:
         return None
     return oracle_id if isinstance(oracle_id, str) else None
+
+def _is_another_cached_card(
+    c: sqlite3.Cursor, alias_key: str, card_key: str, oracle_id: str | None
+) -> bool:
+    """`alias_key` is a cached card other than `card_key`, with a known
+    oracle_id that isn't `oracle_id`. Logged when it is. Both names
+    must already be normalized.
+    """
+    if alias_key == card_key:
+        return False
+    old_oracle_id = _cached_oracle_id(c, alias_key)
+    if old_oracle_id is None or old_oracle_id == oracle_id:
+        return False
+    log.warning(
+        f"'{alias_key}' is a cached card, but Scryfall answered it with a different card "
+        f"'{card_key}' - keeping both"
+    )
+    return True
+
+def answers_another_cached_card(conn: sqlite3.Connection, alias: str, card: Card) -> bool:
+    """Scryfall answered `alias` with `card`, but `alias` is a different
+    cached card - a fuzzy match, not a rename (see add_alias). Read from
+    `card` itself, so it can be asked before `card` is saved: a card
+    nobody asked for must not reach the cache or claim its face names.
+    """
+    return _is_another_cached_card(
+        conn.cursor(), normalize_name(alias), normalize_name(card.name), _oracle_id(card.raw)
+    )
 
 def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> bool:
     """Register an extra lookup alias for an already-cached card - e.g.
@@ -106,12 +140,7 @@ def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> bool:
     old_row = c.execute("SELECT 1 FROM cards WHERE name = ?", (alias_key,)).fetchone()
     # Never drop the row the aliases are being moved to
     if old_row and alias_key != card_key:
-        old_oracle_id = _cached_oracle_id(c, alias_key)
-        if old_oracle_id is not None and old_oracle_id != _cached_oracle_id(c, card_key):
-            log.warning(
-                f"'{alias_key}' is a cached card, but Scryfall answered it with a different card "
-                f"'{card_key}' - keeping both"
-            )
+        if _is_another_cached_card(c, alias_key, card_key, _cached_oracle_id(c, card_key)):
             return False
         c.execute("UPDATE card_aliases SET card_name = ? WHERE card_name = ?", (card_key, alias_key))
         c.execute("DELETE FROM cards WHERE name = ?", (alias_key,))

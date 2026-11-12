@@ -592,17 +592,24 @@ def test_process_batch_request_replaces_an_unreadable_row_a_rename_answers(
 # The single lookup falls back to Scryfall's fuzzy matching, which can
 # answer a stale card's name with an unrelated card. A name collision
 # alone is not a rename: the old row moves only to a card with the same
-# oracle_id. Otherwise it stays, and the other card's row is left alone.
-# The stale copy is what the run returns - the other card is not on the
-# list - and the miss starts the cooldown, so the fuzzy match is not
-# repeated every run.
+# oracle_id. Otherwise it stays, and the other card is not saved - it
+# used to be, claiming its face names (first claim wins) so they kept
+# leading to a card nobody asked for. The stale copy is what the run
+# returns - the other card is not on the list - and the miss starts the
+# cooldown, so the fuzzy match is not repeated every run.
 def test_fetch_cards_keeps_a_stale_card_the_fuzzy_lookup_answers_with_another(
     conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: LogCaptureFixture
 ) -> None:
     save_cards_to_cache(conn, [Card.from_raw({"id": "1", "oracle_id": "o-old", "name": "Old"})])
     conn.execute("UPDATE cards SET updated_at = 0")
 
-    other = {"id": "2", "oracle_id": "o-other", "name": "Other"}
+    other = {
+        "id": "2", "oracle_id": "o-other", "name": "Other Front // Other Back",
+        "card_faces": [
+            {"name": "Other Front", "type_line": "Creature"},
+            {"name": "Other Back", "type_line": "Creature"},
+        ],
+    }
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.fetch_batch",
         lambda names: {"data": [], "not_found": [{"name": n} for n in names]},
@@ -619,10 +626,11 @@ def test_fetch_cards_keeps_a_stale_card_the_fuzzy_lookup_answers_with_another(
     assert [c.name for c in first_run] == ["Old"]
     assert [c.name for c in second_run] == ["Old"]
     assert asked == ["Old"]
-    assert sorted(conn.execute("SELECT name FROM cards").fetchall()) == [("old",), ("other",)]
+    assert conn.execute("SELECT name FROM cards").fetchall() == [("old",)]
+    assert conn.execute("SELECT alias FROM card_aliases").fetchall() == [("old",)]
     found = get_card_from_cache(conn, "Old")
     assert found is not None and found.name == "Old"
-    assert "answered it with a different card 'other'" in caplog.text
+    assert "answered it with a different card 'other front // other back'" in caplog.text
 
 # Each card in a batch answer is paired with the name it answers by
 # skipping the names Scryfall didn't find. If one went missing without a

@@ -13,6 +13,7 @@ from .artwork import choose_printing
 from .client import fetch_batch, fetch_single, search_printings
 from .repo import (
     add_alias,
+    answers_another_cached_card,
     get_card_from_cache,
     get_chosen_printing,
     record_bad_name_attempt,
@@ -285,25 +286,29 @@ def _process_batch_request(
         return cards, unresolved_names
 
     # One commit for the batch. Every lookup is done by now, so the
-    # transaction never waits on Scryfall. The card rows are saved first:
-    # an alias is a foreign key into them.
-    # Cards that turned out not to answer the name they were fetched for
-    refused: list[Card] = []
+    # transaction never waits on Scryfall.
     with conn:
-        save_cards_to_cache(conn, cards)
+        # Checked before anything is saved. When the name is a cached
+        # card of its own and Scryfall's fuzzy matching answered it with
+        # a different card, that card is not what the name asked for: it
+        # is not saved (saved, it would also claim its face names, first
+        # claim wins), it is left out of this batch's answer, and the
+        # name is reported unresolved - the stale copy is served in its
+        # place. Recorded as a failed lookup, or the same fuzzy match
+        # would repeat every run until the cooldown stops it.
+        refused: list[Card] = []
         for name, card in aliases:
-            if not add_alias(conn, name, card.name):
-                # The name is a cached card of its own, and Scryfall's
-                # fuzzy matching answered it with a different card. That
-                # card is not what the name asked for, so it is left out
-                # of this batch's answer and the name is reported
-                # unresolved - the stale copy is served in its place.
-                # Recorded as a failed lookup, or the same fuzzy match
-                # would repeat every run until the cooldown stops it.
+            if answers_another_cached_card(conn, name, card):
                 refused.append(card)
                 unresolved_names.append(name)
                 record_bad_name_attempt(conn, name)
-    if refused:
         cards = [c for c in cards if not any(c is r for r in refused)]
+        aliases = [(name, card) for name, card in aliases if not any(card is r for r in refused)]
+
+        # The card rows are saved before the aliases: an alias is a
+        # foreign key into them
+        save_cards_to_cache(conn, cards)
+        for name, card in aliases:
+            add_alias(conn, name, card.name)
 
     return cards, unresolved_names
