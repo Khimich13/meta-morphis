@@ -54,6 +54,18 @@ def test_new_fields_default_when_absent() -> None:
     assert face.type_line == ""
     assert face.oracle_text == ""
 
+# A reversible card has no oracle_id at the top level, only on its faces.
+# Read as None, it was never given a printing and was left out of the export
+def test_reversible_card_takes_its_oracle_id_from_its_faces() -> None:
+    card = Card.from_raw({
+        "id": "1", "name": "Bolt // Bolt", "layout": "reversible_card",
+        "card_faces": [
+            {"oracle_id": "o1", "name": "Bolt", "type_line": "Instant"},
+            {"oracle_id": "o1", "name": "Bolt", "type_line": "Instant"},
+        ],
+    })
+    assert card.oracle_id == "o1"
+
 def test_single_face_card_gameplay_fields() -> None:
     raw: dict[str, Any] = {
         "id": "4c9c9b16",

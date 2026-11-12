@@ -3,7 +3,7 @@ import sqlite3
 from typing import Any
 
 from meta_morphis import config
-from meta_morphis.models.card import Card
+from meta_morphis.models.card import Card, oracle_id_of
 from meta_morphis.models.meta import MetaEntry
 from meta_morphis.utils.http import RequestUnavailable
 from meta_morphis.utils.lists import chunked
@@ -101,7 +101,7 @@ def get_display_printings(conn: sqlite3.Connection, cards: list[Card]) -> list[C
         for printing in printings:
             if _to_card(printing) is None:
                 continue
-            by_card.setdefault(printing.get("oracle_id", ""), []).append(printing)
+            by_card.setdefault(oracle_id_of(printing) or "", []).append(printing)
 
         # One commit for the group's choices. The search is already done,
         # so the transaction never waits on Scryfall

@@ -5,7 +5,7 @@ import pytest
 from pytest import MonkeyPatch
 
 from meta_morphis import config
-from meta_morphis.models.card import Card
+from meta_morphis.models.card import Card, oracle_id_of
 from meta_morphis.scryfall.repo import get_chosen_printing, save_chosen_printing
 from meta_morphis.scryfall.service import get_display_printings
 from meta_morphis.utils.http import RequestUnavailable
@@ -39,7 +39,7 @@ def _searches(monkeypatch: MonkeyPatch, printings: list[dict[str, Any]]) -> list
 
     def search(oracle_ids: list[str]) -> list[dict[str, Any]]:
         asked.append(oracle_ids)
-        return [p for p in printings if p["oracle_id"] in oracle_ids]
+        return [p for p in printings if oracle_id_of(p) in oracle_ids]
 
     monkeypatch.setattr("meta_morphis.scryfall.service.search_printings", search)
     return asked
@@ -124,6 +124,20 @@ def test_no_regular_printing_keeps_the_card(
 def test_a_card_without_oracle_id_is_kept(conn: sqlite3.Connection) -> None:
     card = Card.from_raw({"id": "x", "name": "Odd"})
     assert get_display_printings(conn, [card]) == [card]
+
+# A reversible printing carries its oracle_id only on its faces. It used
+# to be sorted under no card at all, so it could never be chosen
+def test_a_reversible_printing_is_chosen(
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch
+) -> None:
+    def reversible(printing_id: str) -> dict[str, Any]:
+        raw = _raw(printing_id)
+        face = {"oracle_id": raw.pop("oracle_id"), "name": "Lightning Bolt", "type_line": "Instant"}
+        return {**raw, "layout": "reversible_card", "card_faces": [face, face]}
+
+    _searches(monkeypatch, [reversible("sld")])
+
+    assert _shown(conn, Card.from_raw(reversible("default"))) == ["sld"]
 
 def test_a_card_listed_twice_is_searched_once(
     conn: sqlite3.Connection, monkeypatch: MonkeyPatch

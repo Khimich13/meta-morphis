@@ -4,6 +4,22 @@ from typing import Any
 from meta_morphis.models.card_face import CardFace
 
 
+def oracle_id_of(raw: Any) -> str | None:
+    """The oracle_id in a card's Scryfall JSON: None when it has none."""
+    # JSON that isn't an object (`null`, a list), or a face that isn't
+    # one, has no oracle_id
+    try:
+        oracle_id = raw.get("oracle_id")
+        # A reversible card has no oracle_id of its own - each face
+        # carries one, the same on both
+        faces = raw.get("card_faces")
+        if oracle_id is None and isinstance(faces, list) and faces:
+            oracle_id = faces[0].get("oracle_id")
+    except AttributeError:
+        return None
+    return oracle_id if isinstance(oracle_id, str) else None
+
+
 @dataclass
 class ImageSide:
     """One physical side of a card that has its own picture: two for a
@@ -65,7 +81,7 @@ class Card:
             faces=faces,
             age=0,
             raw=raw,
-            oracle_id=raw.get("oracle_id"),
+            oracle_id=oracle_id_of(raw),
             layout=raw.get("layout") or "normal",
             frame=raw.get("frame"),
             cmc=raw.get("cmc"),

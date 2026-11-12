@@ -5,7 +5,7 @@ import time
 from typing import Any
 
 from meta_morphis import config
-from meta_morphis.models.card import Card
+from meta_morphis.models.card import Card, oracle_id_of
 from meta_morphis.utils.text import normalize_name
 
 log = logging.getLogger(__name__)
@@ -62,24 +62,9 @@ def _cached_oracle_id(c: sqlite3.Cursor, card_key: str) -> str | None:
     if not row:
         return None
     try:
-        return _oracle_id(json.loads(row[0]))
+        return oracle_id_of(json.loads(row[0]))
     except json.JSONDecodeError:
         return None
-
-def _oracle_id(raw: Any) -> str | None:
-    """The oracle_id in a card's Scryfall JSON: None when it has none."""
-    # JSON that isn't an object (`null`, a list), or a face that isn't
-    # one, has no oracle_id
-    try:
-        oracle_id = raw.get("oracle_id")
-        # A reversible card has no oracle_id of its own - each face
-        # carries one, the same on both
-        faces = raw.get("card_faces")
-        if oracle_id is None and isinstance(faces, list) and faces:
-            oracle_id = faces[0].get("oracle_id")
-    except AttributeError:
-        return None
-    return oracle_id if isinstance(oracle_id, str) else None
 
 def _is_another_cached_card(
     c: sqlite3.Cursor, alias_key: str, card_key: str, oracle_id: str | None
@@ -106,7 +91,7 @@ def answers_another_cached_card(conn: sqlite3.Connection, alias: str, card: Card
     nobody asked for must not reach the cache or claim its face names.
     """
     return _is_another_cached_card(
-        conn.cursor(), normalize_name(alias), normalize_name(card.name), _oracle_id(card.raw)
+        conn.cursor(), normalize_name(alias), normalize_name(card.name), card.oracle_id
     )
 
 def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> bool:
