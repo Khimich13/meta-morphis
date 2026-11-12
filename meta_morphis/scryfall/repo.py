@@ -5,7 +5,7 @@ import time
 from typing import Any
 
 from meta_morphis import config
-from meta_morphis.models.card import Card, oracle_id_of
+from meta_morphis.models.card import Card
 from meta_morphis.utils.text import normalize_name
 
 log = logging.getLogger(__name__)
@@ -54,48 +54,6 @@ def _claim_alias(c: sqlite3.Cursor, alias: str, card_name: str) -> bool:
     """, (alias, card_name))
     return c.rowcount > 0
 
-def _cached_oracle_id(c: sqlite3.Cursor, card_key: str) -> str | None:
-    """The oracle_id of the cached card named `card_key` (normalized):
-    None when there is no such row or its JSON has none.
-    """
-    row = c.execute("SELECT json FROM cards WHERE name = ?", (card_key,)).fetchone()
-    if not row:
-        return None
-    try:
-        return oracle_id_of(json.loads(row[0]))
-    except json.JSONDecodeError:
-        return None
-
-def _is_another_cached_card(
-    c: sqlite3.Cursor, alias_key: str, card_key: str, oracle_id: str | None
-) -> bool:
-    """`alias_key` is a cached card other than `card_key`, with a known
-    oracle_id that isn't `oracle_id`. Logged when it is. An oracle_id
-    that can't be read, on either side, can't tell the two apart, so it
-    never makes them different cards. Both names must already be
-    normalized.
-    """
-    if alias_key == card_key:
-        return False
-    old_oracle_id = _cached_oracle_id(c, alias_key)
-    if old_oracle_id is None or oracle_id is None or old_oracle_id == oracle_id:
-        return False
-    log.warning(
-        f"'{alias_key}' is a cached card, but Scryfall answered it with a different card "
-        f"'{card_key}' - keeping both"
-    )
-    return True
-
-def answers_another_cached_card(conn: sqlite3.Connection, alias: str, card: Card) -> bool:
-    """Scryfall answered `alias` with `card`, but `alias` is a different
-    cached card - a fuzzy match, not a rename (see add_alias). Read from
-    `card` itself, so it can be asked before `card` is saved: a card
-    nobody asked for must not reach the cache or claim its face names.
-    """
-    return _is_another_cached_card(
-        conn.cursor(), normalize_name(alias), normalize_name(card.name), card.oracle_id
-    )
-
 def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> None:
     """Register an extra lookup alias for an already-cached card - e.g.
     the exact spelling that was searched for, when Scryfall's own
@@ -104,28 +62,11 @@ def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> None:
     The card must already have a row in `cards`, since card_aliases.card_name
     is a foreign key into it.
 
-    If `alias` is itself the name of another cached card, Scryfall now
-    knows that card by a new name (an errata rename, say). Every alias of
-    the old row moves to the new card and the old row is dropped -
-    otherwise the old row keeps answering for those names, stays stale,
-    and is refreshed again every run. Whether it is a rename and not a
-    fuzzy match onto a different card is the caller's to check first,
-    with answers_another_cached_card, before the card is saved.
-
     An alias another card already claimed is logged and kept by its owner.
     """
-    c = conn.cursor()
     alias_key = normalize_name(alias)
     card_key = normalize_name(card_name)
-
-    old_row = c.execute("SELECT 1 FROM cards WHERE name = ?", (alias_key,)).fetchone()
-    # Never drop the row the aliases are being moved to
-    if old_row and alias_key != card_key:
-        c.execute("UPDATE card_aliases SET card_name = ? WHERE card_name = ?", (card_key, alias_key))
-        c.execute("DELETE FROM cards WHERE name = ?", (alias_key,))
-        return
-
-    if not _claim_alias(c, alias_key, card_key):
+    if not _claim_alias(conn.cursor(), alias_key, card_key):
         log.warning(f"Alias '{alias_key}' already belongs to another card - not claimed by '{card_key}'")
 
 def rename_card(conn: sqlite3.Connection, old_name: str, new_name: str) -> None:

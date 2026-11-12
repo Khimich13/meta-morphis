@@ -1,4 +1,3 @@
-import json
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -208,7 +207,7 @@ def test_fetch_cards(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None
     )
     monkeypatch.setattr(
         "meta_morphis.scryfall.service._process_batch_request",
-        lambda conn, raw, asked: ([_card(c["name"]) for c in raw["data"]], [])
+        lambda conn, raw, asked: [_card(c["name"]) for c in raw["data"]]
     )
     monkeypatch.setattr(
         "meta_morphis.scryfall.service._fetch_updates_for_outdated",
@@ -261,13 +260,13 @@ def test_process_batch_request(conn: sqlite3.Connection, monkeypatch: MonkeyPatc
         lambda conn, name: None
     )
 
-    assert _process_batch_request(conn, raw, []) == ([], [])
+    assert _process_batch_request(conn, raw, []) == []
     assert "Scryfall error: no data received" in caplog.text
 
     # Start fresh, so the next check proves a second message was logged
     caplog.clear()
     raw = {"data": []}
-    assert _process_batch_request(conn, raw, []) == ([], [])
+    assert _process_batch_request(conn, raw, []) == []
     assert "Scryfall error: no data received" in caplog.text
 
     raw = {
@@ -284,14 +283,11 @@ def test_process_batch_request(conn: sqlite3.Connection, monkeypatch: MonkeyPatc
     )
 
     asked = ["Counterspell", "Unknown", "Duress", "Cancel"]
-    assert _process_batch_request(conn, raw, asked) == (
-        [
-            _card("Counterspell", card_id="1"),
-            _card("Duress", card_id="2"),
-            _card("Cancel", card_id="3"),
-        ],
-        ["Unknown"],
-    )
+    assert _process_batch_request(conn, raw, asked) == [
+        _card("Counterspell", card_id="1"),
+        _card("Duress", card_id="2"),
+        _card("Cancel", card_id="3"),
+    ]
 
 def test_process_batch_request_accepts_fuzzy_match_with_different_name(
     conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: LogCaptureFixture
@@ -312,7 +308,7 @@ def test_process_batch_request_accepts_fuzzy_match_with_different_name(
 
     result = _process_batch_request(conn, raw, ["Snapcaster Mag"])
 
-    assert result == ([_card("Snapcaster Mage", card_id="1")], [])
+    assert result == [_card("Snapcaster Mage", card_id="1")]
     assert "Bad name" not in caplog.text
 
     # The exact spelling that was searched for gets its own alias
@@ -343,7 +339,7 @@ def test_process_batch_request_does_not_record_failure_on_outage(
 
     result = _process_batch_request(conn, raw, ["Counterspell"])
 
-    assert result == ([], ["Counterspell"])
+    assert result == []
     assert "Bad name" not in caplog.text
     assert "Counterspell" in caplog.text
 
@@ -441,10 +437,9 @@ def test_process_batch_request_records_confirmed_bad_name(conn: sqlite3.Connecti
 def test_process_batch_request_skips_malformed_card(conn: sqlite3.Connection) -> None:
     raw: dict[str, Any] = {"data": [{"name": "No Id Card"}, {"id": "1", "name": "Shock"}]}
 
-    cards, unresolved = _process_batch_request(conn, raw, ["No Id Card", "Shock"])
+    cards = _process_batch_request(conn, raw, ["No Id Card", "Shock"])
 
     assert [c.name for c in cards] == ["Shock"]
-    assert unresolved == ["No Id Card"]
 
 # An entry of the wrong shape - null, or card_faces: null - is skipped the
 # same way. It used to raise TypeError past _to_card and lose the batch's
@@ -456,21 +451,11 @@ def test_process_batch_request_skips_card_of_wrong_shape(conn: sqlite3.Connectio
         {"id": "2", "name": "Shock"},
     ]}
 
-    cards, unresolved = _process_batch_request(conn, raw, ["Null Card", "No Faces", "Shock"])
+    cards = _process_batch_request(conn, raw, ["Null Card", "No Faces", "Shock"])
 
     assert [c.name for c in cards] == ["Shock"]
-    assert unresolved == ["Null Card", "No Faces"]
     found = get_card_from_cache(conn, "Shock")
     assert found is not None
-
-# Unpaired, a null entry has no name to report - it is only skipped
-def test_process_batch_request_skips_null_card_when_the_counts_differ(conn: sqlite3.Connection) -> None:
-    raw: dict[str, Any] = {"data": [None, {"id": "2", "name": "Shock"}], "not_found": []}
-
-    cards, unresolved = _process_batch_request(conn, raw, ["Shock"])
-
-    assert [c.name for c in cards] == ["Shock"]
-    assert unresolved == []
 
 # An outdated card whose refreshed entry can't be parsed used to vanish
 # from the output instead of falling back to its stale cached copy
@@ -531,68 +516,22 @@ def test_fetch_cards_moves_old_names_to_a_renamed_card(
     assert asked == [["o1"]]
     assert conn.execute("SELECT name FROM cards").fetchall() == [("new front // new back",)]
 
-# A cached row whose oracle_id can't be read (corrupt JSON, or none in
-# it) used to stay when Scryfall answered its name with a renamed card: add_alias refused the name, the fetched card was
-# dropped and the name recorded as a bad lookup - so after every cooldown
-# the card was left out of the export again. The row is replaced instead.
-@pytest.mark.parametrize("blob", ['"broken"', "{not json", json.dumps({"id": "1", "name": "Old"})])
-def test_process_batch_request_replaces_an_unreadable_row_a_rename_answers(
-    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, blob: str
-) -> None:
-    save_cards_to_cache(conn, [Card.from_raw({"id": "1", "oracle_id": "o1", "name": "Old"})])
-    conn.execute("UPDATE cards SET json = ?", (blob,))
-
-    renamed = {"id": "1", "oracle_id": "o1", "name": "New"}
-    monkeypatch.setattr("meta_morphis.scryfall.service.fetch_single", lambda name: renamed)
-
-    raw: dict[str, Any] = {"data": [], "not_found": [{"name": "Old"}]}
-    cards, unresolved = _process_batch_request(conn, raw, ["Old"])
-
-    assert [c.name for c in cards] == ["New"]
-    assert unresolved == []
-    assert should_skip_lookup(conn, "Old") is False
-    assert conn.execute("SELECT name FROM cards").fetchall() == [("new",)]
-    found = get_card_from_cache(conn, "Old")
-    assert found is not None and found.name == "New"
-
-# The same holds the other way round: an answer whose own oracle_id can't
-# be read used to be refused as a different card, recorded as a bad lookup,
-# and the stale copy stayed frozen under its old name. It replaces the row.
-def test_process_batch_request_takes_a_rename_whose_oracle_id_is_unreadable(
-    conn: sqlite3.Connection, monkeypatch: MonkeyPatch
-) -> None:
-    save_cards_to_cache(conn, [Card.from_raw({"id": "1", "oracle_id": "o1", "name": "Old"})])
-
-    renamed = {"id": "1", "name": "New"}
-    monkeypatch.setattr("meta_morphis.scryfall.service.fetch_single", lambda name: renamed)
-
-    raw: dict[str, Any] = {"data": [], "not_found": [{"name": "Old"}]}
-    cards, unresolved = _process_batch_request(conn, raw, ["Old"])
-
-    assert [c.name for c in cards] == ["New"]
-    assert unresolved == []
-    assert should_skip_lookup(conn, "Old") is False
-    assert conn.execute("SELECT name FROM cards").fetchall() == [("new",)]
-    found = get_card_from_cache(conn, "Old")
-    assert found is not None and found.name == "New"
-
 # Each card in a batch answer is paired with the name it answers by
 # skipping the names Scryfall didn't find. If one went missing without a
 # not_found entry, every later pair would be wrong and would hand one
-# card's names to another - so nothing is paired then.
+# card's name to another - so nothing is paired then.
 def test_process_batch_request_pairs_nothing_when_the_counts_differ(
     conn: sqlite3.Connection, caplog: LogCaptureFixture
 ) -> None:
     save_cards_to_cache(conn, [_card("Counterspell", card_id="1")])
 
     raw: dict[str, Any] = {"data": [{"id": "2", "name": "Duress"}], "not_found": []}
-    cards, unresolved = _process_batch_request(conn, raw, ["Counterspell", "Duress"])
+    cards = _process_batch_request(conn, raw, ["Counterspell", "Duress"])
 
     assert [c.name for c in cards] == ["Duress"]
-    assert unresolved == []
     found = get_card_from_cache(conn, "Counterspell")
     assert found is not None and found.name == "Counterspell"
-    assert "not checking them for renamed cards" in caplog.text
+    assert "not pairing them with the names asked" in caplog.text
 
 # Two names on the list can point at one cached card (here an old
 # spelling and the new one). When it goes stale, Scryfall is asked about
@@ -645,11 +584,9 @@ def test_fetch_cards_keeps_one_copy_of_a_shared_stale_card_it_could_not_refresh(
     assert [c.name for c in result] == ["New"]
     assert "Could not refresh 1 outdated card(s) - using the cached copies" in caplog.text
 
-# add_alias also turns down a name another card already claimed (first
-# claim wins). The card Scryfall answered with is still the right one,
-# so it stays in the run and the name is not recorded as a bad lookup.
-# Treating that refusal like a fuzzy match onto another card used to
-# drop the card and start the name's cooldown.
+# add_alias turns down a name another card already claimed (first claim
+# wins). The card Scryfall answered with is still the right one, so it
+# stays in the run and the name is not recorded as a bad lookup.
 def test_process_batch_request_keeps_a_card_whose_alias_another_card_claimed(
     conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: LogCaptureFixture
 ) -> None:
@@ -660,10 +597,9 @@ def test_process_batch_request_keeps_a_card_whose_alias_another_card_claimed(
     monkeypatch.setattr("meta_morphis.scryfall.service.fetch_single", lambda name: answer)
 
     raw: dict[str, Any] = {"data": [], "not_found": [{"name": "Shared"}]}
-    cards, unresolved = _process_batch_request(conn, raw, ["Shared"])
+    cards = _process_batch_request(conn, raw, ["Shared"])
 
     assert [c.name for c in cards] == ["Answer"]
-    assert unresolved == []
     assert should_skip_lookup(conn, "Shared") is False
     found = get_card_from_cache(conn, "Shared")
     assert found is not None and found.name == "Owner"
