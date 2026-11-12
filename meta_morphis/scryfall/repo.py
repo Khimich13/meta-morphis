@@ -90,7 +90,9 @@ def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> bool:
     those names, stays stale, and is refreshed again every run. A cached
     card with a different oracle_id is another card that Scryfall's
     fuzzy matching answered the name with: it is kept, and the alias is
-    not claimed.
+    not claimed. An old row whose oracle_id can't be read (corrupt JSON,
+    or none in it) can't be told apart from the new card, so it is
+    replaced as well - kept, it would refuse the name for good.
 
     Returns whether `alias` now leads to `card_name`.
     """
@@ -98,10 +100,11 @@ def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> bool:
     alias_key = normalize_name(alias)
     card_key = normalize_name(card_name)
 
-    old_oracle_id = _cached_oracle_id(c, alias_key)
+    old_row = c.execute("SELECT 1 FROM cards WHERE name = ?", (alias_key,)).fetchone()
     # Never drop the row the aliases are being moved to
-    if old_oracle_id is not None and alias_key != card_key:
-        if old_oracle_id != _cached_oracle_id(c, card_key):
+    if old_row and alias_key != card_key:
+        old_oracle_id = _cached_oracle_id(c, alias_key)
+        if old_oracle_id is not None and old_oracle_id != _cached_oracle_id(c, card_key):
             log.warning(
                 f"'{alias_key}' is a cached card, but Scryfall answered it with a different card "
                 f"'{card_key}' - keeping both"

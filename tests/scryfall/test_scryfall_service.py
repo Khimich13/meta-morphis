@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -563,6 +564,30 @@ def test_fetch_cards_moves_old_names_to_a_renamed_card(
     assert asked == [["Old Front // Old Back"]]
     assert conn.execute("SELECT name FROM cards").fetchall() == [("new front // new back",)]
     assert "already belongs to another card" not in caplog.text
+
+# A cached row whose oracle_id can't be read (corrupt JSON, or none in
+# it) used to stay when Scryfall answered its name with a renamed card: add_alias refused the name, the fetched card was
+# dropped and the name recorded as a bad lookup - so after every cooldown
+# the card was left out of the export again. The row is replaced instead.
+@pytest.mark.parametrize("blob", ['"broken"', "{not json", json.dumps({"id": "1", "name": "Old"})])
+def test_process_batch_request_replaces_an_unreadable_row_a_rename_answers(
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, blob: str
+) -> None:
+    save_cards_to_cache(conn, [Card.from_raw({"id": "1", "oracle_id": "o1", "name": "Old"})])
+    conn.execute("UPDATE cards SET json = ?", (blob,))
+
+    renamed = {"id": "1", "oracle_id": "o1", "name": "New"}
+    monkeypatch.setattr("meta_morphis.scryfall.service.fetch_single", lambda name: renamed)
+
+    raw: dict[str, Any] = {"data": [], "not_found": [{"name": "Old"}]}
+    cards, unresolved = _process_batch_request(conn, raw, ["Old"])
+
+    assert [c.name for c in cards] == ["New"]
+    assert unresolved == []
+    assert should_skip_lookup(conn, "Old") is False
+    assert conn.execute("SELECT name FROM cards").fetchall() == [("new",)]
+    found = get_card_from_cache(conn, "Old")
+    assert found is not None and found.name == "New"
 
 # The single lookup falls back to Scryfall's fuzzy matching, which can
 # answer a stale card's name with an unrelated card. A name collision
