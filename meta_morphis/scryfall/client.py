@@ -6,8 +6,17 @@ from meta_morphis.utils.http import RequestUnavailable, request_with_retries
 
 
 def fetch_batch(names: list[str]) -> dict[str, Any] | None:
-    identifiers = [{"name": n} for n in names]
+    return _fetch_collection([{"name": n} for n in names])
 
+def fetch_by_oracle_ids(oracle_ids: list[str]) -> dict[str, Any] | None:
+    """The cards with these oracle_ids, one printing of each. An
+    oracle_id is a card's permanent identity: unlike a name, Scryfall
+    can't answer it with a different card, and it stays the same when
+    the card is renamed.
+    """
+    return _fetch_collection([{"oracle_id": oracle_id} for oracle_id in oracle_ids])
+
+def _fetch_collection(identifiers: list[dict[str, str]]) -> dict[str, Any] | None:
     raw = _request(
         "POST",
         config.SCRYFALL_COLLECTION_URL,

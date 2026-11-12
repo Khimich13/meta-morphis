@@ -7,6 +7,7 @@ from pytest import MonkeyPatch
 from meta_morphis import config
 from meta_morphis.scryfall.client import (
     fetch_batch,
+    fetch_by_oracle_ids,
     fetch_single,
     fetch_symbology,
     search_printings,
@@ -41,6 +42,25 @@ def test_fetch_batch_success(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr("requests.request", fake_post)
 
     result = fetch_batch(["Lightning Bolt"])
+    assert result == {"data": "ok"}
+
+def test_fetch_by_oracle_ids_success(monkeypatch: MonkeyPatch) -> None:
+    def fake_post(
+        method: str,
+        url: str,
+        headers: Any,
+        params: Any,
+        json: Any,
+        timeout: int
+    ) -> FakeResponse:
+        assert method == "POST"
+        assert url == config.SCRYFALL_COLLECTION_URL
+        assert json == {"identifiers": [{"oracle_id": "o1"}, {"oracle_id": "o2"}]}
+        return FakeResponse(200, {"data": "ok"})
+
+    monkeypatch.setattr("requests.request", fake_post)
+
+    result = fetch_by_oracle_ids(["o1", "o2"])
     assert result == {"data": "ok"}
 
 def test_fetch_batch_failure(monkeypatch: MonkeyPatch) -> None:
@@ -187,6 +207,7 @@ def test_fetch_single_bad_200_response(monkeypatch: MonkeyPatch) -> None:
 # not request_with_retries' faster generic defaults.
 @pytest.mark.parametrize("call", [
     lambda: fetch_batch(["Lightning Bolt"]),
+    lambda: fetch_by_oracle_ids(["o1"]),
     lambda: fetch_single("Lightning Bolt"),
     lambda: fetch_symbology(),
 ])
