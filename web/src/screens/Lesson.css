@@ -129,6 +129,43 @@
   object-position: top;
 }
 
+/* A picture question's card with its name covered (NameHidden in
+   Lesson.tsx): as large as fits in the space left, at the top, like the
+   full card after answering. */
+.name-hidden {
+  flex: 1;
+  min-height: 160px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  container-type: size;
+}
+
+.name-hidden-card {
+  position: relative;
+  width: min(100cqw, 100cqh * 488 / 680);
+  /* Turns into the full card after answering, see below */
+  view-transition-name: card-whole;
+}
+
+/* A plain bar over the title bar - the name and the mana cost */
+.name-cover {
+  position: absolute;
+  border-radius: 6px;
+  background: #4a4a4a;
+}
+
+/* The full card after a picture question: the covered card moves and
+   grows into it, and the bar fades away with the old picture */
+.picture.after-picture > .card-picture {
+  view-transition-name: card-whole;
+}
+
+::view-transition-group(card-whole) {
+  animation-duration: 0.45s;
+  animation-timing-function: ease-in-out;
+}
+
 /* The full card after answering: as large as fits in the height left,
    at the top. */
 .picture {

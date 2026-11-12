@@ -10,9 +10,18 @@ export const OPTION_COUNT = 4;
 /** At most this many cards never seen before in a lesson, when others are waiting */
 export const NEW_PER_LESSON = 3;
 
+/**
+ * What a question shows:
+ *   artwork - the card's artwork alone
+ *   picture - the full card, with its title bar covered (see name_box
+ *             in cards.ts)
+ */
+export type QuestionKind = 'artwork' | 'picture';
+
 export interface Question {
   /** The card being asked about */
   card: Card;
+  kind: QuestionKind;
   /** The answers to choose from, in the order shown: the card itself and wrong ones */
   options: Card[];
 }
@@ -38,7 +47,10 @@ export function makeQuestion(
 ): Question {
   const others = allCards.filter((other) => other.oracle_id !== card.oracle_id);
   const wrong = shuffle(others, random).slice(0, OPTION_COUNT - 1);
-  return { card, options: shuffle([card, ...wrong], random) };
+  const options = shuffle([card, ...wrong], random);
+  // Either kind, half the time each, for a card whose name can be hidden
+  const kind: QuestionKind = card.name_box && random() < 0.5 ? 'picture' : 'artwork';
+  return { card, kind, options };
 }
 
 /**

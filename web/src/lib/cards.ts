@@ -20,6 +20,13 @@ export interface Card {
    * was added.
    */
   art_box?: [number, number, number, number] | null;
+  /**
+   * Where the title bar sits on the front picture, as shares of its width
+   * and height: [left, top, width, height]. The app covers it to ask which
+   * card it is from the full picture. Null when the name shows elsewhere
+   * on the card too, missing in files written before it was added.
+   */
+  name_box?: [number, number, number, number] | null;
   /** The front side's artwork alone */
   art: string;
   /** Who painted it - shown wherever the artwork appears by itself */

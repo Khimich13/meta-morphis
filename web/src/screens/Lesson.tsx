@@ -175,21 +175,27 @@ export default function Lesson({
       {picked === null ? (
         <>
           <QuestionLabel repeat={repeat} standing={cardStanding(record)} />
-          <h2 className="question">Which card has this artwork?</h2>
-          {/* A figure ties the credit to the artwork, for screen readers too */}
-          <figure className="artwork">
-            {/* The alt text must not give the answer away */}
-            <img
-              src={card.art}
-              alt="Card artwork"
-              crossOrigin="anonymous"
-              style={{ viewTransitionName: artTransition(card) }}
-            />
-            {/* Scryfall asks for this whenever the artwork is shown by itself */}
-            <figcaption className="credit">
-              Illustrated by {card.artist} · © Wizards of the Coast
-            </figcaption>
-          </figure>
+          <h2 className="question">
+            {question.kind === 'picture' ? 'Which card is this?' : 'Which card has this artwork?'}
+          </h2>
+          {question.kind === 'picture' ? (
+            <NameHidden card={card} />
+          ) : (
+            /* A figure ties the credit to the artwork, for screen readers too */
+            <figure className="artwork">
+              {/* The alt text must not give the answer away */}
+              <img
+                src={card.art}
+                alt="Card artwork"
+                crossOrigin="anonymous"
+                style={{ viewTransitionName: artTransition(card) }}
+              />
+              {/* Scryfall asks for this whenever the artwork is shown by itself */}
+              <figcaption className="credit">
+                Illustrated by {card.artist} · © Wizards of the Coast
+              </figcaption>
+            </figure>
+          )}
           <ul className="options">
             {question.options.map((option) => (
               <li key={option.oracle_id}>
@@ -200,21 +206,52 @@ export default function Lesson({
         </>
       ) : (
         <>
-          <div className="picture">
+          {/* After a picture question, the covered card turns into this
+              one (see Lesson.css), uncovering the name */}
+          <div className={question.kind === 'picture' ? 'picture after-picture' : 'picture'}>
             {/* One side at a time, which a double-faced card can turn over.
                 The full card shows its own artist and copyright. */}
             <CardPicture key={card.oracle_id} card={card} speaker openOnTurn />
             {/* Where the artwork lands after an answer: the card's art box */}
-            <div
-              className={isHorizontal(card, false) ? 'art-target sideways' : 'art-target'}
-              aria-hidden="true"
-              style={artTarget(card)}
-            />
+            {question.kind === 'artwork' && (
+              <div
+                className={isHorizontal(card, false) ? 'art-target sideways' : 'art-target'}
+                aria-hidden="true"
+                style={artTarget(card)}
+              />
+            )}
           </div>
           <Feedback card={card} picked={picked} before={before} record={record} onContinue={next} />
         </>
       )}
     </section>
+  );
+}
+
+/**
+ * The question's full card with its title bar covered: everything on the
+ * card but its name. The bar sits over the picture, which stays as it is,
+ * and never over the artist or copyright.
+ */
+function NameHidden({ card }: { card: Card }) {
+  const [left, top, width, height] = card.name_box ?? [0, 0, 0, 0];
+  return (
+    <div className="name-hidden">
+      <div className="name-hidden-card">
+        {/* The alt text must not give the answer away */}
+        <img className="card-side" src={card.images[0]} alt="Card with its name hidden" />
+        <div
+          className="name-cover"
+          aria-hidden="true"
+          style={{
+            left: `${left * 100}%`,
+            top: `${top * 100}%`,
+            width: `${width * 100}%`,
+            height: `${height * 100}%`,
+          }}
+        />
+      </div>
+    </div>
   );
 }
 

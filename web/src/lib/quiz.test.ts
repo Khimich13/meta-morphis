@@ -73,6 +73,17 @@ test('the correct option is not always in the same place', () => {
   expect(places.size).toBe(OPTION_COUNT);
 });
 
+test('a card whose name can be hidden is asked both ways', () => {
+  const hideable: Card = { ...CARDS[0], name_box: [0.06, 0.045, 0.88, 0.058] };
+  const kinds = new Set(SEEDS.map((seed) => makeQuestion(hideable, CARDS, seeded(seed)).kind));
+  expect(kinds).toEqual(new Set(['artwork', 'picture']));
+});
+
+test('a card whose name shows elsewhere is asked by its artwork only', () => {
+  const kinds = new Set(SEEDS.map((seed) => makeQuestion(CARDS[0], CARDS, seeded(seed)).kind));
+  expect(kinds).toEqual(new Set(['artwork']));
+});
+
 const TODAY = '2026-10-15';
 const YESTERDAY = '2026-10-14';
 

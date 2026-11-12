@@ -30,6 +30,13 @@ what has been done is in the commit history.
   answer makes a card wait longer before it is asked again, a wrong one moves
   it back a step and brings it back the next day. Only a card's first answer
   each day counts.
+- **Two kinds of question:** a card's artwork alone, or its full picture with
+  the title bar covered. The second is asked only about a card whose name is
+  printed nowhere else on it: one name on one side, in English, not in its
+  rules or flavor text, and without "this creature" and the like in its
+  Oracle text unless the printing is from a new set from Foundations on
+  (older printings and reprints print the name there instead). A card that
+  can be asked both ways gets either, half the time each.
 - **Each card is shown in its most familiar printing:** the artwork that
   appears on the most regular English paper printings, in its newest
   printing. The question and the full card after answering always show the
@@ -48,13 +55,21 @@ what has been done is in the commit history.
   affiliate links and supporter perks that hide no content (no ads, themes,
   a badge). Ads never cover a card.
   A paid app or subscription would need Wizards' written permission.
-- **Never alter card pictures:** no covering, cropping, dimming or stretching.
-  Buttons may sit over the artwork, but never over the artist name or the
-  copyright at the bottom of a card. When the artwork is shown on its own,
-  credit the artist next to it. These are
-  [Scryfall's rules](https://scryfall.com/docs/api). Turning a card printed
-  sideways the right way up is fine: the picture itself stays as it is, and
-  Scryfall's own site has a button for it.
+- **Follow [Scryfall's rules for card pictures](https://scryfall.com/docs/api):**
+  - never cover, crop or clip off the artist name or the copyright;
+  - never distort, skew or stretch a picture;
+  - never blur, sharpen, desaturate or color-shift it;
+  - never add watermarks, stamps or logos to it;
+  - never show a card as if someone other than Wizards of the Coast made
+    it, or as if it were from another game;
+  - when the artwork is shown on its own, name the artist and the copyright
+    next to it.
+
+  So buttons may sit over the artwork, and a question may cover the title
+  bar with a plain bar to hide the card's name, as a layer over the
+  picture, never drawn into it. Turning a card printed sideways the right
+  way up is fine too: the picture itself stays as it is, and Scryfall's
+  own site has a button for it.
 - **Stay within Scryfall's rate limit** of 2 requests per second, and wait 30
   seconds after being told to slow down. The backend does both.
 - **Don't share the app publicly yet.** MTGGoldfish's terms allow personal use
