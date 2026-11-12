@@ -8,6 +8,7 @@ import math
 import re
 import sqlite3
 import time
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TypedDict
@@ -37,8 +38,8 @@ class ExportCard(TypedDict):
     # into it after a right answer. None for a card without a single art
     # box, such as a split card, or a kind not measured.
     art_box: list[float] | None
-    # Where the title bar sits on the front picture, as [left, top,
-    # width, height]: the app covers it to ask which card it is from the
+    # Where the name sits on the front picture, as [left, top, width,
+    # height]: the app paints over it to ask which card it is from the
     # full picture. None when the name shows elsewhere on the card too.
     name_box: list[float] | None
     # The front side's artwork alone, and who painted it. Scryfall asks
@@ -123,16 +124,32 @@ def art_box(card: Card) -> list[float] | None:
         box = found
     return list(box)
 
-# Where the title bar - the name and the mana cost - sits on each kind of
-# card front, as shares of the card's width and height: left, top, width,
-# height. Measured on Scryfall's pictures on 2026-11-12. The 1993 frame's
-# printings place the name a little differently, so its box is taller.
-NAME_BOXES = {
-    "1993": (0.065, 0.030, 0.870, 0.065),
-    "1997": (0.070, 0.044, 0.860, 0.054),
-    "2003": (0.070, 0.043, 0.860, 0.064),
-    "2015": (0.060, 0.045, 0.880, 0.058),
+# Where the name sits in the title bar of each kind of card front, as
+# shares of the card's width and height, measured on Scryfall's pictures
+# on 2026-11-12: where the name starts, its top and height, where the
+# mana cost ends on the right, and the width of one mana symbol. The top
+# and height leave a little of the title bar above and below the
+# letters, which the app paints the name over with.
+@dataclass(frozen=True)
+class NameArea:
+    left: float
+    top: float
+    height: float
+    cost_right: float
+    symbol: float
+
+NAME_AREAS = {
+    "1993": NameArea(0.075, 0.033, 0.058, 0.918, 0.050),
+    "1997": NameArea(0.085, 0.048, 0.046, 0.918, 0.046),
+    "2003": NameArea(0.080, 0.050, 0.054, 0.918, 0.047),
+    "2015": NameArea(0.080, 0.052, 0.051, 0.928, 0.0515),
 }
+# Frame effects with an icon left of the name: where the name starts then
+NAME_AFTER_ICON = {"lesson": 0.165, "tombstone": 0.105}
+# Room left between the name's area and the mana cost, or the title
+# bar's rounded end on a card without one
+NAME_GAP = 0.02
+
 # Words a card's Oracle text uses for the card itself, where older
 # printings print its name instead, e.g. "This land enters tapped" on a
 # card printed "Volatile Fjord enters the battlefield tapped"
@@ -148,8 +165,9 @@ SELF_REFERENCE_PRINTED_FROM = "2024-11-15"
 NEW_CARD_SET_TYPES = {"expansion", "core"}
 
 def name_box(card: Card) -> list[float] | None:
-    """Where to hide the name on the front picture, for the question
-    "which card is this?" asked with the full card. None when the name
+    """Where the name sits on the front picture, for the question
+    "which card is this?" asked with the full card: [left, top, width,
+    height], up to just before the mana cost. None when the name
     shows anywhere else on the picture, or might: then the question is
     never asked about this card.
     """
@@ -158,8 +176,11 @@ def name_box(card: Card) -> list[float] | None:
     # prints more than one
     if card.layout != "normal" or raw.get("lang") != "en":
         return None
-    box = NAME_BOXES.get(card.frame or "")
-    if box is None:
+    # A planeswalker's title bar has another shape, with the name higher
+    if "Planeswalker" in card.type_line:
+        return None
+    area = NAME_AREAS.get(card.frame or "")
+    if area is None:
         return None
     oracle_text = raw.get("oracle_text") or ""
     text = oracle_text + "\n" + (raw.get("flavor_text") or "")
@@ -173,7 +194,12 @@ def name_box(card: Card) -> list[float] | None:
     )
     if SELF_REFERENCE.search(oracle_text) and not printed_as_oracle:
         return None
-    return list(box)
+    left = max([area.left] + [NAME_AFTER_ICON[effect]
+                              for effect in raw.get("frame_effects") or []
+                              if effect in NAME_AFTER_ICON])
+    symbols = len(re.findall(r"\{[^}]*\}", card.mana_cost or ""))
+    right = area.cost_right - symbols * area.symbol - NAME_GAP
+    return [round(value, 4) for value in (left, area.top, right - left, area.height)]
 
 def horizontal_sides(card: Card) -> list[bool]:
     """Which sides are printed sideways: both halves of a split card

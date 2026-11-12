@@ -164,14 +164,26 @@ def _english(name: str, **extra: Any) -> Card:
     return Card.from_raw(_raw(name, lang="en", type_line="Instant", **extra))
 
 @pytest.mark.parametrize("frame, box", [
-    ("1993", [0.065, 0.030, 0.870, 0.065]),
-    ("1997", [0.070, 0.044, 0.860, 0.054]),
-    ("2003", [0.070, 0.043, 0.860, 0.064]),
-    ("2015", [0.060, 0.045, 0.880, 0.058]),
+    ("1993", [0.075, 0.033, 0.823, 0.058]),
+    ("1997", [0.085, 0.048, 0.813, 0.046]),
+    ("2003", [0.08, 0.05, 0.818, 0.054]),
+    ("2015", [0.08, 0.052, 0.828, 0.051]),
 ])
 def test_name_box_follows_the_frame(frame: str, box: list[float]) -> None:
-    card = _english("Counterspell", frame=frame, oracle_text="Counter target spell.")
+    # A land: no mana cost, so the name's area runs to near the bar's end
+    card = _english("Ice Tunnel", frame=frame, oracle_text="Tap: Add one mana.")
     assert name_box(card) == box
+
+def test_name_box_ends_before_the_mana_cost() -> None:
+    # Three symbols of 0.0515, and the gap of 0.02, before 0.928
+    card = _english("Lórien Revealed", mana_cost="{3}{U}{U}", oracle_text="Draw three cards.")
+    assert name_box(card) == [0.08, 0.052, 0.6735, 0.051]
+
+def test_name_box_starts_after_an_icon() -> None:
+    lesson = _english("Firebending Lesson", mana_cost="{R}", frame_effects=["lesson"])
+    tombstone = _english("Lava Dart", frame="1997", frame_effects=["tombstone"])
+    assert name_box(lesson) == [0.165, 0.052, 0.6915, 0.051]
+    assert name_box(tombstone) == [0.105, 0.048, 0.793, 0.046]
 
 def test_no_name_box_when_the_name_shows_elsewhere() -> None:
     # In the rules text, in the flavor text, or a legend's short name
@@ -194,12 +206,15 @@ def test_no_name_box_for_an_old_printing_that_refers_to_itself() -> None:
                    released_at="2025-08-01", set_type="expansion")
     assert name_box(old) is None
     assert name_box(reprint) is None
-    assert name_box(new) == [0.060, 0.045, 0.880, 0.058]
+    assert name_box(new) == [0.08, 0.052, 0.828, 0.051]
 
-def test_no_name_box_for_more_than_one_name_another_language_or_frame() -> None:
+def test_no_name_box_for_more_than_one_name_another_language_frame_or_a_planeswalker() -> None:
     adventure = _english("Bonecrusher Giant // Stomp", layout="adventure")
     french = Card.from_raw(_raw("Triskelion", lang="fr", type_line="Artifact Creature"))
     future = _english("Future Card", frame="future")
+    walker = Card.from_raw(_raw("Teferi, Time Raveler", lang="en",
+                                type_line="Legendary Planeswalker — Teferi"))
+    assert name_box(walker) is None
     assert name_box(adventure) is None
     assert name_box(french) is None
     assert name_box(future) is None
