@@ -225,10 +225,6 @@ def test_fetch_cards(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None
         lambda conn, raw, asked: ([_card(c["name"]) for c in raw["data"]], [])
     )
     monkeypatch.setattr(
-        "meta_morphis.scryfall.service.save_cards_to_cache",
-        lambda conn, cards: None
-    )
-    monkeypatch.setattr(
         "meta_morphis.scryfall.service._fetch_updates_for_outdated",
         lambda conn, outdated: ([_card(outdated_refreshed.name)], [_card(outdated_not_refreshed.name)])
     )
