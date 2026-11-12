@@ -59,6 +59,21 @@ def test_printings_without_pictures_are_ignored() -> None:
     # Rush's art is older
     assert _chosen_set(printings) == "lea"
 
+def test_an_artwork_cut_wrong_gives_way_to_another_printing() -> None:
+    printings = [
+        _printing("lrw", "2007-10-12", "briclot", frame="2003"),
+        _printing("2xm", "2020-08-07", "briclot", frame="2015"),
+        _printing("tsr", "2021-03-19", "briclot", frame="1997"),
+        _printing("m10", "2009-07-17", "other"),
+        _printing("m11", "2010-07-16", "other"),
+        _printing("m12", "2011-07-15", "other"),
+    ]
+    # The cut-wrong printing still counts for its artwork, which ties
+    # and is older, but the newest other printing of it is shown
+    assert _chosen_set(printings) == "2xm"
+    # With no other printing of the artwork, it is shown anyway
+    assert _chosen_set(printings[2:3]) == "tsr"
+
 def test_double_faced_cards_are_grouped_by_the_front_artwork() -> None:
     def double_faced(set_code: str, released: str, front: str) -> dict[str, Any]:
         return {
