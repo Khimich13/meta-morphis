@@ -25,6 +25,7 @@ def _raw(
         "illustration_id": artwork,
         "artist": "Some Artist",
         "games": ["paper"],
+        "lang": "en",
         "image_uris": {"grid": f"{printing_id}.webp", "art": f"{printing_id}-art.webp"},
     }
 
@@ -95,6 +96,15 @@ def test_an_old_choice_is_searched_again(
     _searches(monkeypatch, [_raw("2xm")])
 
     assert _shown(conn, DEFAULT) == ["2xm"]
+
+def test_a_fresh_choice_the_rules_no_longer_allow_is_searched_again(
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch
+) -> None:
+    # Saved before printings had to be in English
+    save_chosen_printing(conn, "oid", {**_raw("ren"), "lang": "fr"})
+    _searches(monkeypatch, [_raw("m10")])
+
+    assert _shown(conn, DEFAULT) == ["m10"]
 
 @pytest.mark.parametrize("saved", [True, False])
 def test_unreachable_scryfall_falls_back(

@@ -39,11 +39,13 @@ SCRYFALL_NAMED_URL = "https://api.scryfall.com/cards/named"
 SCRYFALL_SYMBOLOGY_URL = "https://api.scryfall.com/symbology"
 SCRYFALL_SEARCH_URL = "https://api.scryfall.com/cards/search"
 # Printings a player could meet at a table, for choosing a card's
-# artwork: paper only, and none of the special versions - promos,
-# gold-bordered and oversized cards (not tournament-legal), memorabilia,
-# and showcase, borderless, extended-art, full-art or "future" frames.
+# artwork: paper and English only, and none of the special versions -
+# promos, gold-bordered and oversized cards (not tournament-legal),
+# memorabilia, and showcase, borderless, extended-art, full-art or
+# "future" frames. Without lang:en, Scryfall also returns printings from
+# sets printed only in another language, such as Renaissance in French.
 SCRYFALL_REGULAR_PRINTINGS = (
-    "game:paper -is:promo -is:digital -border:gold -is:oversized "
+    "game:paper lang:en -is:promo -is:digital -border:gold -is:oversized "
     "-st:memorabilia -frame:future -is:showcase -is:extendedart "
     "-is:fullart -is:borderless"
 )

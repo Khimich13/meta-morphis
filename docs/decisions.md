@@ -31,8 +31,9 @@ what has been done is in the commit history.
   it back a step and brings it back the next day. Only a card's first answer
   each day counts.
 - **Each card is shown in its most familiar printing:** the artwork that
-  appears on the most regular paper printings, in its newest printing. The
-  question and the full card after answering always show the same printing.
+  appears on the most regular English paper printings, in its newest
+  printing. The question and the full card after answering always show the
+  same printing.
 - **From MTGGoldfish, only the lists of cards are used:** not their rank,
   deck percentages or copy counts. Basic lands are left out of every list.
 

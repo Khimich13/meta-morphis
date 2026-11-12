@@ -37,6 +37,7 @@ def is_regular_printing(printing: dict[str, Any]) -> bool:
     effects = printing.get("frame_effects") or []
     return (
         "paper" in (printing.get("games") or [])
+        and printing.get("lang") == "en"
         and not printing.get("promo")
         and not printing.get("digital")
         and printing.get("border_color") not in ("gold", "borderless")

@@ -10,6 +10,7 @@ def _printing(set_code: str, released: str, artwork: str, **extra: Any) -> dict[
         "released_at": released,
         "illustration_id": artwork,
         "games": ["paper"],
+        "lang": "en",
         "image_uris": {"grid": f"{set_code}.webp", "art": f"{set_code}-art.webp"},
         **extra,
     }
@@ -65,6 +66,7 @@ def test_double_faced_cards_are_grouped_by_the_front_artwork() -> None:
             "set": set_code,
             "released_at": released,
             "games": ["paper"],
+            "lang": "en",
             "card_faces": [
                 {"illustration_id": front, "image_uris": {"grid": "front.webp"}},
                 {"illustration_id": "back", "image_uris": {"grid": "back.webp"}},
@@ -89,6 +91,7 @@ def test_regular_printing_rules() -> None:
     assert is_regular_printing(regular)
     specials: list[dict[str, Any]] = [
         {"games": ["mtgo"]},
+        {"lang": "fr"},
         {"promo": True},
         {"digital": True},
         {"border_color": "gold"},

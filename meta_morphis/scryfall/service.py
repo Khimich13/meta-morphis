@@ -9,7 +9,7 @@ from meta_morphis.utils.http import RequestUnavailable
 from meta_morphis.utils.lists import chunked
 from meta_morphis.utils.text import normalize_name
 
-from .artwork import choose_printing
+from .artwork import choose_printing, is_regular_printing
 from .client import fetch_batch, fetch_by_oracle_ids, fetch_single, search_printings
 from .repo import (
     add_alias,
@@ -74,8 +74,14 @@ def get_display_printings(conn: sqlite3.Connection, cards: list[Card]) -> list[C
             continue
         saved = get_chosen_printing(conn, oracle_id)
         # A choice "from the future" was saved by a clock that ran ahead -
-        # treat it as old rather than trusting it indefinitely
-        if saved and 0 <= saved.age <= config.SCRYFALL_REFRESH_RATE:
+        # treat it as old rather than trusting it indefinitely. A choice
+        # the rules no longer allow, saved before a rule was added, is
+        # chosen again too.
+        if (
+            saved
+            and 0 <= saved.age <= config.SCRYFALL_REFRESH_RATE
+            and is_regular_printing(saved.raw)
+        ):
             shown[oracle_id] = saved
         else:
             if saved:
