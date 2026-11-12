@@ -94,7 +94,10 @@ def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> bool:
     or none in it) can't be told apart from the new card, so it is
     replaced as well - kept, it would refuse the name for good.
 
-    Returns whether `alias` now leads to `card_name`.
+    Returns False only when `alias` is that other cached card: Scryfall's
+    answer is then not the card the name asked for. An alias another card
+    already claimed is logged and kept by its owner, but the answer is
+    still the right card, so that returns True.
     """
     c = conn.cursor()
     alias_key = normalize_name(alias)
@@ -116,7 +119,6 @@ def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> bool:
 
     if not _claim_alias(c, alias_key, card_key):
         log.warning(f"Alias '{alias_key}' already belongs to another card - not claimed by '{card_key}'")
-        return False
     return True
 
 def save_cards_to_cache(conn: sqlite3.Connection, cards: list[Card]) -> None:

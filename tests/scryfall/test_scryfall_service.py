@@ -694,3 +694,27 @@ def test_fetch_cards_keeps_one_copy_of_a_shared_stale_card_it_could_not_refresh(
 
     assert [c.name for c in result] == ["New"]
     assert "Could not refresh 1 outdated card(s) - using the cached copies" in caplog.text
+
+# add_alias also turns down a name another card already claimed (first
+# claim wins). The card Scryfall answered with is still the right one,
+# so it stays in the run and the name is not recorded as a bad lookup.
+# Treating that refusal like a fuzzy match onto another card used to
+# drop the card and start the name's cooldown.
+def test_process_batch_request_keeps_a_card_whose_alias_another_card_claimed(
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: LogCaptureFixture
+) -> None:
+    save_cards_to_cache(conn, [Card.from_raw({"id": "2", "oracle_id": "o2", "name": "Owner"})])
+    add_alias(conn, "Shared", "Owner")
+
+    answer = {"id": "1", "oracle_id": "o1", "name": "Answer"}
+    monkeypatch.setattr("meta_morphis.scryfall.service.fetch_single", lambda name: answer)
+
+    raw: dict[str, Any] = {"data": [], "not_found": [{"name": "Shared"}]}
+    cards, unresolved = _process_batch_request(conn, raw, ["Shared"])
+
+    assert [c.name for c in cards] == ["Answer"]
+    assert unresolved == []
+    assert should_skip_lookup(conn, "Shared") is False
+    found = get_card_from_cache(conn, "Shared")
+    assert found is not None and found.name == "Owner"
+    assert "already belongs to another card" in caplog.text
