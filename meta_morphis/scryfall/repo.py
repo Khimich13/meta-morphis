@@ -68,7 +68,7 @@ def _cached_oracle_id(c: sqlite3.Cursor, card_key: str) -> str | None:
         return None
     return oracle_id if isinstance(oracle_id, str) else None
 
-def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> None:
+def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> bool:
     """Register an extra lookup alias for an already-cached card - e.g.
     the exact spelling that was searched for, when Scryfall's own
     matching (fuzzy, or a lenient exact match) resolved it to a
@@ -84,6 +84,8 @@ def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> None:
     card with a different oracle_id is another card that Scryfall's
     fuzzy matching answered the name with: it is kept, and the alias is
     not claimed.
+
+    Returns whether `alias` now leads to `card_name`.
     """
     c = conn.cursor()
     alias_key = normalize_name(alias)
@@ -97,13 +99,15 @@ def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> None:
                 f"'{alias_key}' is a cached card, but Scryfall answered it with a different card "
                 f"'{card_key}' - keeping both"
             )
-            return
+            return False
         c.execute("UPDATE card_aliases SET card_name = ? WHERE card_name = ?", (card_key, alias_key))
         c.execute("DELETE FROM cards WHERE name = ?", (alias_key,))
-        return
+        return True
 
     if not _claim_alias(c, alias_key, card_key):
         log.warning(f"Alias '{alias_key}' already belongs to another card - not claimed by '{card_key}'")
+        return False
+    return True
 
 def save_cards_to_cache(conn: sqlite3.Connection, cards: list[Card]) -> None:
     c = conn.cursor()

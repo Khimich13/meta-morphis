@@ -206,12 +206,12 @@ def _process_batch_request(
     The cards found are saved to the cache before they are returned.
     """
     cards: list[Card] = []
-    # (name asked, name of the card it got) for every name Scryfall
-    # answered with a card of a different name. The name is pointed at
-    # the card, so it hits cache next run instead of asking Scryfall
-    # about it again forever. For a renamed card, add_alias moves all of
-    # the old row's names to the new card.
-    aliases: list[tuple[str, str]] = []
+    # (name asked, the card it got) for every name Scryfall answered
+    # with a card of a different name. The name is pointed at the card,
+    # so it hits cache next run instead of asking Scryfall about it
+    # again forever. For a renamed card, add_alias moves all of the old
+    # row's names to the new card.
+    aliases: list[tuple[str, Card]] = []
     # Requested names that did NOT resolve to a card this run, whether
     # Scryfall confirmed the name doesn't exist, sent data we couldn't
     # parse, or we simply couldn't check because of an outage - either
@@ -241,7 +241,7 @@ def _process_batch_request(
         if card:
             cards.append(card)
             if paired and _answers_another_name(found_names[i], card):
-                aliases.append((found_names[i], card.name))
+                aliases.append((found_names[i], card))
         elif paired:
             # Reported under the name that was asked, so a refresh serves
             # the stale copy instead of dropping it - the answer's own
@@ -262,7 +262,7 @@ def _process_batch_request(
             if card:
                 cards.append(card)
                 if _answers_another_name(name, card):
-                    aliases.append((name, card.name))
+                    aliases.append((name, card))
             else:
                 log.warning(f"Bad name - {name} saved to card_lookup_failures")
                 with conn:
@@ -276,9 +276,23 @@ def _process_batch_request(
     # One commit for the batch. Every lookup is done by now, so the
     # transaction never waits on Scryfall. The card rows are saved first:
     # an alias is a foreign key into them.
+    # Cards that turned out not to answer the name they were fetched for
+    refused: list[Card] = []
     with conn:
         save_cards_to_cache(conn, cards)
-        for name, card_name in aliases:
-            add_alias(conn, name, card_name)
+        for name, card in aliases:
+            if not add_alias(conn, name, card.name):
+                # The name is a cached card of its own, and Scryfall's
+                # fuzzy matching answered it with a different card. That
+                # card is not what the name asked for, so it is left out
+                # of this batch's answer and the name is reported
+                # unresolved - the stale copy is served in its place.
+                # Recorded as a failed lookup, or the same fuzzy match
+                # would repeat every run until the cooldown stops it.
+                refused.append(card)
+                unresolved_names.append(name)
+                record_bad_name_attempt(conn, name)
+    if refused:
+        cards = [c for c in cards if not any(c is r for r in refused)]
 
     return cards, unresolved_names

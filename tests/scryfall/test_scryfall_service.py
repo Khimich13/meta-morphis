@@ -546,6 +546,9 @@ def test_fetch_cards_moves_old_names_to_a_renamed_card(
 # answer a stale card's name with an unrelated card. A name collision
 # alone is not a rename: the old row moves only to a card with the same
 # oracle_id. Otherwise it stays, and the other card's row is left alone.
+# The stale copy is what the run returns - the other card is not on the
+# list - and the miss starts the cooldown, so the fuzzy match is not
+# repeated every run.
 def test_fetch_cards_keeps_a_stale_card_the_fuzzy_lookup_answers_with_another(
     conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: LogCaptureFixture
 ) -> None:
@@ -557,10 +560,18 @@ def test_fetch_cards_keeps_a_stale_card_the_fuzzy_lookup_answers_with_another(
         "meta_morphis.scryfall.service.fetch_batch",
         lambda names: {"data": [], "not_found": [{"name": n} for n in names]},
     )
-    monkeypatch.setattr("meta_morphis.scryfall.service.fetch_single", lambda name: other)
+    asked: list[str] = []
+    def answer(name: str) -> dict[str, Any]:
+        asked.append(name)
+        return other
+    monkeypatch.setattr("meta_morphis.scryfall.service.fetch_single", answer)
 
-    fetch_cards(conn, [MetaEntry(name="Old")])
+    first_run = fetch_cards(conn, [MetaEntry(name="Old")])
+    second_run = fetch_cards(conn, [MetaEntry(name="Old")])
 
+    assert [c.name for c in first_run] == ["Old"]
+    assert [c.name for c in second_run] == ["Old"]
+    assert asked == ["Old"]
     assert sorted(conn.execute("SELECT name FROM cards").fetchall()) == [("old",), ("other",)]
     found = get_card_from_cache(conn, "Old")
     assert found is not None and found.name == "Old"
