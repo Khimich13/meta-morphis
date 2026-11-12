@@ -219,11 +219,21 @@
   margin: 0;
   padding: 0;
   display: grid;
+  /* No wider than the list, however long a name: OptionButton fits it */
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
 }
 
 .options button {
   width: 100%;
+  /* Narrow sides leave a long name more room, so it shrinks less; a short
+     one is centered and never comes near them */
+  padding-inline: 8px;
+}
+
+/* Each name on one line: OptionButton shrinks one too long to fit */
+.options button span {
+  white-space: nowrap;
 }
 
 /* The result after answering: a box tinted green or red, with the

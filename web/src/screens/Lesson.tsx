@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useRef, useState } from 'react';
+import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 
 import CardPicture from '../components/CardPicture';
@@ -200,7 +200,7 @@ export default function Lesson({
           <ul className="options">
             {question.options.map((option) => (
               <li key={option.oracle_id}>
-                <button onClick={() => pick(option)}>{option.name}</button>
+                <OptionButton name={option.name} onPick={() => pick(option)} />
               </li>
             ))}
           </ul>
@@ -226,6 +226,47 @@ export default function Lesson({
         </>
       )}
     </section>
+  );
+}
+
+/**
+ * An answer button, its name always on one line: a name too long for the
+ * button gets text just small enough to fit. Measured before the button is
+ * first shown, and again whenever its width changes, as when the phone
+ * turns.
+ */
+function OptionButton({ name, onPick }: { name: string; onPick: () => void }) {
+  const button = useRef<HTMLButtonElement>(null);
+  const text = useRef<HTMLSpanElement>(null);
+
+  useLayoutEffect(() => {
+    const box = button.current;
+    const span = text.current;
+    if (!box || !span) return;
+    let width = -1;
+    const fit = () => {
+      // Only a new width can change the fit; the text's own size changes
+      // the button's height, which must not measure it again
+      if (box.clientWidth === width) return;
+      width = box.clientWidth;
+      // The size is the button's own, not the span's: a smaller span alone
+      // would sit low, on the line of the full-size text
+      box.style.fontSize = '';
+      const style = getComputedStyle(box);
+      const room = width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      const needed = span.getBoundingClientRect().width;
+      if (needed > room) box.style.fontSize = `${Math.floor((room / needed) * 1000) / 1000}em`;
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <button ref={button} onClick={onPick}>
+      <span ref={text}>{name}</span>
+    </button>
   );
 }
 
