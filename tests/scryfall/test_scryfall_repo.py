@@ -9,6 +9,7 @@ from meta_morphis import config
 from meta_morphis.models.card import Card
 from meta_morphis.scryfall.repo import (
     add_alias,
+    answers_another_cached_card,
     get_card_from_cache,
     record_bad_name_attempt,
     save_cards_to_cache,
@@ -298,12 +299,12 @@ def test_get_card_from_cache_wrong_shape_is_a_miss(conn: sqlite3.Connection, blo
 
 # A reversible card has no oracle_id at the top level, only on its faces.
 # A renamed one used to look like a different card: the old row was kept,
-# and add_alias refused the name, so the stale row was fetched again after
+# and its name was refused, so the stale row was fetched again after
 # every cooldown. The face's oracle_id identifies it, on either side.
 @pytest.mark.parametrize("old_reversible, new_reversible", [
     (True, False), (False, True), (True, True),
 ])
-def test_add_alias_moves_a_renamed_reversible_card(
+def test_a_renamed_reversible_card_is_not_another_card(
     conn: sqlite3.Connection, old_reversible: bool, new_reversible: bool
 ) -> None:
     def raw(card_id: str, name: str, reversible: bool) -> dict[str, object]:
@@ -320,7 +321,8 @@ def test_add_alias_moves_a_renamed_reversible_card(
     new = Card.from_raw(raw("2", "New", new_reversible))
     save_cards_to_cache(conn, [old, new])
 
-    assert add_alias(conn, old.name, new.name)
+    assert not answers_another_cached_card(conn, old.name, new)
+    add_alias(conn, old.name, new.name)
 
     found = get_card_from_cache(conn, old.name)
     assert found is not None and found.name == new.name

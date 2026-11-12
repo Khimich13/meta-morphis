@@ -96,7 +96,7 @@ def answers_another_cached_card(conn: sqlite3.Connection, alias: str, card: Card
         conn.cursor(), normalize_name(alias), normalize_name(card.name), card.oracle_id
     )
 
-def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> bool:
+def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> None:
     """Register an extra lookup alias for an already-cached card - e.g.
     the exact spelling that was searched for, when Scryfall's own
     matching (fuzzy, or a lenient exact match) resolved it to a
@@ -104,21 +104,15 @@ def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> bool:
     The card must already have a row in `cards`, since card_aliases.card_name
     is a foreign key into it.
 
-    If `alias` is itself the name of a cached card with the same
-    oracle_id, Scryfall now knows that card by a new name (an errata
-    rename, say). Every alias of the old row moves to the new card and
-    the old row is dropped - otherwise the old row keeps answering for
-    those names, stays stale, and is refreshed again every run. A cached
-    card with a different oracle_id is another card that Scryfall's
-    fuzzy matching answered the name with: it is kept, and the alias is
-    not claimed. When either oracle_id can't be read (corrupt JSON, or
-    none in it), the old row can't be told apart from the new card, so
-    it is replaced as well - kept, it would refuse the name for good.
+    If `alias` is itself the name of another cached card, Scryfall now
+    knows that card by a new name (an errata rename, say). Every alias of
+    the old row moves to the new card and the old row is dropped -
+    otherwise the old row keeps answering for those names, stays stale,
+    and is refreshed again every run. Whether it is a rename and not a
+    fuzzy match onto a different card is the caller's to check first,
+    with answers_another_cached_card, before the card is saved.
 
-    Returns False only when `alias` is that other cached card: Scryfall's
-    answer is then not the card the name asked for. An alias another card
-    already claimed is logged and kept by its owner, but the answer is
-    still the right card, so that returns True.
+    An alias another card already claimed is logged and kept by its owner.
     """
     c = conn.cursor()
     alias_key = normalize_name(alias)
@@ -127,15 +121,12 @@ def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> bool:
     old_row = c.execute("SELECT 1 FROM cards WHERE name = ?", (alias_key,)).fetchone()
     # Never drop the row the aliases are being moved to
     if old_row and alias_key != card_key:
-        if _is_another_cached_card(c, alias_key, card_key, _cached_oracle_id(c, card_key)):
-            return False
         c.execute("UPDATE card_aliases SET card_name = ? WHERE card_name = ?", (card_key, alias_key))
         c.execute("DELETE FROM cards WHERE name = ?", (alias_key,))
-        return True
+        return
 
     if not _claim_alias(c, alias_key, card_key):
         log.warning(f"Alias '{alias_key}' already belongs to another card - not claimed by '{card_key}'")
-    return True
 
 def save_cards_to_cache(conn: sqlite3.Connection, cards: list[Card]) -> None:
     c = conn.cursor()
