@@ -37,7 +37,8 @@ what has been done is in the commit history.
   (its title bar has another shape), not in its rules or flavor text, and
   without "this creature" and the like in its Oracle text unless the
   printing is from a new set from Foundations on (older printings and
-  reprints print the name there instead). A card that can be asked both
+  reprints print the name there instead). A keyword's reminder text doesn't
+  count: it says "this card" on every printing. A card that can be asked both
   ways gets either, half the time each.
 - **Each card is shown in its most familiar printing:** the artwork that
   appears on the most regular English paper printings, in its newest

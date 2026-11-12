@@ -163,6 +163,22 @@ SELF_REFERENCE = re.compile(
 # for new sets - a reprint (The List, a Commander deck) can keep the old text.
 SELF_REFERENCE_PRINTED_FROM = "2024-11-15"
 NEW_CARD_SET_TYPES = {"expansion", "core"}
+# Reminder text, in brackets
+REMINDER = re.compile(r"\([^)]*\)")
+
+def without_keyword_reminders(oracle_text: str, keywords: list[str]) -> str:
+    """The Oracle text without the reminder text of its keywords, e.g.
+    Flashback's "(You may cast this card from your graveyard...)". A
+    keyword's reminder text says "this card" or "this creature" on every
+    printing, never the name. Other reminder text stays: Dryad Arbor's
+    prints its name, where the Oracle text says "this land".
+    """
+    lines = []
+    for line in oracle_text.split("\n"):
+        if any(line.lower().startswith(keyword.lower()) for keyword in keywords):
+            line = REMINDER.sub("", line)
+        lines.append(line)
+    return "\n".join(lines)
 
 def name_box(card: Card) -> list[float] | None:
     """Where the name sits on the front picture, for the question
@@ -192,7 +208,8 @@ def name_box(card: Card) -> list[float] | None:
         (raw.get("released_at") or "") >= SELF_REFERENCE_PRINTED_FROM
         and raw.get("set_type") in NEW_CARD_SET_TYPES
     )
-    if SELF_REFERENCE.search(oracle_text) and not printed_as_oracle:
+    rules = without_keyword_reminders(oracle_text, card.keywords)
+    if SELF_REFERENCE.search(rules) and not printed_as_oracle:
         return None
     left = max([area.left] + [NAME_AFTER_ICON[effect]
                               for effect in raw.get("frame_effects") or []

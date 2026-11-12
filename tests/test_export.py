@@ -208,6 +208,21 @@ def test_no_name_box_for_an_old_printing_that_refers_to_itself() -> None:
     assert name_box(reprint) is None
     assert name_box(new) == [0.08, 0.052, 0.828, 0.051]
 
+def test_name_box_despite_a_keyword_reminder_that_refers_to_itself() -> None:
+    # A keyword's reminder text is printed "this card" on old printings too
+    looting = _english(
+        "Faithless Looting", keywords=["Flashback"], released_at="2019-06-14",
+        set_type="masters", oracle_text="Draw two cards, then discard two cards.\n"
+        "Flashback {2}{R} (You may cast this card from your graveyard for its "
+        "flashback cost. Then exile it.)")
+    # Other reminder text may print the name
+    arbor = _english(
+        "Dryad Arbor", released_at="2024-08-02", set_type="masters",
+        oracle_text="(This land isn't a spell, it's affected by summoning sickness, "
+        "and it has \"{T}: Add {G}.\")")
+    assert name_box(looting) == [0.08, 0.052, 0.828, 0.051]
+    assert name_box(arbor) is None
+
 def test_no_name_box_for_more_than_one_name_another_language_frame_or_a_planeswalker() -> None:
     adventure = _english("Bonecrusher Giant // Stomp", layout="adventure")
     french = Card.from_raw(_raw("Triskelion", lang="fr", type_line="Artifact Creature"))
