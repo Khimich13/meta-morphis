@@ -37,7 +37,7 @@ def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[Card]:
         output.extend(updates)
 
         if unrecognized:
-            log.warning(f"{len(unrecognized)} outdated cards were not found in Scryfall and were not refreshed")
+            log.warning(f"Could not refresh {len(unrecognized)} outdated card(s) - using the cached copies")
             output.extend(unrecognized)
 
     if missing:

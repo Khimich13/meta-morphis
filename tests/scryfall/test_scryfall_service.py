@@ -668,4 +668,4 @@ def test_fetch_cards_keeps_one_copy_of_a_shared_stale_card_it_could_not_refresh(
     result = fetch_cards(conn, [MetaEntry(name="Old"), MetaEntry(name="New")])
 
     assert [c.name for c in result] == ["New"]
-    assert "1 outdated cards were not found" in caplog.text
+    assert "Could not refresh 1 outdated card(s) - using the cached copies" in caplog.text
