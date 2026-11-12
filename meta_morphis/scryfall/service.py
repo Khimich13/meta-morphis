@@ -122,6 +122,11 @@ def _classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[li
     fresh: list[Card] = []
     outdated: list[Card] = []
     missing: list[str] = []
+    # Two names on the list can lead to one cached card, e.g. an old
+    # spelling and the new one after Scryfall renamed it. The card is
+    # classified once, under whichever name comes first - a second copy
+    # would be counted, refreshed and exported twice
+    seen: set[str] = set()
 
     for entry in meta:
         # A split card is looked up by its full name ("Fire // Ice"), never
@@ -132,7 +137,10 @@ def _classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[li
 
         cached = get_card_from_cache(conn, name)
 
+        if cached and cached.name in seen:
+            continue
         if cached:
+            seen.add(cached.name)
             # Negative age = written by a clock that ran ahead, treat as stale
             if cached.age < 0 or cached.age > config.SCRYFALL_REFRESH_RATE:
                 # Checked under the cached card's name, not MTGGoldfish's:
@@ -160,10 +168,7 @@ def _fetch_updates_for_outdated(conn: sqlite3.Connection, outdated: list[Card]) 
     # legitimately give a card a different name than it was cached under,
     # and comparing old-name-in-new-names used to put the same physical
     # card in both `updates` and `unrecognized`.
-    # Two list names can lead to one cached card, e.g. an old spelling
-    # and the new one after Scryfall renamed it - that card is in
-    # `outdated` twice, and is asked about once
-    names = list(dict.fromkeys(card.name for card in outdated))
+    names = [card.name for card in outdated]
     updates: list[Card] = []
     unresolved_names: set[str] = set()
 

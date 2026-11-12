@@ -640,3 +640,32 @@ def test_fetch_cards_asks_once_for_a_stale_card_two_names_share(
     assert asked == [["New"]]
     assert [c.name for c in result] == ["New"]
     assert "not checking them for renamed cards" not in caplog.text
+
+# A fresh card two list names share comes back once, not once per name
+def test_classify_cards_keeps_one_copy_of_a_fresh_card_two_names_share(conn: sqlite3.Connection) -> None:
+    save_cards_to_cache(conn, [Card.from_raw({"id": "1", "oracle_id": "o1", "name": "New"})])
+    add_alias(conn, "Old", "New")
+
+    fresh, outdated, missing = _classify_cards(conn, [MetaEntry(name="Old"), MetaEntry(name="New")])
+
+    assert [c.name for c in fresh] == ["New"]
+    assert outdated == []
+    assert missing == []
+
+# A stale card two names share that can't be refreshed is kept once and
+# counted once - it used to be in `unrecognized` twice
+def test_fetch_cards_keeps_one_copy_of_a_shared_stale_card_it_could_not_refresh(
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: LogCaptureFixture
+) -> None:
+    save_cards_to_cache(conn, [Card.from_raw({"id": "1", "oracle_id": "o1", "name": "New"})])
+    add_alias(conn, "Old", "New")
+    conn.execute("UPDATE cards SET updated_at = 0")
+
+    def raise_unavailable(names: list[str]) -> dict[str, Any] | None:
+        raise RequestUnavailable("Scryfall is down")
+    monkeypatch.setattr("meta_morphis.scryfall.service.fetch_batch", raise_unavailable)
+
+    result = fetch_cards(conn, [MetaEntry(name="Old"), MetaEntry(name="New")])
+
+    assert [c.name for c in result] == ["New"]
+    assert "1 outdated cards were not found" in caplog.text
