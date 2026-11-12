@@ -70,13 +70,15 @@ def _is_another_cached_card(
     c: sqlite3.Cursor, alias_key: str, card_key: str, oracle_id: str | None
 ) -> bool:
     """`alias_key` is a cached card other than `card_key`, with a known
-    oracle_id that isn't `oracle_id`. Logged when it is. Both names
-    must already be normalized.
+    oracle_id that isn't `oracle_id`. Logged when it is. An oracle_id
+    that can't be read, on either side, can't tell the two apart, so it
+    never makes them different cards. Both names must already be
+    normalized.
     """
     if alias_key == card_key:
         return False
     old_oracle_id = _cached_oracle_id(c, alias_key)
-    if old_oracle_id is None or old_oracle_id == oracle_id:
+    if old_oracle_id is None or oracle_id is None or old_oracle_id == oracle_id:
         return False
     log.warning(
         f"'{alias_key}' is a cached card, but Scryfall answered it with a different card "
@@ -109,9 +111,9 @@ def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> bool:
     those names, stays stale, and is refreshed again every run. A cached
     card with a different oracle_id is another card that Scryfall's
     fuzzy matching answered the name with: it is kept, and the alias is
-    not claimed. An old row whose oracle_id can't be read (corrupt JSON,
-    or none in it) can't be told apart from the new card, so it is
-    replaced as well - kept, it would refuse the name for good.
+    not claimed. When either oracle_id can't be read (corrupt JSON, or
+    none in it), the old row can't be told apart from the new card, so
+    it is replaced as well - kept, it would refuse the name for good.
 
     Returns False only when `alias` is that other cached card: Scryfall's
     answer is then not the card the name asked for. An alias another card

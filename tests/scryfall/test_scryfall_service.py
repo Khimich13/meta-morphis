@@ -589,6 +589,27 @@ def test_process_batch_request_replaces_an_unreadable_row_a_rename_answers(
     found = get_card_from_cache(conn, "Old")
     assert found is not None and found.name == "New"
 
+# The same holds the other way round: an answer whose own oracle_id can't
+# be read used to be refused as a different card, recorded as a bad lookup,
+# and the stale copy stayed frozen under its old name. It replaces the row.
+def test_process_batch_request_takes_a_rename_whose_oracle_id_is_unreadable(
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch
+) -> None:
+    save_cards_to_cache(conn, [Card.from_raw({"id": "1", "oracle_id": "o1", "name": "Old"})])
+
+    renamed = {"id": "1", "name": "New"}
+    monkeypatch.setattr("meta_morphis.scryfall.service.fetch_single", lambda name: renamed)
+
+    raw: dict[str, Any] = {"data": [], "not_found": [{"name": "Old"}]}
+    cards, unresolved = _process_batch_request(conn, raw, ["Old"])
+
+    assert [c.name for c in cards] == ["New"]
+    assert unresolved == []
+    assert should_skip_lookup(conn, "Old") is False
+    assert conn.execute("SELECT name FROM cards").fetchall() == [("new",)]
+    found = get_card_from_cache(conn, "Old")
+    assert found is not None and found.name == "New"
+
 # The single lookup falls back to Scryfall's fuzzy matching, which can
 # answer a stale card's name with an unrelated card. A name collision
 # alone is not a rename: the old row moves only to a card with the same
