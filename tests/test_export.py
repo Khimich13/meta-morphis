@@ -237,6 +237,17 @@ def test_build_export_keeps_the_newest_copy_of_a_card(caplog: pytest.LogCaptureF
     assert [c["name"] for c in data["cards"]] == ["New Name"]
     assert "Leaving out 'Old Name' - the same card as 'New Name'" in caplog.text
 
+# A clock that ran ahead gives a negative age - that says nothing about
+# how new the data is, so the copy with a real age wins
+def test_build_export_does_not_take_a_negative_age_as_newest(caplog: pytest.LogCaptureFixture) -> None:
+    ahead = Card.from_raw(_raw("Old Name", oracle_id="n"))
+    ahead.age = -config.DAY
+    new = Card.from_raw(_raw("New Name", oracle_id="n"))
+    new.age = 5 * config.DAY
+    data = build_export("pauper", [new, ahead], "2026-10-17T19:18:03Z")
+    assert [c["name"] for c in data["cards"]] == ["New Name"]
+    assert "Leaving out 'Old Name' - the same card as 'New Name'" in caplog.text
+
 def test_export_format_writes_the_file(
     conn: sqlite3.Connection,
     tmp_path: Path,

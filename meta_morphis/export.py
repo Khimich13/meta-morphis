@@ -4,6 +4,7 @@ Run with: uv run python -m meta_morphis.export
 """
 import json
 import logging
+import math
 import sqlite3
 import time
 from datetime import datetime, timezone
@@ -158,6 +159,12 @@ def build_card(card: Card) -> ExportCard | None:
         "horizontal": horizontal_sides(card),
     }
 
+def _staleness(card: Card) -> float:
+    # A negative age was written by a clock that ran ahead, so nothing
+    # says how old the data really is - it counts as the oldest, as the
+    # cache in scryfall/service.py treats it as stale
+    return math.inf if card.age < 0 else card.age
+
 def build_export(format_name: str, cards: list[Card], list_updated: str) -> ExportFile:
     # The app tells cards apart by oracle id, so each may appear only once.
     # Two names on the list can still lead to one card, e.g. an old
@@ -173,7 +180,7 @@ def build_export(format_name: str, cards: list[Card], list_updated: str) -> Expo
             continue
         oracle_id = built["oracle_id"]
         other = kept.get(oracle_id)
-        if other and other[0].age <= card.age:
+        if other and _staleness(other[0]) <= _staleness(card):
             log.warning(f"Leaving out '{card.name}' - the same card as '{other[0].name}'")
             continue
         if other:
