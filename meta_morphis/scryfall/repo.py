@@ -128,6 +128,21 @@ def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> None:
     if not _claim_alias(c, alias_key, card_key):
         log.warning(f"Alias '{alias_key}' already belongs to another card - not claimed by '{card_key}'")
 
+def rename_card(conn: sqlite3.Connection, old_name: str, new_name: str) -> None:
+    """Scryfall now knows the cached card `old_name` as `new_name`, which
+    is already saved. Every name that led to the old row moves to the new
+    one and the old row is dropped - otherwise it keeps answering for
+    those names, stays stale, and is refreshed again every run.
+    """
+    old_key = normalize_name(old_name)
+    new_key = normalize_name(new_name)
+    # Never drop the row the names are being moved to
+    if old_key == new_key:
+        return
+    c = conn.cursor()
+    c.execute("UPDATE card_aliases SET card_name = ? WHERE card_name = ?", (new_key, old_key))
+    c.execute("DELETE FROM cards WHERE name = ?", (old_key,))
+
 def save_cards_to_cache(conn: sqlite3.Connection, cards: list[Card]) -> None:
     c = conn.cursor()
     for card in cards:

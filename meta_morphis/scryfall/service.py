@@ -10,13 +10,14 @@ from meta_morphis.utils.lists import chunked
 from meta_morphis.utils.text import normalize_name
 
 from .artwork import choose_printing
-from .client import fetch_batch, fetch_single, search_printings
+from .client import fetch_batch, fetch_by_oracle_ids, fetch_single, search_printings
 from .repo import (
     add_alias,
     answers_another_cached_card,
     get_card_from_cache,
     get_chosen_printing,
     record_bad_name_attempt,
+    rename_card,
     save_cards_to_cache,
     save_chosen_printing,
     should_skip_lookup,
@@ -145,17 +146,21 @@ def _classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[li
             # Negative age = written by a clock that ran ahead, treat as stale
             if cached.age < 0 or cached.age > config.SCRYFALL_REFRESH_RATE:
                 # Checked under the cached card's name, not MTGGoldfish's:
-                # the refresh asks Scryfall for that name and records a
-                # failure under it. They differ for a double-faced card,
-                # which MTGGoldfish lists by its front face only.
+                # a failed refresh is recorded under that name. They
+                # differ for a double-faced card, which MTGGoldfish lists
+                # by its front face only.
                 if should_skip_lookup(conn, cached.name):
                     # A refresh was recently confirmed to fail for this
                     # card - serve the stale copy instead of
                     # hammering Scryfall again every run for the length
                     # of the cooldown.
                     fresh.append(cached)
-                else:
+                elif cached.oracle_id:
                     outdated.append(cached)
+                else:
+                    # The refresh asks by oracle_id. A card cached
+                    # without one is fetched by name, like a new card
+                    missing.append(name)
             else:
                 fresh.append(cached)
         elif not should_skip_lookup(conn, name):
@@ -164,32 +169,54 @@ def _classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[li
     return fresh, outdated, missing
 
 def _fetch_updates_for_outdated(conn: sqlite3.Connection, outdated: list[Card]) -> tuple[list[Card], list[Card]]:
-    # Correlated by the OLD (requested) name, not the refreshed card's new
-    # name - Scryfall errata renames (or a fuzzy-resolved correction) can
-    # legitimately give a card a different name than it was cached under,
-    # and comparing old-name-in-new-names used to put the same physical
-    # card in both `updates` and `unrecognized`.
-    names = [card.name for card in outdated]
+    # Asked by oracle_id, a card's permanent identity, not by name: a
+    # name can be answered with a different card (Scryfall's fuzzy
+    # matching), and no longer finds the card once Scryfall renames it.
+    stale = {card.oracle_id: card for card in outdated if card.oracle_id}
     updates: list[Card] = []
-    unresolved_names: set[str] = set()
 
-    for batch_names in chunked(names, config.SCRYFALL_BATCH_SIZE_LIMIT):
+    for batch_ids in chunked(list(stale), config.SCRYFALL_BATCH_SIZE_LIMIT):
         try:
-            raw = fetch_batch(batch_names)
+            raw = fetch_by_oracle_ids(batch_ids)
         except RequestUnavailable as e:
-            log.warning(f"Could not refresh {len(batch_names)} outdated card(s), Scryfall was unreachable ({e}) - will retry next run")
-            unresolved_names.update(batch_names)
+            log.warning(f"Could not refresh {len(batch_ids)} outdated card(s), Scryfall was unreachable ({e}) - will retry next run")
             continue
         if raw:
-            cards, unresolved = _process_batch_request(conn, raw, batch_names)
-            updates.extend(cards)
-            unresolved_names.update(unresolved)
+            updates.extend(_save_refreshed(conn, raw, stale))
         else:
-            log.warning(f"Could not refresh {len(batch_names)} outdated card(s) - no data received")
-            unresolved_names.update(batch_names)
+            log.warning(f"Could not refresh {len(batch_ids)} outdated card(s) - no data received")
 
-    unrecognized = [card for card in outdated if card.name in unresolved_names]
+    # Whatever got no answer, for any reason, is served from its stale copy
+    refreshed = {card.oracle_id for card in updates}
+    unrecognized = [card for card in outdated if card.oracle_id not in refreshed]
     return updates, unrecognized
+
+def _save_refreshed(conn: sqlite3.Connection, raw: dict[str, Any], stale: dict[str, Card]) -> list[Card]:
+    """Save Scryfall's answer to a refresh and return its cards. `stale`
+    is the cached copy of every card that was asked for, by oracle_id.
+    """
+    cards: list[Card] = []
+    # One commit for the batch
+    with conn:
+        for entry in raw.get("data", []):
+            card = _to_card(entry)
+            old = stale.get(card.oracle_id or "") if card else None
+            if not card or not old:
+                continue
+            save_cards_to_cache(conn, [card])
+            # Same oracle_id under another name: Scryfall renamed the card
+            if _answers_another_name(old.name, card):
+                rename_card(conn, old.name, card.name)
+            cards.append(card)
+
+        # Scryfall no longer has the card. Recorded, so the cooldown
+        # stops it from being asked for again every run
+        for item in raw.get("not_found", []):
+            old = stale.get(item.get("oracle_id") or "")
+            if old:
+                log.warning(f"Scryfall no longer has '{old.name}' - saved to card_lookup_failures")
+                record_bad_name_attempt(conn, old.name)
+    return cards
 
 def _to_card(raw: dict[str, Any]) -> Card | None:
     # A missing field is a KeyError. An entry of the wrong shape - `null`,
