@@ -38,7 +38,7 @@ log = logging.getLogger(__name__)
 ReadText = Callable[[Card], list[list[float]] | None]
 
 # Raise it when the reading changes, so every printing is read again
-READER_VERSION = 1
+READER_VERSION = 3
 
 # Where to read on a card's picture, as shares of its width and height:
 # the text box, below the type line and above the artist's credit, the
@@ -53,8 +53,13 @@ TYPE_LINE_TOP = 0.55
 # Tesseract reads small print better enlarged
 SCALE = 2
 # Room added around each name found, as shares of the card's width and
-# height: Tesseract's boxes can end a letter short
-PAD_X, PAD_Y = 0.006, 0.003
+# height: Tesseract's boxes can end a letter short. Less on the left,
+# where a name starting a line is next to the text box's border.
+PAD_LEFT, PAD_RIGHT, PAD_Y = 0.002, 0.006, 0.003
+# A word of the name standing alone - "Goblin" in "a Goblin card" - is
+# covered too, up to this many. A card with more is left out: so many
+# covers would look odd.
+MAX_LIKE_NAME = 3
 # Readings Tesseract is less sure of than this, on average over the
 # words it read (0 to 100), may have missed the name
 MIN_CONFIDENCE = 60
@@ -112,9 +117,15 @@ def matches(read: str, wanted: str) -> bool:
 def find_name(words: list[Word], name: str) -> list[list[float]] | None:
     """Boxes in pixels, [left, top, right, bottom], around each time the
     name is printed among the words: one box per line it runs over. The
-    full name is looked for first, then a legend's short name. None when
-    a word like one of the name's is left over, which may be the name
-    read badly.
+    full name is looked for first, then a legend's short name.
+
+    A word left over that is like one of the name's may be the name read
+    badly. It is covered too when it is a whole word of the name, with no
+    piece of the name next to it: "Goblin" in "a Goblin card". Otherwise
+    the name may be read badly around it, and the card is left out (None):
+    "Jackal,Pup" run together, whose box may be too short, or "Superior"
+    before "Spider-" and "Man", a name broken at a line's end. So it is
+    when more than MAX_LIKE_NAME words are left.
     """
     read = [normalize(word.text) for word in words]
     used: set[int] = set()
@@ -147,13 +158,30 @@ def find_name(words: list[Word], name: str) -> list[list[float]] | None:
     if not name_words:
         log.info(f"Not covering the name of '{name}': its words are too short to check")
         return None
+    # The name in one piece, to find pieces of it: "spider" and "man" in
+    # "superiorspiderman"
+    whole = "".join(normalize(part) for part in name.split())
+
+    def is_piece(i: int) -> bool:
+        return 0 <= i < len(read) and len(read[i]) >= 3 and read[i] in whole
+
+    like_name: list[Word] = []
     for i, text in enumerate(read):
-        if i in used:
+        if i in used or not any(text.startswith(part) or matches(text, part)
+                                for part in name_words):
             continue
-        if any(matches(text, part) or text.startswith(part) for part in name_words):
-            log.info(f"Not covering the name of '{name}': '{words[i].text}' is left in its text")
+        alone = (any(matches(text, part) for part in name_words)
+                 and not is_piece(i - 1) and not is_piece(i + 1))
+        if not alone:
+            log.info(f"Not covering the name of '{name}': '{words[i].text}' is left in "
+                     "its text, and may be part of the name read badly")
             return None
-    return boxes
+        like_name.append(words[i])
+    if len(like_name) > MAX_LIKE_NAME:
+        listed = ", ".join(f"'{word.text}'" for word in like_name)
+        log.info(f"Not covering the name of '{name}': too many words like it are left: {listed}")
+        return None
+    return boxes + [[word.left, word.top, word.right, word.bottom] for word in like_name]
 
 
 def parse_tsv(tsv: str, left: float, top: float) -> tuple[list[Word], float]:
@@ -227,9 +255,9 @@ def name_in_text(card: Card, picture: bytes) -> list[list[float]] | None:
         return None
     return [
         [round(value, 4) for value in (
-            left / width - PAD_X,
+            left / width - PAD_LEFT,
             top / height - PAD_Y,
-            (right - left) / width + 2 * PAD_X,
+            (right - left) / width + PAD_LEFT + PAD_RIGHT,
             (bottom - top) / height + 2 * PAD_Y,
         )]
         for left, top, right, bottom in found

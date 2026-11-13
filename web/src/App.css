@@ -111,6 +111,14 @@ body {
   }
 }
 
+/* Hidden behind the large view. Above the cards (z-index), it was above
+   the layer that dims the page too (body::after, see LargeView.css), and
+   showed undimmed behind the close button and the card count. Hidden
+   rather than removed, so the list doesn't shift under the view. */
+html:has(.enlarged[open]) .card-list-bar {
+  visibility: hidden;
+}
+
 .card-list-bar h1 {
   margin: 0;
   font-size: 1.2rem;

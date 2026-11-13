@@ -80,15 +80,30 @@ def test_find_name_finds_nothing_when_the_name_is_not_printed() -> None:
     assert find_name(_words("When this creature enters, draw a card."), "Glint Hawk") == []
 
 
-@pytest.mark.parametrize("line", [
-    # Run together, so not read as the two words of the name
-    "Whenever Jackal,Pup is dealt damage",
-    # A word of the name alone, in a flavor text
-    "“Firebending is not something to fear”",
+def test_find_name_also_covers_a_word_of_the_name_standing_alone() -> None:
+    # "Goblin" in another sense, and the name itself
+    words = _words("Search for a Goblin card. Goblin Matron enters")
+    assert find_name(words, "Goblin Matron") == [
+        [260.0, 0.0, 390.0, 15.0],
+        [130.0, 0.0, 190.0, 15.0],
+    ]
+
+
+@pytest.mark.parametrize("lines, name", [
+    # Run together: its box may not cover both words
+    (["Whenever Jackal,Pup is dealt damage"], "Jackal Pup"),
+    # Broken at a line's end, so "Spider-Man" isn't read as one word
+    (["You may have Superior Spider-", "Man enter as a copy"], "Superior Spider-Man"),
+    # A piece of the name next to a word of it
+    (["Put Chalice.of the Void onto"], "Chalice of the Void"),
 ])
-def test_find_name_gives_up_when_a_word_of_the_name_is_left(line: str) -> None:
-    name = "Jackal Pup" if "Jackal" in line else "Firebending Lesson"
-    assert find_name(_words(line), name) is None
+def test_find_name_gives_up_when_the_name_may_be_read_badly(lines: list[str], name: str) -> None:
+    assert find_name(_words(*lines), name) is None
+
+
+def test_find_name_gives_up_when_too_many_words_are_like_the_name() -> None:
+    words = _words("Goblin Goblin Goblin Goblin and Goblin Matron")
+    assert find_name(words, "Goblin Matron") is None
 
 
 def test_find_name_gives_up_on_a_name_of_short_words_only() -> None:

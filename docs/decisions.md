@@ -41,10 +41,12 @@ what has been done is in the commit history.
   Oracle or flavor text, as "this creature" and the like on a printing
   older than Foundations or a reprint (which may print the name instead),
   or as an old creature's "Summon" type line. A keyword's reminder text
-  doesn't count: it says "this card" on every printing. A reading that
-  leaves anything like a word of the name uncovered, or reads the text
-  poorly, leaves the card to its artwork: a missed name gives the answer
-  away. What was read is kept in git, as the first reading of many cards
+  doesn't count: it says "this card" on every printing. A word of the
+  name standing alone ("a Goblin card") is covered too, up to three. A
+  reading that leaves anything else like a word of the name - run
+  together, broken at a line's end, or with a piece of the name next to
+  it - or reads the text poorly, leaves the card to its artwork: a missed
+  name gives the answer away. What was read is kept in git, as the first reading of many cards
   takes hours. The app paints over the name there from the paper just
   above and below it, which leaves out the print and the box's border.
 - **Each card is shown in its most familiar printing:** the artwork that
