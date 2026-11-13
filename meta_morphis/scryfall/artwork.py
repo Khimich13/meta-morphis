@@ -9,9 +9,9 @@ def choose_printing(printings: list[dict[str, Any]]) -> dict[str, Any] | None:
     """Group the printings by artwork, take the artwork printed most often -
     the older one when two are printed equally often, since it has been in
     players' hands longer - and return the newest printing of it, which is
-    usually the best scan, passing over one whose artwork is cut wrong
-    while the artwork has another. None if no printing has the pictures
-    to show.
+    usually the best scan, passing over one whose scan is off - artwork
+    cut wrong, or an etched foil - while the artwork has another. None if
+    no printing has the pictures to show.
     """
     by_artwork: dict[str, list[dict[str, Any]]] = {}
     for printing in printings:
@@ -29,8 +29,8 @@ def choose_printing(printings: list[dict[str, Any]]) -> dict[str, Any] | None:
         by_artwork.values(),
         key=lambda group: (-len(group), min(_released(p) for p in group)),
     )
-    well_cut = [p for p in most_printed if not _art_cut_for_modern_frame(p)]
-    return max(well_cut or most_printed, key=_released)
+    scanned_well = [p for p in most_printed if not _scan_is_off(p)]
+    return max(scanned_well or most_printed, key=_released)
 
 def is_regular_printing(printing: dict[str, Any]) -> bool:
     """The same rules as SCRYFALL_REGULAR_PRINTINGS in config.py, checked
@@ -62,11 +62,15 @@ def is_regular_printing(printing: dict[str, Any]) -> bool:
 # the artwork, which players have also seen in its own frame.
 ART_CUT_FOR_MODERN_FRAME_SETS = {"tsr", "h1r", "h2r"}
 
-def _art_cut_for_modern_frame(printing: dict[str, Any]) -> bool:
-    return (
+def _scan_is_off(printing: dict[str, Any]) -> bool:
+    # An etched foil (e.g. Multiverse Legends' Thalia, Ragavan, Kaheera)
+    # is scanned grey and grainy, its frame dark and metallic
+    etched = "etched" in (printing.get("frame_effects") or [])
+    art_cut_for_modern_frame = (
         printing.get("frame") == "1997"
         and printing.get("set") in ART_CUT_FOR_MODERN_FRAME_SETS
     )
+    return etched or art_cut_for_modern_frame
 
 def _illustration_id(printing: dict[str, Any]) -> str | None:
     # A double-faced card has an artwork per face; the front's is the

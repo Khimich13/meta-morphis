@@ -74,6 +74,20 @@ def test_an_artwork_cut_wrong_gives_way_to_another_printing() -> None:
     # With no other printing of the artwork, it is shown anyway
     assert _chosen_set(printings[2:3]) == "tsr"
 
+def test_an_etched_foil_gives_way_to_another_printing() -> None:
+    printings = [
+        _printing("dka", "2012-02-03", "schirmer"),
+        _printing("a25", "2018-03-16", "schirmer"),
+        _printing(
+            "mul", "2023-04-21", "schirmer",
+            frame_effects=["legendary", "inverted", "etched"],
+        ),
+        _printing("vow", "2021-11-19", "other"),
+    ]
+    assert _chosen_set(printings) == "a25"
+    # With no other printing of the artwork, it is shown anyway
+    assert _chosen_set(printings[2:3]) == "mul"
+
 def test_double_faced_cards_are_grouped_by_the_front_artwork() -> None:
     def double_faced(set_code: str, released: str, front: str) -> dict[str, Any]:
         return {
