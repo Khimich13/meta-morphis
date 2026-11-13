@@ -40,7 +40,7 @@ log = logging.getLogger(__name__)
 ReadText = Callable[[Card], list[list[float]] | None]
 
 # Raise it when the reading changes, so every printing is read again
-READER_VERSION = 4
+READER_VERSION = 5
 
 # Where to read on a card's picture, as shares of its width and height:
 # the text box, below the type line and above the artist's credit, the
@@ -178,9 +178,23 @@ def find_name(
     # The name in one piece, to find pieces of it: "spider" and "man" in
     # "superiorspiderman"
     whole = "".join(normalize(part) for part in name.split())
-    # Game words left in sight: only for a name of more than one word,
-    # whose other words tell it from the game word itself
-    plain = name_words & game_words if len(name.split()) > 1 else set()
+    # Game words left in sight, also in the plural ("Storm Giants" has the
+    # Giant type): only for a name of more than one word, whose other
+    # words tell it from the game word itself
+    plain = {part for part in name_words
+             if part in game_words or part.endswith("s") and part[:-1] in game_words}
+    if len(name.split()) == 1:
+        plain = set()
+
+    def next_word(i: int, step: int) -> int:
+        """The word before or after i (step -1 or 1), passing over up to
+        two of 1 or 2 letters: bits of the border or of a symbol, read as
+        a word between "Phyrexian" and "Devourer"."""
+        i += step
+        for _ in range(2):
+            if 0 <= i < len(read) and len(read[i]) < 3:
+                i += step
+        return i
 
     def near_name(i: int) -> bool:
         """The word at i may be a piece or a word of the name, read badly"""
@@ -196,7 +210,7 @@ def find_name(
         like = [part for part in name_words if matches(text, part)]
         if not like and not any(text.startswith(part) for part in name_words):
             continue
-        if not like or near_name(i - 1) or near_name(i + 1):
+        if not like or near_name(next_word(i, -1)) or near_name(next_word(i, 1)):
             log.info(f"Not covering the name of '{name}': '{words[i].text}' is left in "
                      "its text, and may be part of the name read badly")
             return None

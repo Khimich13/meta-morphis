@@ -21,7 +21,7 @@ from meta_morphis.name_in_text import (
 )
 
 
-GAME_WORDS = frozenset({"goblin", "frog", "desert"})
+GAME_WORDS = frozenset({"goblin", "frog", "desert", "giant", "phyrexian"})
 
 
 def _words(*lines: str) -> list[Word]:
@@ -98,6 +98,8 @@ def test_edits() -> None:
     ("Some goblins are expendable", "Squee, Goblin Nabob"),
     # A word a letter off a creature type: "from" for "frog"
     ("Exile three cards from your graveyard", "Psychic Frog"),
+    # A name in the plural: Storm Giants, with the Giant type
+    ("becomes a 7/7 blue Giant creature", "Hall of Storm Giants"),
 ])
 def test_find_name_leaves_a_game_word_of_the_name_in_sight(line: str, name: str) -> None:
     boxes = find_name(_words(line), name, GAME_WORDS)
@@ -124,6 +126,8 @@ def test_find_name_covers_any_other_word_of_the_name_standing_alone() -> None:
     (["Put Chalice.of the Void onto"], "Chalice of the Void"),
     # A game word next to the rest of the name read badly
     (["When Goblin Mafr0n enters"], "Goblin Matron"),
+    # ... or past a speck of the border read as a word
+    (["a counter on Phyrexian", "a Devourer, where X is"], "Phyrexian Devourer"),
 ])
 def test_find_name_gives_up_when_the_name_may_be_read_badly(lines: list[str], name: str) -> None:
     assert find_name(_words(*lines), name, GAME_WORDS) is None
