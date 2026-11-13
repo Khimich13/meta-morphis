@@ -230,7 +230,7 @@ html:has(.enlarged[open]) .card-list-bar {
   }
 }
 
-/* A small rounded tag: "New card" and "Try again" in a lesson, and a
+/* A small rounded tag: "New" and "Missed" in a lesson, and a
    card's level as pips. Its word or pips carry the meaning; the color
    only adds to it. */
 .label {

@@ -175,28 +175,35 @@ export default function Lesson({
 
       {picked === null ? (
         <>
-          <QuestionLabel repeat={repeat} standing={cardStanding(record)} />
-          <h2 className="question">
-            {question.kind === 'picture' ? 'Which card is this?' : 'Which card has this artwork?'}
-          </h2>
-          {question.kind === 'picture' ? (
-            <NameHidden key={card.oracle_id} card={card} />
-          ) : (
-            /* A figure ties the credit to the artwork, for screen readers too */
-            <figure className="artwork">
-              {/* The alt text must not give the answer away */}
-              <img
-                src={card.art}
-                alt="Card artwork"
-                crossOrigin="anonymous"
-                style={{ viewTransitionName: artTransition(card) }}
-              />
-              {/* Scryfall asks for this whenever the artwork is shown by itself */}
-              <figcaption className="credit">
-                Illustrated by {card.artist} · © Wizards of the Coast
-              </figcaption>
-            </figure>
-          )}
+          {/* The question and what it asks about, together, so the line
+              can span exactly the card's width (see Lesson.css) */}
+          <div className={`question-body ${question.kind}-question`}>
+            {/* The question over the left edge, its label over the right */}
+            <div className="question-line">
+              <h2 className="question">
+                {question.kind === 'picture' ? 'Which card is this?' : 'Which card has this art?'}
+              </h2>
+              <QuestionLabel repeat={repeat} standing={cardStanding(record)} />
+            </div>
+            {question.kind === 'picture' ? (
+              <NameHidden key={card.oracle_id} card={card} />
+            ) : (
+              /* A figure ties the credit to the artwork, for screen readers too */
+              <figure className="artwork">
+                {/* The alt text must not give the answer away */}
+                <img
+                  src={card.art}
+                  alt="Card artwork"
+                  crossOrigin="anonymous"
+                  style={{ viewTransitionName: artTransition(card) }}
+                />
+                {/* Scryfall asks for this whenever the artwork is shown by itself */}
+                <figcaption className="credit">
+                  Illustrated by {card.artist} · © Wizards of the Coast
+                </figcaption>
+              </figure>
+            )}
+          </div>
           <ul className="options">
             {question.options.map((option) => (
               <li key={option.oracle_id}>
@@ -496,10 +503,12 @@ function LessonProgress({ bar, done }: { bar: Segment[]; done: number }) {
   );
 }
 
-/** A label above the artwork: a repeat, or a card never seen before */
+/** A label beside the question: a card missed earlier in the lesson, or a
+ *  card never seen before. It names the card's state, not an action, so it
+ *  doesn't read as a button. */
 function QuestionLabel({ repeat, standing }: { repeat: boolean; standing: Standing }) {
-  if (repeat) return <p className="label again">Try again</p>;
-  if (standing === 'new') return <p className="label new">New card</p>;
+  if (repeat) return <p className="label again">Missed</p>;
+  if (standing === 'new') return <p className="label new">New</p>;
   return null;
 }
 

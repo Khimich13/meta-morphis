@@ -9,8 +9,9 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  /* Clear of the iPhone notch and home indicator in the installed app */
-  padding: calc(8px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
+  /* Clear of the iPhone notch and home indicator in the installed app.
+     Little at the top: every pixel there is height the card can use. */
+  padding: calc(4px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
   /* Last resort on very short screens: scroll rather than cut anything off */
   overflow-y: auto;
 }
@@ -39,6 +40,10 @@
   grid-template-columns: 44px 1fr 44px;
   align-items: center;
   gap: 8px;
+  /* Above the question line, so the ✕ button's tap area, which reaches
+     past the bar (see .leave), gets the taps there */
+  position: relative;
+  z-index: 1;
 }
 
 .lesson-bar .position {
@@ -47,6 +52,10 @@
 
 .lesson-bar .leave {
   min-height: 40px;
+  /* The bar is only 24px tall, as low as the progress bar allows, leaving
+     the card more height; the button's 40px reach past it, above and
+     below, so it is still easy to tap */
+  margin-block: -8px;
   /* The ✕ at the left edge, lined up with the screen's content; the
      whole 44px stays tappable */
   padding: 0;
@@ -98,14 +107,67 @@
   }
 }
 
-/* "Try again" or "New card" above the artwork. The colors come from
-   .label in App.css */
-.lesson-bar + .label {
-  align-self: flex-start;
+/* The question line and the card or artwork under it, taking the height
+   left over. The line has a fixed height, so its width can follow the
+   card's: the card's own formula (see .name-hidden-card) with the line
+   taken off the height. */
+.question-body {
+  --line: 24px;
+  flex: 1;
+  /* Room for the line and the smallest card (.name-hidden's 160px). Its
+     size is contained, so it would shrink below what is inside it, and
+     on a phone turned sideways the card covered the buttons; this way
+     the lesson scrolls instead. */
+  min-height: calc(var(--line) + 8px + 160px);
+  /* 8px under the top bar, not the lesson's 12px: more height for the
+     card. At 4px the question looked cramped. */
+  margin-top: -4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  container-type: size;
 }
 
+/* The question over the card's top left corner, "Missed" or "New" over
+   its top right. On a short screen the card shrinks and sits in the
+   middle, and the line shrinks with it. The colors come from .label in
+   App.css. */
+.question-line {
+  flex: none;
+  height: var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-inline: auto;
+  width: 100%;
+  /* A little in from the card's edges, which have rounded corners */
+  box-sizing: border-box;
+  padding-inline: 6px;
+}
+
+/* The full card is upright: as wide as fits in the height left */
+.picture-question .question-line {
+  width: min(100cqw, (100cqh - var(--line) - 8px) * 488 / 680);
+}
+
+/* Landscape artwork is as wide as the screen except on the shortest
+   screens, so its line spans the full width */
+
 .question {
-  font-size: 1.2rem;
+  /* Smaller than other headings: the card is what to look at */
+  font-size: 1rem;
+  line-height: var(--line);
+  /* Never pushes the label off the edge: a question too long for a very
+     narrow card ends in "…" */
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.question-line .label {
+  flex: none;
 }
 
 /* An answer that didn't count: a quiet line under the label */
@@ -238,11 +300,15 @@
   display: grid;
   /* No wider than the list, however long a name: OptionButton fits it */
   grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
+  gap: 6px;
 }
 
 .options button {
   width: 100%;
+  /* A little shorter than other buttons, leaving the card more height,
+     but still the 44px Apple gives as the least to tap comfortably */
+  min-height: 44px;
+  padding-block: 4px;
   /* Narrow sides leave a long name more room, so it shrinks less; a short
      one is centered and never comes near them */
   padding-inline: 8px;

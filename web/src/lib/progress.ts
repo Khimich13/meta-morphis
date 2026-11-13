@@ -38,7 +38,7 @@ export const MASTERED_LEVEL = 3;
 
 /**
  * How a card is doing:
- *   new      - never answered, marked "New card" when a lesson asks it
+ *   new      - never answered, marked "New" when a lesson asks it
  *   learning - below MASTERED_LEVEL, shown by its pips alone
  *   mastered - MASTERED_LEVEL or higher, labelled "Mastered"
  */
