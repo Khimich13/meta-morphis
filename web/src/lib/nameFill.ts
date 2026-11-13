@@ -13,21 +13,10 @@ export type Random = () => number;
 export const FILL_REACH = 0.025;
 
 /**
- * Where the name is painted over:
- *   title - in the title bar, where the name is all the print, and the
- *           bar's shading runs every way
- *   text  - in the text box, dark print on a light background. The rows
- *           and columns just outside a name there run along the letters of
- *           the words and lines next to it, and a name starting a line has
- *           the box's border at its left.
- */
-export type Area = 'title' | 'text';
-
-/**
  * Which of the colors around a pixel is taken, by brightness: the middle
- * one in the title bar, a lighter one - the paper - in the text box
+ * one
  */
-const PICK: Record<Area, number> = { title: 0.5, text: 0.85 };
+const PICK = 0.5;
 
 /** How many columns to each side of the name the left and right colors are taken from */
 const SIDE_COLUMNS = 3;
@@ -45,10 +34,9 @@ const SMOOTHING = 3;
  * The pixels of the name's area, as RGBA, painted from the title bar
  * around it so that no edge shows:
  *
- *   - In the title bar, each pixel blends the colors on all four sides of
- *     the area (a Coons patch): at every edge it meets the bar exactly, and
- *     in between it follows the bar's own shading. In the text box, only
- *     the colors above and below are blended: the sides may be the border.
+ *   - Each pixel blends the colors on all four sides of the area (a Coons
+ *     patch): at every edge it meets the bar exactly, and in between it
+ *     follows the bar's own shading.
  *   - The colors along the top and bottom are chosen among their
  *     neighbours by brightness (see PICK): a letter's tail touching those
  *     rows is dark among light pixels (or light among dark ones), and so
@@ -65,10 +53,8 @@ export function fillName(
   around: Uint8ClampedArray,
   aroundWidth: number,
   reach: number,
-  area: Area = 'title',
   random: Random = Math.random,
 ): Uint8ClampedArray<ArrayBuffer> {
-  const pick = PICK[area];
   const width = aroundWidth - 2 * reach;
   const height = around.length / 4 / aroundWidth - 2;
   const pixel = (x: number, y: number): Color => {
@@ -80,7 +66,10 @@ export function fillName(
   const edgeRow = (y: number) =>
     smooth(
       Array.from({ length: width }, (_, x) =>
-        choose(Array.from({ length: 2 * reach + 1 }, (_, i) => pixel(x + i, y)), pick),
+        choose(
+          Array.from({ length: 2 * reach + 1 }, (_, i) => pixel(x + i, y)),
+          PICK,
+        ),
       ),
     );
   const above = edgeRow(0);
@@ -89,7 +78,7 @@ export function fillName(
     Array.from({ length: height }, (_, y) =>
       choose(
         Array.from({ length: SIDE_COLUMNS }, (_, i) => pixel(from + i * step, y + 1)),
-        pick,
+        PICK,
       ),
     );
   const left = side(reach - 1, -1);
@@ -101,7 +90,10 @@ export function fillName(
   let strays = 0;
   let counted = 0;
   for (let x = 0; x < width; x++) {
-    for (const [y, edge] of [[0, above[x]], [height + 1, below[x]]] as const) {
+    for (const [y, edge] of [
+      [0, above[x]],
+      [height + 1, below[x]],
+    ] as const) {
       const stray = brightness(pixel(x + reach, y)) - brightness(edge);
       if (Math.abs(stray) > INK) continue;
       strays += (stray / 3) ** 2;
@@ -119,10 +111,6 @@ export function fillName(
       const at = (y * width + x) * 4;
       for (let c = 0; c < 3; c++) {
         const vertical = above[x][c] * (1 - down) + below[x][c] * down;
-        if (area === 'text') {
-          pixels[at + c] = vertical + noise;
-          continue;
-        }
         const sideways = left[y][c] * (1 - across) + right[y][c] * across;
         // What the two share - the corners - would otherwise count twice
         const corners =

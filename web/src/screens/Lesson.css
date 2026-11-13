@@ -156,6 +156,12 @@
   background: #4a4a4a;
 }
 
+/* In the text box: a plain bar with square corners, so it is clear that
+   a word was taken out there */
+.name-cover.in-text {
+  border-radius: 0;
+}
+
 .name-cover.painted {
   background: none;
 }

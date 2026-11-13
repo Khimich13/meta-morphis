@@ -271,72 +271,68 @@ function OptionButton({ name, onPick }: { name: string; onPick: () => void }) {
 }
 
 /**
- * The question's full card with its name painted over by what is around
- * it (see lib/nameFill.ts): in the title bar, and wherever else it is
- * printed in the text box. Everything on the card but its name. The
- * paint is a layer over the picture, which stays as it is, and never
- * covers the artist or copyright. Until it is painted - or if the
- * picture's pixels can't be read - plain bars cover the name instead.
+ * How many pixels are taken off the top and the bottom of a cover in the
+ * text box, so it sits a little thinner over the line's letters
+ */
+const TEXT_COVER_TRIM = 1;
+
+/**
+ * The question's full card with its name hidden: in the title bar, it is
+ * painted over by the bar around it (see lib/nameFill.ts); wherever else
+ * it is printed in the text box, a plain bar covers it, so it is plain to
+ * see that a word was taken out there. Everything on the card but its
+ * name. The paint is a layer over the picture, which stays as it is, and
+ * never covers the artist or copyright. Until it is painted - or if the
+ * picture's pixels can't be read - a plain bar covers the title too.
  */
 function NameHidden({ card }: { card: Card }) {
   const boxes = [card.name_box ?? [0, 0, 0, 0], ...(card.name_text_boxes ?? [])];
   const picture = useRef<HTMLImageElement>(null);
-  const canvases = useRef<(HTMLCanvasElement | null)[]>([]);
+  const canvas = useRef<HTMLCanvasElement>(null);
   // Where each cover sits, as shares of the card: the name's box, then,
-  // once painted, the whole pixels it was painted on, so the paint lines
-  // up with the picture's own pixels exactly
+  // once the title is painted, the whole pixels it was painted on, so the
+  // paint lines up with the picture's own pixels exactly
   const [places, setPlaces] = useState<number[][]>(boxes);
   const [painted, setPainted] = useState(false);
 
   function paint() {
     const image = picture.current;
-    if (!image?.naturalWidth) return;
+    const target = canvas.current;
+    if (!image?.naturalWidth || !target) return;
     const across = image.naturalWidth;
     const down = image.naturalHeight;
     const reach = Math.round(FILL_REACH * across);
+    const box = boxes[0];
+    const [x, w] = [box[0], box[2]].map((share) => Math.round(share * across));
+    const [y, h] = [box[1], box[3]].map((share) => Math.round(share * down));
     try {
-      const painting = boxes.map((box, i) => {
-        const target = canvases.current[i];
-        const [x, w] = [box[0], box[2]].map((share) => Math.round(share * across));
-        const [y, h] = [box[1], box[3]].map((share) => Math.round(share * down));
-        // The area with a row more above and below it, and room to each side
-        const around = document.createElement('canvas');
-        around.width = w + 2 * reach;
-        around.height = h + 2;
-        const context = around.getContext('2d', { willReadFrequently: true });
-        if (!context || !target) return null;
-        context.drawImage(
-          image,
-          x - reach,
-          y - 1,
-          around.width,
-          around.height,
-          0,
-          0,
-          around.width,
-          around.height,
-        );
-        const pixels = context.getImageData(0, 0, around.width, around.height).data;
-        return () => {
-          target.width = w;
-          target.height = h;
-          target
-            .getContext('2d')
-            ?.putImageData(
-              new ImageData(fillName(pixels, around.width, reach, i ? 'text' : 'title'), w, h),
-              0,
-              0,
-            );
-          return [x / across, y / down, w / across, h / down];
-        };
-      });
-      // All of them or none: each is read before any is painted, as the
-      // paint of one could otherwise be read into another next to it
-      if (painting.some((step) => step === null)) return;
-      setPlaces(painting.map((step) => step!()));
+      // The area with a row more above and below it, and room to each side
+      const around = document.createElement('canvas');
+      around.width = w + 2 * reach;
+      around.height = h + 2;
+      const context = around.getContext('2d', { willReadFrequently: true });
+      if (!context) return;
+      context.drawImage(
+        image,
+        x - reach,
+        y - 1,
+        around.width,
+        around.height,
+        0,
+        0,
+        around.width,
+        around.height,
+      );
+      const pixels = context.getImageData(0, 0, around.width, around.height).data;
+      target.width = w;
+      target.height = h;
+      target
+        .getContext('2d')
+        ?.putImageData(new ImageData(fillName(pixels, around.width, reach), w, h), 0, 0);
+      setPlaces([[x / across, y / down, w / across, h / down], ...boxes.slice(1)]);
       setPainted(true);
     } catch {
-      // The browser won't share the picture's pixels: the plain bars stay
+      // The browser won't share the picture's pixels: the plain bar stays
     }
   }
 
@@ -363,20 +359,16 @@ function NameHidden({ card }: { card: Card }) {
         {places.map((place, i) => (
           <div
             key={i}
-            className={painted ? 'name-cover painted' : 'name-cover'}
+            className={i ? 'name-cover in-text' : painted ? 'name-cover painted' : 'name-cover'}
             aria-hidden="true"
             style={{
               left: `${place[0] * 100}%`,
-              top: `${place[1] * 100}%`,
+              top: `calc(${place[1] * 100}% + ${i ? TEXT_COVER_TRIM : 0}px)`,
               width: `${place[2] * 100}%`,
-              height: `${place[3] * 100}%`,
+              height: `calc(${place[3] * 100}% - ${i ? 2 * TEXT_COVER_TRIM : 0}px)`,
             }}
           >
-            <canvas
-              ref={(element) => {
-                canvases.current[i] = element;
-              }}
-            />
+            {i === 0 && <canvas ref={canvas} />}
           </div>
         ))}
       </div>
