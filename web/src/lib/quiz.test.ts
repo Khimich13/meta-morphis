@@ -80,8 +80,15 @@ test('a card whose name can be hidden is asked both ways', () => {
 });
 
 test('a card whose name shows elsewhere is asked by its artwork only', () => {
-  const kinds = new Set(SEEDS.map((seed) => makeQuestion(CARDS[0], CARDS, seeded(seed)).kind));
-  expect(kinds).toEqual(new Set(['artwork']));
+  const inText: Card = {
+    ...CARDS[0],
+    name_box: [0.06, 0.045, 0.88, 0.058],
+    name_text_boxes: [[0.1, 0.7, 0.2, 0.03]],
+  };
+  for (const card of [CARDS[0], inText]) {
+    const kinds = new Set(SEEDS.map((seed) => makeQuestion(card, CARDS, seeded(seed)).kind));
+    expect(kinds).toEqual(new Set(['artwork']));
+  }
 });
 
 const TODAY = '2026-10-15';

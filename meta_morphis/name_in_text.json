@@ -1,0 +1,4666 @@
+{
+  "0008098c-2985-493f-bc37-0a8fb96cad65": {
+    "name": "Searing Blaze",
+    "picture": "https://cards.scryfall.io/png/front/0/0/0008098c-2985-493f-bc37-0a8fb96cad65.png?1783910249",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0967,
+        0.6311,
+        0.2744,
+        0.0348
+      ],
+      [
+        0.0974,
+        0.8004,
+        0.2737,
+        0.0348
+      ]
+    ]
+  },
+  "0035082e-bb86-4f95-be48-ffc87fe5286d": {
+    "name": "Emberheart Challenger",
+    "picture": "https://cards.scryfall.io/png/front/0/0/0035082e-bb86-4f95-be48-ffc87fe5286d.png?1783910821",
+    "reader": 1,
+    "boxes": [
+      [
+        0.4698,
+        0.7537,
+        0.4408,
+        0.0329
+      ]
+    ]
+  },
+  "018160fe-f602-43f5-8495-241a08eaa69c": {
+    "name": "Goblin Tomb Raider",
+    "picture": "https://cards.scryfall.io/png/front/0/1/018160fe-f602-43f5-8495-241a08eaa69c.png?1783913759",
+    "reader": 1,
+    "boxes": null
+  },
+  "020e1348-1a35-4cc8-bad6-9fbddfa79277": {
+    "name": "Ugin's Labyrinth",
+    "picture": "https://cards.scryfall.io/png/front/0/2/020e1348-1a35-4cc8-bad6-9fbddfa79277.png?1783911233",
+    "reader": 1,
+    "boxes": [
+      [
+        0.4349,
+        0.6316,
+        0.3554,
+        0.0358
+      ],
+      [
+        0.7749,
+        0.773,
+        0.1397,
+        0.0358
+      ],
+      [
+        0.0827,
+        0.8047,
+        0.2217,
+        0.0358
+      ]
+    ]
+  },
+  "022ab408-3292-40b6-b35e-ac1b7f06dffa": {
+    "name": "Xantid Swarm",
+    "picture": "https://cards.scryfall.io/png/front/0/2/022ab408-3292-40b6-b35e-ac1b7f06dffa.png?1783937556",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3175,
+        0.6989,
+        0.3328,
+        0.032
+      ]
+    ]
+  },
+  "03220cab-fc78-4323-bd34-b8dbebe35597": {
+    "name": "City of Brass",
+    "picture": "https://cards.scryfall.io/png/front/0/3/03220cab-fc78-4323-bd34-b8dbebe35597.png?1783944620",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3302,
+        0.6816,
+        0.2919,
+        0.0382
+      ]
+    ]
+  },
+  "03927043-9276-42d5-9db9-eb935cf8a7c8": {
+    "name": "Nihil Spellbomb",
+    "picture": "https://cards.scryfall.io/png/front/0/3/03927043-9276-42d5-9db9-eb935cf8a7c8.png?1783917876",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3564,
+        0.6749,
+        0.3664,
+        0.0368
+      ],
+      [
+        0.2343,
+        0.7528,
+        0.3536,
+        0.0372
+      ]
+    ]
+  },
+  "03b9c9ed-fb6f-4f8d-bb1d-7999dec4245c": {
+    "name": "Cephalid Coliseum",
+    "picture": "https://cards.scryfall.io/png/front/0/3/03b9c9ed-fb6f-4f8d-bb1d-7999dec4245c.png?1783906997",
+    "reader": 1,
+    "boxes": []
+  },
+  "049d96ef-f46c-44d7-8ec4-cdbcc3cd0397": {
+    "name": "Goblin King",
+    "picture": "https://cards.scryfall.io/png/front/0/4/049d96ef-f46c-44d7-8ec4-cdbcc3cd0397.png?1783946281",
+    "reader": 1,
+    "boxes": null
+  },
+  "0540ee72-6370-4f70-9526-6f441b3cac1e": {
+    "name": "Stormwing Entity",
+    "picture": "https://cards.scryfall.io/png/front/0/5/0540ee72-6370-4f70-9526-6f441b3cac1e.png?1783930718",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2074,
+        0.8537,
+        0.3489,
+        0.0339
+      ]
+    ]
+  },
+  "059164e1-894d-4586-9800-e60d6fbd6eb6": {
+    "name": "Shifting Woodland",
+    "picture": "https://cards.scryfall.io/png/front/0/5/059164e1-894d-4586-9800-e60d6fbd6eb6.png?1783911237",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0841,
+        0.6383,
+        0.346,
+        0.0329
+      ],
+      [
+        0.4382,
+        0.7489,
+        0.346,
+        0.0329
+      ]
+    ]
+  },
+  "05958bc8-e70c-4970-9fd2-a0f162786ad7": {
+    "name": "Ranger-Captain of Eos",
+    "picture": "https://cards.scryfall.io/png/front/0/5/05958bc8-e70c-4970-9fd2-a0f162786ad7.png?1783912597",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2182,
+        0.6374,
+        0.4731,
+        0.0363
+      ],
+      [
+        0.2705,
+        0.8114,
+        0.4845,
+        0.0363
+      ]
+    ]
+  },
+  "06c69319-ce8f-4b4c-bbf4-11e376e2f712": {
+    "name": "Flash of Insight",
+    "picture": "https://cards.scryfall.io/png/front/0/6/06c69319-ce8f-4b4c-bbf4-11e376e2f712.png?1783910376",
+    "reader": 1,
+    "boxes": null
+  },
+  "0852f9f3-d7ef-4d31-93e3-93bc7c5a4ec9": {
+    "name": "Lightning Bolt",
+    "picture": "https://cards.scryfall.io/png/front/0/8/0852f9f3-d7ef-4d31-93e3-93bc7c5a4ec9.png?1789753088",
+    "reader": 1,
+    "boxes": [
+      [
+        0.082,
+        0.6518,
+        0.3326,
+        0.0377
+      ]
+    ]
+  },
+  "08a5007f-06a0-40fa-a252-c38baa6b5c6f": {
+    "name": "Thraben Inspector",
+    "picture": "https://cards.scryfall.io/png/front/0/8/08a5007f-06a0-40fa-a252-c38baa6b5c6f.png?1783908171",
+    "reader": 1,
+    "boxes": []
+  },
+  "08f79439-b8f8-418f-9772-26d81844749e": {
+    "name": "Enduring Innocence",
+    "picture": "https://cards.scryfall.io/png/front/0/8/08f79439-b8f8-418f-9772-26d81844749e.png?1783909512",
+    "reader": 1,
+    "boxes": [
+      [
+        0.201,
+        0.7807,
+        0.3729,
+        0.032
+      ]
+    ]
+  },
+  "09237f1b-eff6-45bf-bd7d-a883deda122a": {
+    "name": "Lotleth Giant",
+    "picture": "https://cards.scryfall.io/png/front/0/9/09237f1b-eff6-45bf-bd7d-a883deda122a.png?1783915673",
+    "reader": 1,
+    "boxes": [
+      [
+        0.5706,
+        0.6345,
+        0.3117,
+        0.031
+      ]
+    ]
+  },
+  "095bbeb1-edf4-485e-bd2f-2b8f48b7aaa3": {
+    "name": "Secluded Steppe",
+    "picture": "https://cards.scryfall.io/png/front/0/9/095bbeb1-edf4-485e-bd2f-2b8f48b7aaa3.png?1789753447",
+    "reader": 1,
+    "boxes": []
+  },
+  "0994aef4-b341-45f4-8881-523565a5956e": {
+    "name": "Blood Crypt",
+    "picture": "https://cards.scryfall.io/png/front/0/9/0994aef4-b341-45f4-8881-523565a5956e.png?1783913259",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1539,
+        0.7441,
+        0.2869,
+        0.0382
+      ]
+    ]
+  },
+  "0ad38866-fc5f-4f62-89c1-afc0f50765aa": {
+    "name": "Novice Inspector",
+    "picture": "https://cards.scryfall.io/png/front/0/a/0ad38866-fc5f-4f62-89c1-afc0f50765aa.png?1783912920",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2117,
+        0.6326,
+        0.346,
+        0.0339
+      ]
+    ]
+  },
+  "0bbd24cd-48f7-40d7-9741-f30108f04b84": {
+    "name": "Razortide Bridge",
+    "picture": "https://cards.scryfall.io/png/front/0/b/0bbd24cd-48f7-40d7-9741-f30108f04b84.png?1783906009",
+    "reader": 1,
+    "boxes": []
+  },
+  "0cf8cb1e-314a-4894-82df-f9812825f52e": {
+    "name": "Galvanic Blast",
+    "picture": "https://cards.scryfall.io/png/front/0/c/0cf8cb1e-314a-4894-82df-f9812825f52e.png?1783930164",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0799,
+        0.634,
+        0.3221,
+        0.0315
+      ],
+      [
+        0.3692,
+        0.7153,
+        0.3214,
+        0.0315
+      ]
+    ]
+  },
+  "0dba296b-6d21-4a2f-9882-747a81c80a01": {
+    "name": "Anger of the Gods",
+    "picture": "https://cards.scryfall.io/png/front/0/d/0dba296b-6d21-4a2f-9882-747a81c80a01.png?1783932149",
+    "reader": 1,
+    "boxes": null
+  },
+  "0dee69f8-cceb-41b9-a0ee-6b2ac9f4bad9": {
+    "name": "Tsabo's Web",
+    "picture": "https://cards.scryfall.io/png/front/0/d/0dee69f8-cceb-41b9-a0ee-6b2ac9f4bad9.png?1783945647",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2524,
+        0.646,
+        0.2731,
+        0.032
+      ]
+    ]
+  },
+  "0e3aedae-e4bb-48e3-9f8b-bea0430df306": {
+    "name": "Sneaky Snacker",
+    "picture": "https://cards.scryfall.io/png/front/0/e/0e3aedae-e4bb-48e3-9f8b-bea0430df306.png?1783911245",
+    "reader": 1,
+    "boxes": [
+      [
+        0.322,
+        0.7172,
+        0.3077,
+        0.0339
+      ]
+    ]
+  },
+  "0ea85b58-a396-4ee9-ba77-afc0b0742cf1": {
+    "name": "Grand Coliseum",
+    "picture": "https://cards.scryfall.io/png/front/0/e/0ea85b58-a396-4ee9-ba77-afc0b0742cf1.png?1783937027",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0812,
+        0.6595,
+        0.3684,
+        0.032
+      ],
+      [
+        0.3363,
+        0.8201,
+        0.369,
+        0.032
+      ]
+    ]
+  },
+  "102f764d-43e1-4183-9b10-27beab571050": {
+    "name": "Llanowar Wastes",
+    "picture": "https://cards.scryfall.io/png/front/1/0/102f764d-43e1-4183-9b10-27beab571050.png?1783927490",
+    "reader": 1,
+    "boxes": [
+      [
+        0.4537,
+        0.7648,
+        0.3778,
+        0.032
+      ]
+    ]
+  },
+  "10380662-88bd-4bc5-b8c3-14af425fc5a5": {
+    "name": "Dromar's Cavern",
+    "picture": "https://cards.scryfall.io/png/front/1/0/10380662-88bd-4bc5-b8c3-14af425fc5a5.png?1783918406",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2302,
+        0.6802,
+        0.3946,
+        0.032
+      ]
+    ]
+  },
+  "10986e5a-9fc6-41e2-8352-289328245171": {
+    "name": "Clockwork Percussionist",
+    "picture": "https://cards.scryfall.io/png/front/1/0/10986e5a-9fc6-41e2-8352-289328245171.png?1783909471",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2265,
+        0.6768,
+        0.5315,
+        0.03
+      ]
+    ]
+  },
+  "109900a9-6dcb-4f89-b84c-0ce0a0175e8f": {
+    "name": "Restless Anchorage",
+    "picture": "https://cards.scryfall.io/png/front/1/0/109900a9-6dcb-4f89-b84c-0ce0a0175e8f.png?1789599913",
+    "reader": 1,
+    "boxes": []
+  },
+  "11721250-c377-475c-86b7-78be44153114": {
+    "name": "Coastal Tower",
+    "picture": "https://cards.scryfall.io/png/front/1/1/11721250-c377-475c-86b7-78be44153114.png?1783918607",
+    "reader": 1,
+    "boxes": null
+  },
+  "12ca1b4f-3e98-4ad4-93fe-c4c2de09aa58": {
+    "name": "Sundown Pass",
+    "picture": "https://cards.scryfall.io/png/front/1/2/12ca1b4f-3e98-4ad4-93fe-c4c2de09aa58.png?1783908055",
+    "reader": 1,
+    "boxes": []
+  },
+  "137acb70-a1fd-4ea9-a5d9-f4b438eb5e82": {
+    "name": "Hullbreaker Horror",
+    "picture": "https://cards.scryfall.io/png/front/1/3/137acb70-a1fd-4ea9-a5d9-f4b438eb5e82.png?1783908162",
+    "reader": 1,
+    "boxes": []
+  },
+  "1427f615-8430-426e-a669-f9fe12033ac4": {
+    "name": "Seasoned Pyromancer",
+    "picture": "https://cards.scryfall.io/png/front/1/4/1427f615-8430-426e-a669-f9fe12033ac4.png?1783921882",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2182,
+        0.6345,
+        0.4597,
+        0.0353
+      ],
+      [
+        0.347,
+        0.8095,
+        0.4597,
+        0.0353
+      ]
+    ]
+  },
+  "156df6eb-1ac9-4954-bf93-b1668096b8bd": {
+    "name": "Shipwreck Marsh",
+    "picture": "https://cards.scryfall.io/png/front/1/5/156df6eb-1ac9-4954-bf93-b1668096b8bd.png?1783908058",
+    "reader": 1,
+    "boxes": []
+  },
+  "160ac412-005f-48ca-a204-10207307c6c2": {
+    "name": "Inspiring Vantage",
+    "picture": "https://cards.scryfall.io/png/front/1/6/160ac412-005f-48ca-a204-10207307c6c2.png?1783937144",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0826,
+        0.6335,
+        0.3784,
+        0.0387
+      ]
+    ]
+  },
+  "16525746-6474-4039-90e5-a671118b421b": {
+    "name": "Kessig Flamebreather",
+    "picture": "https://cards.scryfall.io/png/front/1/6/16525746-6474-4039-90e5-a671118b421b.png?1787701512",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2054,
+        0.6912,
+        0.4791,
+        0.0377
+      ]
+    ]
+  },
+  "17260fff-b239-4af4-9306-3236ae3fa5a5": {
+    "name": "Thundering Falls",
+    "picture": "https://cards.scryfall.io/png/front/1/7/17260fff-b239-4af4-9306-3236ae3fa5a5.png?1783912822",
+    "reader": 1,
+    "boxes": [
+      [
+        0.082,
+        0.6883,
+        0.3823,
+        0.0368
+      ],
+      [
+        0.2191,
+        0.7682,
+        0.381,
+        0.0368
+      ]
+    ]
+  },
+  "181434ed-65eb-4b47-9b12-7bbe6e0d262e": {
+    "name": "Spellstutter Sprite",
+    "picture": "https://cards.scryfall.io/png/front/1/8/181434ed-65eb-4b47-9b12-7bbe6e0d262e.png?1783915156",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2363,
+        0.7249,
+        0.3858,
+        0.0368
+      ]
+    ]
+  },
+  "1825a719-1b2a-4af9-9cd2-7cb497cd0317": {
+    "name": "Force of Negation",
+    "picture": "https://cards.scryfall.io/png/front/1/8/1825a719-1b2a-4af9-9cd2-7cb497cd0317.png?1783921916",
+    "reader": 1,
+    "boxes": []
+  },
+  "18d15fed-1f8f-4407-a221-a47ce75001a8": {
+    "name": "Iroh's Demonstration",
+    "picture": "https://cards.scryfall.io/png/front/1/8/18d15fed-1f8f-4407-a221-a47ce75001a8.png?1783904956",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1123,
+        0.6816,
+        0.4307,
+        0.0286
+      ],
+      [
+        0.1116,
+        0.7508,
+        0.432,
+        0.0286
+      ]
+    ]
+  },
+  "18d2e383-d380-4d18-8aad-bd8ea093a16c": {
+    "name": "Temple Garden",
+    "picture": "https://cards.scryfall.io/png/front/1/8/18d2e383-d380-4d18-8aad-bd8ea093a16c.png?1783913251",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1472,
+        0.7436,
+        0.3574,
+        0.0382
+      ]
+    ]
+  },
+  "18e5a0d3-d132-40e2-85ae-a1b743dfdd33": {
+    "name": "Caves of Koilos",
+    "picture": "https://cards.scryfall.io/png/front/1/8/18e5a0d3-d132-40e2-85ae-a1b743dfdd33.png?1783907705",
+    "reader": 1,
+    "boxes": []
+  },
+  "1ab6ffe8-e1ad-4db9-98f7-d6038f271866": {
+    "name": "Grim Lavamancer",
+    "picture": "https://cards.scryfall.io/png/front/1/a/1ab6ffe8-e1ad-4db9-98f7-d6038f271866.png?1783918459",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3249,
+        0.7076,
+        0.4154,
+        0.032
+      ]
+    ]
+  },
+  "1add1757-c1f8-448a-b279-c6940fb7ad5f": {
+    "name": "Abrade",
+    "picture": "https://cards.scryfall.io/png/front/1/a/1add1757-c1f8-448a-b279-c6940fb7ad5f.png?1783903778",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1123,
+        0.6903,
+        0.1706,
+        0.031
+      ]
+    ]
+  },
+  "1b0c4931-3260-411a-9c7d-b67c87e7aecc": {
+    "name": "Blood Fountain",
+    "picture": "https://cards.scryfall.io/png/front/1/b/1b0c4931-3260-411a-9c7d-b67c87e7aecc.png?1783908738",
+    "reader": 1,
+    "boxes": null
+  },
+  "1b547fd3-5d96-4654-83b1-2c36c090024b": {
+    "name": "Mystical Dispute",
+    "picture": "https://cards.scryfall.io/png/front/1/b/1b547fd3-5d96-4654-83b1-2c36c090024b.png?1783910612",
+    "reader": 1,
+    "boxes": []
+  },
+  "1d3a3a1d-c393-4a57-8a0e-5907d1722331": {
+    "name": "Fiery Temper",
+    "picture": "https://cards.scryfall.io/png/front/1/d/1d3a3a1d-c393-4a57-8a0e-5907d1722331.png?1783908123",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0827,
+        0.6749,
+        0.2647,
+        0.0339
+      ]
+    ]
+  },
+  "1f0d2e8e-c8f2-4b31-a6ba-6283fc8740d4": {
+    "name": "Chalice of the Void",
+    "picture": "https://cards.scryfall.io/png/front/1/f/1f0d2e8e-c8f2-4b31-a6ba-6283fc8740d4.png?1783935107",
+    "reader": 1,
+    "boxes": null
+  },
+  "212bd0a7-c61a-403d-b898-2042b84b9020": {
+    "name": "Tranquil Thicket",
+    "picture": "https://cards.scryfall.io/png/front/2/1/212bd0a7-c61a-403d-b898-2042b84b9020.png?1789753454",
+    "reader": 1,
+    "boxes": []
+  },
+  "2135ac5a-187b-4dc9-8f82-34e8d1603416": {
+    "name": "Boseiju, Who Endures",
+    "picture": "https://cards.scryfall.io/png/front/2/1/2135ac5a-187b-4dc9-8f82-34e8d1603416.png?1783923818",
+    "reader": 1,
+    "boxes": [
+      [
+        0.5329,
+        0.6802,
+        0.2429,
+        0.0315
+      ],
+      [
+        0.0806,
+        0.7085,
+        0.1684,
+        0.0272
+      ]
+    ]
+  },
+  "2189b1cb-94c4-4477-a5ef-17a1ae2c6708": {
+    "name": "Ancient Tomb",
+    "picture": "https://cards.scryfall.io/png/front/2/1/2189b1cb-94c4-4477-a5ef-17a1ae2c6708.png?1783925190",
+    "reader": 1,
+    "boxes": null
+  },
+  "2281a21b-fc68-46ad-b340-eb13ca0165ec": {
+    "name": "Phantom Nishoba",
+    "picture": "https://cards.scryfall.io/png/front/2/2/2281a21b-fc68-46ad-b340-eb13ca0165ec.png?1783918430",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0806,
+        0.6749,
+        0.3335,
+        0.0272
+      ],
+      [
+        0.2719,
+        0.7436,
+        0.3341,
+        0.0272
+      ],
+      [
+        0.594,
+        0.8124,
+        0.1724,
+        0.0267
+      ],
+      [
+        0.0806,
+        0.8403,
+        0.1704,
+        0.031
+      ],
+      [
+        0.4477,
+        0.8691,
+        0.3409,
+        0.0272
+      ]
+    ]
+  },
+  "22a6673b-1528-4e0f-b316-bd482c7ed8aa": {
+    "name": "Seal of Cleansing",
+    "picture": "https://cards.scryfall.io/png/front/2/2/22a6673b-1528-4e0f-b316-bd482c7ed8aa.png?1783913026",
+    "reader": 1,
+    "boxes": null
+  },
+  "24323a73-8c9a-4cd4-a98f-9ea0d1f33bf6": {
+    "name": "Battlefield Forge",
+    "picture": "https://cards.scryfall.io/png/front/2/4/24323a73-8c9a-4cd4-a98f-9ea0d1f33bf6.png?1783910644",
+    "reader": 1,
+    "boxes": [
+      [
+        0.455,
+        0.7624,
+        0.3762,
+        0.0377
+      ]
+    ]
+  },
+  "256c8b6e-4031-458b-8eb9-bbfe58405a0c": {
+    "name": "Extract a Confession",
+    "picture": "https://cards.scryfall.io/png/front/2/5/256c8b6e-4031-458b-8eb9-bbfe58405a0c.png?1783912899",
+    "reader": 1,
+    "boxes": []
+  },
+  "25ac5405-df7b-4097-914a-022cb18e20d4": {
+    "name": "Arid Mesa",
+    "picture": "https://cards.scryfall.io/png/front/2/5/25ac5405-df7b-4097-914a-022cb18e20d4.png?1783926797",
+    "reader": 1,
+    "boxes": [
+      [
+        0.5873,
+        0.7052,
+        0.2563,
+        0.0315
+      ]
+    ]
+  },
+  "284c4710-4183-4743-9c8b-515cc98cbbb8": {
+    "name": "Glint Hawk",
+    "picture": "https://cards.scryfall.io/png/front/2/8/284c4710-4183-4743-9c8b-515cc98cbbb8.png?1783941745",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2282,
+        0.697,
+        0.2409,
+        0.0291
+      ]
+    ]
+  },
+  "29f11089-658f-42e6-aeb0-09b512ad2479": {
+    "name": "Vexing Bauble",
+    "picture": "https://cards.scryfall.io/png/front/2/9/29f11089-658f-42e6-aeb0-09b512ad2479.png?1783911242",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3744,
+        0.7172,
+        0.2929,
+        0.0339
+      ]
+    ]
+  },
+  "2a91991f-4340-45a7-ba04-0001de9581e0": {
+    "name": "Stormcarved Coast",
+    "picture": "https://cards.scryfall.io/png/front/2/a/2a91991f-4340-45a7-ba04-0001de9581e0.png?1783908057",
+    "reader": 1,
+    "boxes": null
+  },
+  "2b549543-7447-4bb9-ad0e-b24fd3d7ed4f": {
+    "name": "Goblin Ringleader",
+    "picture": "https://cards.scryfall.io/png/front/2/b/2b549543-7447-4bb9-ad0e-b24fd3d7ed4f.png?1783938767",
+    "reader": 1,
+    "boxes": null
+  },
+  "2b5801fb-2026-4f25-98bc-ebb2f99684b9": {
+    "name": "Undercity Sewers",
+    "picture": "https://cards.scryfall.io/png/front/2/b/2b5801fb-2026-4f25-98bc-ebb2f99684b9.png?1786507741",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0814,
+        0.6903,
+        0.3769,
+        0.0368
+      ],
+      [
+        0.2198,
+        0.7682,
+        0.3776,
+        0.0368
+      ]
+    ]
+  },
+  "2c531254-1b12-44d8-a942-e767d516364e": {
+    "name": "Shattered Sanctum",
+    "picture": "https://cards.scryfall.io/png/front/2/c/2c531254-1b12-44d8-a942-e767d516364e.png?1783906970",
+    "reader": 1,
+    "boxes": []
+  },
+  "2ef878cb-27b6-47d8-ad11-bd20529b0e7e": {
+    "name": "Cast into the Fire",
+    "picture": "https://cards.scryfall.io/png/front/2/e/2ef878cb-27b6-47d8-ad11-bd20529b0e7e.png?1783916289",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1136,
+        0.6662,
+        0.3541,
+        0.0281
+      ]
+    ]
+  },
+  "30f6b4a2-5780-46e9-b239-459d2cf37743": {
+    "name": "Chain of Vapor",
+    "picture": "https://cards.scryfall.io/png/front/3/0/30f6b4a2-5780-46e9-b239-459d2cf37743.png?1783945087",
+    "reader": 1,
+    "boxes": []
+  },
+  "31415b9b-fb30-4132-a9a3-795b4573a901": {
+    "name": "Cursed Scroll",
+    "picture": "https://cards.scryfall.io/png/front/3/1/31415b9b-fb30-4132-a9a3-795b4573a901.png?1783946606",
+    "reader": 1,
+    "boxes": [
+      [
+        0.4054,
+        0.7633,
+        0.3053,
+        0.032
+      ]
+    ]
+  },
+  "316398d0-cf0a-43ed-a419-aaf0ea44b9c1": {
+    "name": "Witch's Cottage",
+    "picture": "https://cards.scryfall.io/png/front/3/1/316398d0-cf0a-43ed-a419-aaf0ea44b9c1.png?1789753458",
+    "reader": 1,
+    "boxes": []
+  },
+  "316caa4e-a53a-460b-978c-5f0fba7bc549": {
+    "name": "Trinisphere",
+    "picture": "https://cards.scryfall.io/png/front/3/1/316caa4e-a53a-460b-978c-5f0fba7bc549.png?1783930090",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3094,
+        0.6374,
+        0.259,
+        0.0377
+      ]
+    ]
+  },
+  "319430fa-11e4-426e-8297-67df8474c3cc": {
+    "name": "Phyrexian Devourer",
+    "picture": "https://cards.scryfall.io/png/front/3/1/319430fa-11e4-426e-8297-67df8474c3cc.png?1783947161",
+    "reader": 1,
+    "boxes": null
+  },
+  "3235954d-a1b1-4822-b177-1691347d1e58": {
+    "name": "Goldmire Bridge",
+    "picture": "https://cards.scryfall.io/png/front/3/2/3235954d-a1b1-4822-b177-1691347d1e58.png?1783917096",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0833,
+        0.6624,
+        0.3731,
+        0.0377
+      ]
+    ]
+  },
+  "328b02ca-d8eb-401d-9c41-93f8eb909312": {
+    "name": "Thief of Existence",
+    "picture": "https://cards.scryfall.io/png/front/3/2/328b02ca-d8eb-401d-9c41-93f8eb909312.png?1783911254",
+    "reader": 1,
+    "boxes": [
+      [
+        0.7373,
+        0.7778,
+        0.1296,
+        0.03
+      ],
+      [
+        0.0841,
+        0.8114,
+        0.262,
+        0.03
+      ]
+    ]
+  },
+  "32aa6e33-221f-414c-9b51-850d97a7e051": {
+    "name": "Galvanic Discharge",
+    "picture": "https://cards.scryfall.io/png/front/3/2/32aa6e33-221f-414c-9b51-850d97a7e051.png?1790212085",
+    "reader": 1,
+    "boxes": [
+      [
+        0.707,
+        0.6951,
+        0.18,
+        0.0281
+      ],
+      [
+        0.0827,
+        0.7268,
+        0.2049,
+        0.0339
+      ]
+    ]
+  },
+  "33b9cd6c-d75c-4905-aa38-ff03a9c4b398": {
+    "name": "Outcaster Trailblazer",
+    "picture": "https://cards.scryfall.io/png/front/3/3/33b9cd6c-d75c-4905-aa38-ff03a9c4b398.png?1783911804",
+    "reader": 1,
+    "boxes": [
+      [
+        0.201,
+        0.6316,
+        0.3803,
+        0.0262
+      ]
+    ]
+  },
+  "3506e1f2-cb41-4908-9272-3151cddd5571": {
+    "name": "Hypnotic Specter",
+    "picture": "https://cards.scryfall.io/png/front/3/5/3506e1f2-cb41-4908-9272-3151cddd5571.png?1783946282",
+    "reader": 1,
+    "boxes": null
+  },
+  "3570ebf2-a94c-4621-8808-b06e6e830c06": {
+    "name": "The Stone Brain",
+    "picture": "https://cards.scryfall.io/png/front/3/5/3570ebf2-a94c-4621-8808-b06e6e830c06.png?1783920013",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3403,
+        0.6374,
+        0.3818,
+        0.0315
+      ]
+    ]
+  },
+  "378c68f7-cf75-4835-8789-f266843851c3": {
+    "name": "Wasteland",
+    "picture": "https://cards.scryfall.io/png/front/3/7/378c68f7-cf75-4835-8789-f266843851c3.png?1783910584",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3502,
+        0.6941,
+        0.2486,
+        0.031
+      ]
+    ]
+  },
+  "384495c2-238b-4f8d-89c2-e05b64f9dde0": {
+    "name": "Setessan Petitioner",
+    "picture": "https://cards.scryfall.io/png/front/3/8/384495c2-238b-4f8d-89c2-e05b64f9dde0.png?1783931529",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2027,
+        0.6547,
+        0.359,
+        0.0281
+      ]
+    ]
+  },
+  "3876aa0f-b199-43f5-8a91-c2d620b8ef84": {
+    "name": "Deadly Cover-Up",
+    "picture": "https://cards.scryfall.io/png/front/3/8/3876aa0f-b199-43f5-8a91-c2d620b8ef84.png?1783912899",
+    "reader": 1,
+    "boxes": []
+  },
+  "38e87542-50f7-4812-9338-84e4b9b7bb44": {
+    "name": "M.O.D.O.K.",
+    "picture": "https://cards.scryfall.io/png/front/3/8/38e87542-50f7-4812-9338-84e4b9b7bb44.png?1783902940",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0827,
+        0.7066,
+        0.2512,
+        0.0281
+      ]
+    ]
+  },
+  "39269bfc-9cc9-4ad2-add1-663ae47eb883": {
+    "name": "Ramunap Ruins",
+    "picture": "https://cards.scryfall.io/png/front/3/9/39269bfc-9cc9-4ad2-add1-663ae47eb883.png?1783910085",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0806,
+        0.8225,
+        0.369,
+        0.0387
+      ]
+    ]
+  },
+  "3999a519-bfd5-43cf-b7b1-40ed5eb0a05a": {
+    "name": "Bojuka Bog",
+    "picture": "https://cards.scryfall.io/png/front/3/9/3999a519-bfd5-43cf-b7b1-40ed5eb0a05a.png?1789753362",
+    "reader": 1,
+    "boxes": []
+  },
+  "39a60957-eaee-4154-824f-148dba07161a": {
+    "name": "Slagwoods Bridge",
+    "picture": "https://cards.scryfall.io/png/front/3/9/39a60957-eaee-4154-824f-148dba07161a.png?1783907698",
+    "reader": 1,
+    "boxes": []
+  },
+  "3b46aacf-b31a-4380-9e4b-82795fbaba3b": {
+    "name": "Lembas",
+    "picture": "https://cards.scryfall.io/png/front/3/b/3b46aacf-b31a-4380-9e4b-82795fbaba3b.png?1783916239",
+    "reader": 1,
+    "boxes": [
+      [
+        0.201,
+        0.6316,
+        0.1491,
+        0.0262
+      ],
+      [
+        0.3623,
+        0.7008,
+        0.2344,
+        0.0262
+      ],
+      [
+        0.201,
+        0.7403,
+        0.1491,
+        0.0262
+      ]
+    ]
+  },
+  "3b583cc8-95e6-4772-afe3-d405b65836e0": {
+    "name": "Gingerbread Cabin",
+    "picture": "https://cards.scryfall.io/png/front/3/b/3b583cc8-95e6-4772-afe3-d405b65836e0.png?1783927494",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0806,
+        0.6811,
+        0.3925,
+        0.0348
+      ],
+      [
+        0.2128,
+        0.7879,
+        0.3912,
+        0.0348
+      ]
+    ]
+  },
+  "3de308cc-14ac-407e-99e7-568572ecd0e7": {
+    "name": "Mulldrifter",
+    "picture": "https://cards.scryfall.io/png/front/3/d/3de308cc-14ac-407e-99e7-568572ecd0e7.png?1783904564",
+    "reader": 1,
+    "boxes": []
+  },
+  "3e041aef-5771-4a3f-af07-e85a66c48979": {
+    "name": "Haunted Mire",
+    "picture": "https://cards.scryfall.io/png/front/3/e/3e041aef-5771-4a3f-af07-e85a66c48979.png?1783903728",
+    "reader": 1,
+    "boxes": []
+  },
+  "3e1c9b1a-e306-47bb-9f68-2083660319c0": {
+    "name": "Sunken Citadel",
+    "picture": "https://cards.scryfall.io/png/front/3/e/3e1c9b1a-e306-47bb-9f68-2083660319c0.png?1783913712",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0847,
+        0.6355,
+        0.3494,
+        0.0315
+      ]
+    ]
+  },
+  "3e9d39df-aaab-4733-b7c4-f33c9b4fb10c": {
+    "name": "Treetop Village",
+    "picture": "https://cards.scryfall.io/png/front/3/e/3e9d39df-aaab-4733-b7c4-f33c9b4fb10c.png?1783918784",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0806,
+        0.6571,
+        0.3449,
+        0.0387
+      ],
+      [
+        0.1913,
+        0.7869,
+        0.3456,
+        0.0387
+      ]
+    ]
+  },
+  "3ede7920-e219-4e9d-bfa5-e0f562460914": {
+    "name": "Ball Lightning",
+    "picture": "https://cards.scryfall.io/png/front/3/e/3ede7920-e219-4e9d-bfa5-e0f562460914.png?1783946917",
+    "reader": 1,
+    "boxes": null
+  },
+  "3ee3945e-5089-4751-b7b3-5961c39d2a33": {
+    "name": "Nethergoyf",
+    "picture": "https://cards.scryfall.io/png/front/3/e/3ee3945e-5089-4751-b7b3-5961c39d2a33.png?1783911277",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0814,
+        0.6297,
+        0.2526,
+        0.0339
+      ]
+    ]
+  },
+  "415ff6a5-61ef-4b37-ae08-e44476300d4a": {
+    "name": "Fire Magic",
+    "picture": "https://cards.scryfall.io/png/front/4/1/415ff6a5-61ef-4b37-ae08-e44476300d4a.png?1783906604",
+    "reader": 1,
+    "boxes": null
+  },
+  "420bf1e9-f2ec-4dff-b540-e64de71e58be": {
+    "name": "Engineered Explosives",
+    "picture": "https://cards.scryfall.io/png/front/4/2/420bf1e9-f2ec-4dff-b540-e64de71e58be.png?1783930110",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3343,
+        0.7417,
+        0.4764,
+        0.0363
+      ],
+      [
+        0.0799,
+        0.873,
+        0.4764,
+        0.0358
+      ]
+    ]
+  },
+  "42486edd-24b7-4299-84fa-50559917b2a8": {
+    "name": "Golgari Rot Farm",
+    "picture": "https://cards.scryfall.io/png/front/4/2/42486edd-24b7-4299-84fa-50559917b2a8.png?1783904527",
+    "reader": 1,
+    "boxes": []
+  },
+  "426ed66e-41b3-4e44-90a2-697aafaa8c5c": {
+    "name": "Cultivator Colossus",
+    "picture": "https://cards.scryfall.io/png/front/4/2/426ed66e-41b3-4e44-90a2-697aafaa8c5c.png?1783908104",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0841,
+        0.6778,
+        0.4085,
+        0.0281
+      ]
+    ]
+  },
+  "45903917-5a7f-4e91-9722-7d5795d47ebe": {
+    "name": "Decree of Justice",
+    "picture": "https://cards.scryfall.io/png/front/4/5/45903917-5a7f-4e91-9722-7d5795d47ebe.png?1787682000",
+    "reader": 1,
+    "boxes": [
+      [
+        0.4477,
+        0.8023,
+        0.3972,
+        0.0377
+      ]
+    ]
+  },
+  "46311b89-306f-4eb8-8103-de2a491188d6": {
+    "name": "Fiery Impulse",
+    "picture": "https://cards.scryfall.io/png/front/4/6/46311b89-306f-4eb8-8103-de2a491188d6.png?1783910139",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0819,
+        0.634,
+        0.3154,
+        0.0382
+      ],
+      [
+        0.4343,
+        0.7864,
+        0.318,
+        0.0377
+      ]
+    ]
+  },
+  "47a6234f-309f-4e03-9263-66da48b57153": {
+    "name": "Solitude",
+    "picture": "https://cards.scryfall.io/png/front/4/7/47a6234f-309f-4e03-9263-66da48b57153.png?1783926885",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2047,
+        0.7282,
+        0.161,
+        0.0276
+      ]
+    ]
+  },
+  "47d032c5-c045-4940-b494-2905fc8ab5ee": {
+    "name": "Hickory Woodlot",
+    "picture": "https://cards.scryfall.io/png/front/4/7/47d032c5-c045-4940-b494-2905fc8ab5ee.png?1787700076",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1215,
+        0.6451,
+        0.3194,
+        0.0334
+      ],
+      [
+        0.1215,
+        0.7456,
+        0.3234,
+        0.0329
+      ],
+      [
+        0.3443,
+        0.8057,
+        0.3268,
+        0.0334
+      ]
+    ]
+  },
+  "484e80a4-1d5f-4c27-98a8-ee2ef9d6cbdc": {
+    "name": "The Wondrous Wasp",
+    "picture": "https://cards.scryfall.io/png/front/4/8/484e80a4-1d5f-4c27-98a8-ee2ef9d6cbdc.png?1783902947",
+    "reader": 1,
+    "boxes": null
+  },
+  "486d7edc-d983-41f0-8b78-c99aecd72996": {
+    "name": "Otawara, Soaring City",
+    "picture": "https://cards.scryfall.io/png/front/4/8/486d7edc-d983-41f0-8b78-c99aecd72996.png?1783923816",
+    "reader": 1,
+    "boxes": [
+      [
+        0.6128,
+        0.6975,
+        0.1959,
+        0.0353
+      ],
+      [
+        0.0826,
+        0.7311,
+        0.2838,
+        0.0363
+      ]
+    ]
+  },
+  "486ed038-2c25-4caf-8240-63674a6f767d": {
+    "name": "Mutavault",
+    "picture": "https://cards.scryfall.io/png/front/4/8/486ed038-2c25-4caf-8240-63674a6f767d.png?1783906691",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1537,
+        0.6927,
+        0.2402,
+        0.032
+      ]
+    ]
+  },
+  "48eeb13e-26f8-4fc7-8850-d38790317ea4": {
+    "name": "Guttersnipe",
+    "picture": "https://cards.scryfall.io/png/front/4/8/48eeb13e-26f8-4fc7-8850-d38790317ea4.png?1783913314",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3851,
+        0.7057,
+        0.2701,
+        0.0377
+      ]
+    ]
+  },
+  "499037cc-a577-41cb-8ca2-5e117945634f": {
+    "name": "Takenuma, Abandoned Mire",
+    "picture": "https://cards.scryfall.io/png/front/4/9/499037cc-a577-41cb-8ca2-5e117945634f.png?1783923812",
+    "reader": 1,
+    "boxes": [
+      [
+        0.6041,
+        0.6975,
+        0.2415,
+        0.0353
+      ],
+      [
+        0.0799,
+        0.7307,
+        0.3805,
+        0.031
+      ]
+    ]
+  },
+  "4a1f905f-1d55-4d02-9d24-e58070793d3f": {
+    "name": "Atraxa, Grand Unifier",
+    "picture": "https://cards.scryfall.io/png/front/4/a/4a1f905f-1d55-4d02-9d24-e58070793d3f.png?1783918003",
+    "reader": 1,
+    "boxes": [
+      [
+        0.194,
+        0.6787,
+        0.3932,
+        0.0305
+      ]
+    ]
+  },
+  "4a297ec1-0a7c-4f67-936b-d9227767e989": {
+    "name": "Overgrown Tomb",
+    "picture": "https://cards.scryfall.io/png/front/4/a/4a297ec1-0a7c-4f67-936b-d9227767e989.png?1783913254",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1553,
+        0.7436,
+        0.391,
+        0.0382
+      ]
+    ]
+  },
+  "4ad7ec71-b046-4470-88a7-11881265b6b8": {
+    "name": "Stitcher's Supplier",
+    "picture": "https://cards.scryfall.io/png/front/4/a/4ad7ec71-b046-4470-88a7-11881265b6b8.png?1783906118",
+    "reader": 1,
+    "boxes": []
+  },
+  "4c62f75e-6889-4ab6-addf-432ca4888818": {
+    "name": "Fabled Passage",
+    "picture": "https://cards.scryfall.io/png/front/4/c/4c62f75e-6889-4ab6-addf-432ca4888818.png?1783906687",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3423,
+        0.6441,
+        0.3375,
+        0.0363
+      ]
+    ]
+  },
+  "4c7bec8b-ca5e-47c6-aa14-18d02363defc": {
+    "name": "Basking Rootwalla",
+    "picture": "https://cards.scryfall.io/png/front/4/c/4c7bec8b-ca5e-47c6-aa14-18d02363defc.png?1783910601",
+    "reader": 1,
+    "boxes": null
+  },
+  "4d9715c2-9036-4ae2-a5b4-1b190d50c963": {
+    "name": "Powder Keg",
+    "picture": "https://cards.scryfall.io/png/front/4/d/4d9715c2-9036-4ae2-a5b4-1b190d50c963.png?1783946055",
+    "reader": 1,
+    "boxes": [
+      [
+        0.6208,
+        0.6696,
+        0.2503,
+        0.0344
+      ],
+      [
+        0.3578,
+        0.7124,
+        0.2543,
+        0.0348
+      ],
+      [
+        0.3638,
+        0.809,
+        0.2576,
+        0.0348
+      ]
+    ]
+  },
+  "4e11ea8a-f895-438d-a3b7-f070238e4161": {
+    "name": "Wooded Foothills",
+    "picture": "https://cards.scryfall.io/png/front/4/e/4e11ea8a-f895-438d-a3b7-f070238e4161.png?1783911232",
+    "reader": 1,
+    "boxes": [
+      [
+        0.5827,
+        0.6537,
+        0.1921,
+        0.031
+      ],
+      [
+        0.082,
+        0.6883,
+        0.2136,
+        0.031
+      ]
+    ]
+  },
+  "4e587ea7-0632-4789-ba75-3c410da2bb96": {
+    "name": "Spirebluff Canal",
+    "picture": "https://cards.scryfall.io/png/front/4/e/4e587ea7-0632-4789-ba75-3c410da2bb96.png?1783937143",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0833,
+        0.6547,
+        0.3617,
+        0.0377
+      ]
+    ]
+  },
+  "4f39366c-00df-4528-a324-6a89d0c53f0a": {
+    "name": "Treva's Ruins",
+    "picture": "https://cards.scryfall.io/png/front/4/f/4f39366c-00df-4528-a324-6a89d0c53f0a.png?1783918399",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2222,
+        0.6802,
+        0.3113,
+        0.0324
+      ]
+    ]
+  },
+  "50895202-f1a1-4840-a11a-55b78b8b5929": {
+    "name": "Grab the Prize",
+    "picture": "https://cards.scryfall.io/png/front/5/0/50895202-f1a1-4840-a11a-55b78b8b5929.png?1783909469",
+    "reader": 1,
+    "boxes": [
+      [
+        0.4523,
+        0.746,
+        0.2875,
+        0.0281
+      ]
+    ]
+  },
+  "5095db22-3eb2-4c1c-bf22-72096b648cf3": {
+    "name": "Writhing Chrysalis",
+    "picture": "https://cards.scryfall.io/png/front/5/0/5095db22-3eb2-4c1c-bf22-72096b648cf3.png?1787681979",
+    "reader": 1,
+    "boxes": [
+      [
+        0.4484,
+        0.8532,
+        0.367,
+        0.0334
+      ]
+    ]
+  },
+  "51aabe5e-161b-4c8a-bdb2-983f402a29ef": {
+    "name": "Lair of the Hydra",
+    "picture": "https://cards.scryfall.io/png/front/5/1/51aabe5e-161b-4c8a-bdb2-983f402a29ef.png?1783911330",
+    "reader": 1,
+    "boxes": null
+  },
+  "51ab3b6e-c7f2-48a1-bfa3-e7708b539bd6": {
+    "name": "Relic of Progenitus",
+    "picture": "https://cards.scryfall.io/png/front/5/1/51ab3b6e-c7f2-48a1-bfa3-e7708b539bd6.png?1783919659",
+    "reader": 1,
+    "boxes": null
+  },
+  "522aa72b-2b8c-484c-872b-f082101cee35": {
+    "name": "Get Lost",
+    "picture": "https://cards.scryfall.io/png/front/5/2/522aa72b-2b8c-484c-872b-f082101cee35.png?1783913812",
+    "reader": 1,
+    "boxes": []
+  },
+  "5260f8ae-805b-4eae-badf-62de0f768867": {
+    "name": "Hedge Maze",
+    "picture": "https://cards.scryfall.io/png/front/5/2/5260f8ae-805b-4eae-badf-62de0f768867.png?1783912824",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0827,
+        0.6855,
+        0.2889,
+        0.0377
+      ],
+      [
+        0.2292,
+        0.7682,
+        0.2889,
+        0.0377
+      ]
+    ]
+  },
+  "53a938a7-0154-4350-87cb-00da24ec3824": {
+    "name": "Starscape Cleric",
+    "picture": "https://cards.scryfall.io/png/front/5/3/53a938a7-0154-4350-87cb-00da24ec3824.png?1783910828",
+    "reader": 1,
+    "boxes": []
+  },
+  "542c89b6-48c6-4fcb-8a4c-b5ed2fa1d384": {
+    "name": "Doomsday Excruciator",
+    "picture": "https://cards.scryfall.io/png/front/5/4/542c89b6-48c6-4fcb-8a4c-b5ed2fa1d384.png?1783909483",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2003,
+        0.696,
+        0.4226,
+        0.032
+      ]
+    ]
+  },
+  "54816109-6152-44d6-8d6f-8c73aaa58049": {
+    "name": "Scrapshooter",
+    "picture": "https://cards.scryfall.io/png/front/5/4/54816109-6152-44d6-8d6f-8c73aaa58049.png?1789753294",
+    "reader": 1,
+    "boxes": []
+  },
+  "54a702cd-ca49-4570-b47e-8b090452a3c3": {
+    "name": "Mirrex",
+    "picture": "https://cards.scryfall.io/png/front/5/4/54a702cd-ca49-4570-b47e-8b090452a3c3.png?1783917980",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1202,
+        0.7307,
+        0.1368,
+        0.0272
+      ]
+    ]
+  },
+  "54eef0db-dd7b-4ba9-bcb9-4cabdf6a1431": {
+    "name": "Goblin Tinkerer",
+    "picture": "https://cards.scryfall.io/png/front/5/4/54eef0db-dd7b-4ba9-bcb9-4cabdf6a1431.png?1783946280",
+    "reader": 1,
+    "boxes": null
+  },
+  "560debcd-feb4-4534-991e-a7aa1cca2409": {
+    "name": "Devourer of Destiny",
+    "picture": "https://cards.scryfall.io/png/front/5/6/560debcd-feb4-4534-991e-a7aa1cca2409.png?1783911309",
+    "reader": 1,
+    "boxes": []
+  },
+  "579743fe-f71e-4cb2-8629-d6b02ed1591d": {
+    "name": "Bloodstained Mire",
+    "picture": "https://cards.scryfall.io/png/front/5/7/579743fe-f71e-4cb2-8629-d6b02ed1591d.png?1783911241",
+    "reader": 1,
+    "boxes": [
+      [
+        0.5908,
+        0.6537,
+        0.2963,
+        0.031
+      ],
+      [
+        0.082,
+        0.6883,
+        0.1289,
+        0.031
+      ]
+    ]
+  },
+  "5865cede-e19e-4132-8060-862b00c1052a": {
+    "name": "Skyclave Apparition",
+    "picture": "https://cards.scryfall.io/png/front/5/8/5865cede-e19e-4132-8060-862b00c1052a.png?1791938599",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2061,
+        0.6638,
+        0.3744,
+        0.0334
+      ],
+      [
+        0.2061,
+        0.7638,
+        0.3744,
+        0.0334
+      ]
+    ]
+  },
+  "589d4058-a304-40a4-aa7d-0ebda2877d42": {
+    "name": "Monk Realist",
+    "picture": "https://cards.scryfall.io/png/front/5/8/589d4058-a304-40a4-aa7d-0ebda2877d42.png?1783941251",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2222,
+        0.6932,
+        0.267,
+        0.0281
+      ]
+    ]
+  },
+  "58ebdee7-90b2-4b74-bb52-614b4042ceb7": {
+    "name": "Daze",
+    "picture": "https://cards.scryfall.io/png/front/5/8/58ebdee7-90b2-4b74-bb52-614b4042ceb7.png?1783931945",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3014,
+        0.7408,
+        0.1536,
+        0.0315
+      ]
+    ]
+  },
+  "59d5e76c-4961-4dbf-be38-a18a2c16d33f": {
+    "name": "Shivan Reef",
+    "picture": "https://cards.scryfall.io/png/front/5/9/59d5e76c-4961-4dbf-be38-a18a2c16d33f.png?1783910630",
+    "reader": 1,
+    "boxes": [
+      [
+        0.457,
+        0.7624,
+        0.2768,
+        0.031
+      ]
+    ]
+  },
+  "5a692b6e-0606-40cf-b00f-b4569826bbac": {
+    "name": "Gush",
+    "picture": "https://cards.scryfall.io/png/front/5/a/5a692b6e-0606-40cf-b00f-b4569826bbac.png?1783931941",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3021,
+        0.7307,
+        0.1603,
+        0.0324
+      ]
+    ]
+  },
+  "5af05859-1827-43fd-b8de-37e27b4a5998": {
+    "name": "Campfire",
+    "picture": "https://cards.scryfall.io/png/front/5/a/5af05859-1827-43fd-b8de-37e27b4a5998.png?1787678978",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3551,
+        0.6917,
+        0.2254,
+        0.0382
+      ]
+    ]
+  },
+  "5cad8671-4761-4014-a8a3-af45627e6e79": {
+    "name": "Disruptor Flute",
+    "picture": "https://cards.scryfall.io/png/front/5/c/5cad8671-4761-4014-a8a3-af45627e6e79.png?1783911243",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1425,
+        0.6778,
+        0.299,
+        0.0329
+      ]
+    ]
+  },
+  "5e3f50c4-2443-4e7a-9d3a-b360037fc94d": {
+    "name": "Warping Wail",
+    "picture": "https://cards.scryfall.io/png/front/5/e/5e3f50c4-2443-4e7a-9d3a-b360037fc94d.png?1783911393",
+    "reader": 1,
+    "boxes": []
+  },
+  "5edb0c1d-be6a-42b1-829c-ffbea3647ad8": {
+    "name": "Troll of Khazad-dûm",
+    "picture": "https://cards.scryfall.io/png/front/5/e/5edb0c1d-be6a-42b1-829c-ffbea3647ad8.png?1785497527",
+    "reader": 1,
+    "boxes": []
+  },
+  "5f6e8830-5e62-4945-8b73-60f0628d38e7": {
+    "name": "Undiscovered Paradise",
+    "picture": "https://cards.scryfall.io/png/front/5/f/5f6e8830-5e62-4945-8b73-60f0628d38e7.png?1783946969",
+    "reader": 1,
+    "boxes": [
+      [
+        0.5994,
+        0.6951,
+        0.2778,
+        0.0315
+      ],
+      [
+        0.1242,
+        0.7297,
+        0.1798,
+        0.0305
+      ]
+    ]
+  },
+  "5ffa48cc-b991-4d47-b7ec-cf678915c758": {
+    "name": "Conduit Pylons",
+    "picture": "https://cards.scryfall.io/png/front/5/f/5ffa48cc-b991-4d47-b7ec-cf678915c758.png?1783911776",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2064,
+        0.6432,
+        0.2956,
+        0.0329
+      ]
+    ]
+  },
+  "60642c42-15f7-4e22-80ad-4eed3a14b624": {
+    "name": "Haunted Fengraf",
+    "picture": "https://cards.scryfall.io/png/front/6/0/60642c42-15f7-4e22-80ad-4eed3a14b624.png?1783904683",
+    "reader": 1,
+    "boxes": []
+  },
+  "60715b6d-b223-431a-85d8-27d7c05469b2": {
+    "name": "Makeshift Munitions",
+    "picture": "https://cards.scryfall.io/png/front/6/0/60715b6d-b223-431a-85d8-27d7c05469b2.png?1783915648",
+    "reader": 1,
+    "boxes": [
+      [
+        0.082,
+        0.6883,
+        0.473,
+        0.0315
+      ]
+    ]
+  },
+  "607e2546-1139-4c1e-9b3b-eacb27bff510": {
+    "name": "Mishra's Bauble",
+    "picture": "https://cards.scryfall.io/png/front/6/0/607e2546-1139-4c1e-9b3b-eacb27bff510.png?1783910590",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3273,
+        0.6326,
+        0.3373,
+        0.0281
+      ]
+    ]
+  },
+  "609ac18c-ec58-4fa7-bbee-3912a69d0ec6": {
+    "name": "Sandman, Shifting Scoundrel",
+    "picture": "https://cards.scryfall.io/png/front/6/0/609ac18c-ec58-4fa7-bbee-3912a69d0ec6.png?1783905324",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0841,
+        0.6316,
+        0.2284,
+        0.0291
+      ],
+      [
+        0.0841,
+        0.7403,
+        0.1995,
+        0.0291
+      ]
+    ]
+  },
+  "61fdb579-86f3-4f8d-a0b1-fd545917105d": {
+    "name": "Castle Locthwain",
+    "picture": "https://cards.scryfall.io/png/front/6/1/61fdb579-86f3-4f8d-a0b1-fd545917105d.png?1789753359",
+    "reader": 1,
+    "boxes": null
+  },
+  "62907e7b-e531-4f51-9a69-7e60ae525775": {
+    "name": "Monumental Henge",
+    "picture": "https://cards.scryfall.io/png/front/6/2/62907e7b-e531-4f51-9a69-7e60ae525775.png?1783911239",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0827,
+        0.6326,
+        0.3695,
+        0.032
+      ]
+    ]
+  },
+  "62c38e0a-7113-4023-9f18-c01fd5abc827": {
+    "name": "Razorverge Thicket",
+    "picture": "https://cards.scryfall.io/png/front/6/2/62c38e0a-7113-4023-9f18-c01fd5abc827.png?1783908477",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0819,
+        0.6504,
+        0.4261,
+        0.0382
+      ]
+    ]
+  },
+  "62e12566-375f-4f31-aa91-1b13a96d9ece": {
+    "name": "Magebane Lizard",
+    "picture": "https://cards.scryfall.io/png/front/6/2/62e12566-375f-4f31-aa91-1b13a96d9ece.png?1783911818",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1996,
+        0.6768,
+        0.3635,
+        0.0358
+      ]
+    ]
+  },
+  "6394b9e1-674e-4eda-ad0b-206cdbb5bf5e": {
+    "name": "Ninja of the Deep Hours",
+    "picture": "https://cards.scryfall.io/png/front/6/3/6394b9e1-674e-4eda-ad0b-206cdbb5bf5e.png?1783931864",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3168,
+        0.7984,
+        0.5643,
+        0.0387
+      ]
+    ]
+  },
+  "6411a8c6-010f-4863-a0fa-bbebe09d5c34": {
+    "name": "Thawing Glaciers",
+    "picture": "https://cards.scryfall.io/png/front/6/4/6411a8c6-010f-4863-a0fa-bbebe09d5c34.png?1783947155",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1383,
+        0.8393,
+        0.369,
+        0.0363
+      ]
+    ]
+  },
+  "6506277d-f031-4db5-9d16-bf2389094785": {
+    "name": "Vren, the Relentless",
+    "picture": "https://cards.scryfall.io/png/front/6/5/6506277d-f031-4db5-9d16-bf2389094785.png?1783910791",
+    "reader": 1,
+    "boxes": []
+  },
+  "652236c2-84ef-45e4-b5fc-ed6170bc3d6c": {
+    "name": "Meticulous Archive",
+    "picture": "https://cards.scryfall.io/png/front/6/5/652236c2-84ef-45e4-b5fc-ed6170bc3d6c.png?1783912824",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0827,
+        0.6922,
+        0.4018,
+        0.0291
+      ],
+      [
+        0.2171,
+        0.7682,
+        0.4018,
+        0.0291
+      ]
+    ]
+  },
+  "661fc907-7003-45c6-820c-9616e9a71c30": {
+    "name": "Seething Landscape",
+    "picture": "https://cards.scryfall.io/png/front/6/6/661fc907-7003-45c6-820c-9616e9a71c30.png?1783911238",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3515,
+        0.6883,
+        0.4482,
+        0.0368
+      ]
+    ]
+  },
+  "664d15d7-2724-4a9b-b5a7-8042d4b7da7b": {
+    "name": "Vitu-Ghazi Inspector",
+    "picture": "https://cards.scryfall.io/png/front/6/6/664d15d7-2724-4a9b-b5a7-8042d4b7da7b.png?1783912857",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1983,
+        0.7835,
+        0.3991,
+        0.0329
+      ]
+    ]
+  },
+  "66d618f4-443c-4a6c-8cbd-5d4ea96b2cd4": {
+    "name": "Steam Vents",
+    "picture": "https://cards.scryfall.io/png/front/6/6/66d618f4-443c-4a6c-8cbd-5d4ea96b2cd4.png?1783913252",
+    "reader": 1,
+    "boxes": [
+      [
+        0.156,
+        0.7441,
+        0.2741,
+        0.0315
+      ]
+    ]
+  },
+  "670760bf-1fed-4e99-91ae-8dac8ade16dd": {
+    "name": "Moon-Circuit Hacker",
+    "picture": "https://cards.scryfall.io/png/front/6/7/670760bf-1fed-4e99-91ae-8dac8ade16dd.png?1783908765",
+    "reader": 1,
+    "boxes": [
+      [
+        0.285,
+        0.7633,
+        0.4267,
+        0.0281
+      ],
+      [
+        0.2111,
+        0.8547,
+        0.4267,
+        0.0281
+      ]
+    ]
+  },
+  "67198b97-bac2-480f-aea8-12841e8884de": {
+    "name": "Karplusan Forest",
+    "picture": "https://cards.scryfall.io/png/front/6/7/67198b97-bac2-480f-aea8-12841e8884de.png?1783906010",
+    "reader": 1,
+    "boxes": []
+  },
+  "6757bf0e-489f-4be2-9e41-463b59f00dd1": {
+    "name": "Psychatog",
+    "picture": "https://cards.scryfall.io/png/front/6/7/6757bf0e-489f-4be2-9e41-463b59f00dd1.png?1783945205",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1108,
+        0.6686,
+        0.2415,
+        0.0387
+      ],
+      [
+        0.4651,
+        0.7883,
+        0.2315,
+        0.0387
+      ]
+    ]
+  },
+  "67a87278-4c82-4056-8354-253d86b0ef3d": {
+    "name": "Cityscape Leveler",
+    "picture": "https://cards.scryfall.io/png/front/6/7/67a87278-4c82-4056-8354-253d86b0ef3d.png?1783920019",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0819,
+        0.7244,
+        0.3818,
+        0.0372
+      ]
+    ]
+  },
+  "680dd35f-afed-4bae-bd9f-ab8ae33246ff": {
+    "name": "Okiba-Gang Shinobi",
+    "picture": "https://cards.scryfall.io/png/front/6/8/680dd35f-afed-4bae-bd9f-ab8ae33246ff.png?1783932347",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3195,
+        0.7989,
+        0.4664,
+        0.0382
+      ]
+    ]
+  },
+  "6877180c-22a1-4c4d-9178-316f4c34661b": {
+    "name": "Moseo, Vein's New Dean",
+    "picture": "https://cards.scryfall.io/png/front/6/8/6877180c-22a1-4c4d-9178-316f4c34661b.png?1783903677",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1943,
+        0.672,
+        0.1249,
+        0.0252
+      ]
+    ]
+  },
+  "68924203-c3d9-41ce-8ca8-c6dd491eb3ca": {
+    "name": "Psychic Frog",
+    "picture": "https://cards.scryfall.io/png/front/6/8/68924203-c3d9-41ce-8ca8-c6dd491eb3ca.png?1783911246",
+    "reader": 1,
+    "boxes": null
+  },
+  "692fe4e8-13b4-4bec-938e-a8073a7fbd71": {
+    "name": "Greedy Freebooter",
+    "picture": "https://cards.scryfall.io/png/front/6/9/692fe4e8-13b4-4bec-938e-a8073a7fbd71.png?1783913776",
+    "reader": 1,
+    "boxes": [
+      [
+        0.205,
+        0.6383,
+        0.3588,
+        0.0329
+      ]
+    ]
+  },
+  "69c1b656-1d67-499c-bf0f-417682a86c7d": {
+    "name": "Shadowy Backstreet",
+    "picture": "https://cards.scryfall.io/png/front/6/9/69c1b656-1d67-499c-bf0f-417682a86c7d.png?1783912827",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0841,
+        0.6951,
+        0.4011,
+        0.0339
+      ],
+      [
+        0.2144,
+        0.7691,
+        0.4018,
+        0.0339
+      ]
+    ]
+  },
+  "6a0f5301-0af9-496d-b55d-6bb5518b009c": {
+    "name": "Soul-Guide Lantern",
+    "picture": "https://cards.scryfall.io/png/front/6/a/6a0f5301-0af9-496d-b55d-6bb5518b009c.png?1783907711",
+    "reader": 1,
+    "boxes": []
+  },
+  "6bd1dd34-d480-4dfd-9f82-73c4e24a11fc": {
+    "name": "Redcap Melee",
+    "picture": "https://cards.scryfall.io/png/front/6/b/6bd1dd34-d480-4dfd-9f82-73c4e24a11fc.png?1783932619",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0819,
+        0.6547,
+        0.3254,
+        0.0382
+      ]
+    ]
+  },
+  "6d5537da-112e-4679-a113-b5d7ce32a66b": {
+    "name": "Primeval Titan",
+    "picture": "https://cards.scryfall.io/png/front/6/d/6d5537da-112e-4679-a113-b5d7ce32a66b.png?1783935516",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2987,
+        0.6888,
+        0.3086,
+        0.0296
+      ]
+    ]
+  },
+  "6e288374-2b71-4ace-b1d2-a19fee6cb4af": {
+    "name": "Polluted Delta",
+    "picture": "https://cards.scryfall.io/png/front/6/e/6e288374-2b71-4ace-b1d2-a19fee6cb4af.png?1783911240",
+    "reader": 1,
+    "boxes": [
+      [
+        0.5908,
+        0.6355,
+        0.1921,
+        0.0315
+      ],
+      [
+        0.0827,
+        0.671,
+        0.1417,
+        0.031
+      ]
+    ]
+  },
+  "6e86eb36-f4cc-4a75-b43a-4dee463a3b33": {
+    "name": "Watery Grave",
+    "picture": "https://cards.scryfall.io/png/front/6/e/6e86eb36-f4cc-4a75-b43a-4dee463a3b33.png?1783913252",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1445,
+        0.7451,
+        0.305,
+        0.0368
+      ]
+    ]
+  },
+  "6e9fec20-a52c-42c0-9928-c572d9e1b21f": {
+    "name": "Mishra's Factory",
+    "picture": "https://cards.scryfall.io/png/front/6/e/6e9fec20-a52c-42c0-9928-c572d9e1b21f.png?1783918402",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1544,
+        0.7047,
+        0.3858,
+        0.0387
+      ]
+    ]
+  },
+  "6f7c63ae-5df3-410f-8643-b8c69133ca9d": {
+    "name": "Haliya, Guided by Light",
+    "picture": "https://cards.scryfall.io/png/front/6/f/6f7c63ae-5df3-410f-8643-b8c69133ca9d.png?1783905996",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2783,
+        0.6422,
+        0.1296,
+        0.0329
+      ]
+    ]
+  },
+  "6f813bc3-6d81-4555-8e4b-6ecd9a6757b7": {
+    "name": "Haywire Mite",
+    "picture": "https://cards.scryfall.io/png/front/6/f/6f813bc3-6d81-4555-8e4b-6ecd9a6757b7.png?1783903739",
+    "reader": 1,
+    "boxes": []
+  },
+  "701256d5-1389-48b7-9581-d6037209bd06": {
+    "name": "Subtlety",
+    "picture": "https://cards.scryfall.io/png/front/7/0/701256d5-1389-48b7-9581-d6037209bd06.png?1783926869",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2041,
+        0.7278,
+        0.1623,
+        0.0329
+      ]
+    ]
+  },
+  "7054012b-4f9d-44a0-aaf9-7fd3bddc7b2d": {
+    "name": "Slickshot Show-Off",
+    "picture": "https://cards.scryfall.io/png/front/7/0/7054012b-4f9d-44a0-aaf9-7fd3bddc7b2d.png?1783911814",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0841,
+        0.7076,
+        0.385,
+        0.0281
+      ]
+    ]
+  },
+  "707bc538-cdc1-49ca-9c36-3d6d5245d962": {
+    "name": "Drossforge Bridge",
+    "picture": "https://cards.scryfall.io/png/front/7/0/707bc538-cdc1-49ca-9c36-3d6d5245d962.png?1783919649",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1182,
+        0.6282,
+        0.4113,
+        0.0392
+      ]
+    ]
+  },
+  "70afcfca-c065-4a33-95b1-ec2b08bcb493": {
+    "name": "Brushland",
+    "picture": "https://cards.scryfall.io/png/front/7/0/70afcfca-c065-4a33-95b1-ec2b08bcb493.png?1783942977",
+    "reader": 1,
+    "boxes": [
+      [
+        0.096,
+        0.7883,
+        0.2382,
+        0.032
+      ]
+    ]
+  },
+  "71911392-42b0-4b6d-baf7-918a4bd3b924": {
+    "name": "Emrakul, the Promised End",
+    "picture": "https://cards.scryfall.io/png/front/7/1/71911392-42b0-4b6d-baf7-918a4bd3b924.png?1783908188",
+    "reader": 1,
+    "boxes": []
+  },
+  "71e491c5-8c07-449b-b2f1-ffa052e6d311": {
+    "name": "Scalding Tarn",
+    "picture": "https://cards.scryfall.io/png/front/7/1/71e491c5-8c07-449b-b2f1-ffa052e6d311.png?1783926793",
+    "reader": 1,
+    "boxes": [
+      [
+        0.5927,
+        0.7057,
+        0.3248,
+        0.0387
+      ]
+    ]
+  },
+  "7230f119-b663-483c-aa9b-eb22259fcc2d": {
+    "name": "Arena of Glory",
+    "picture": "https://cards.scryfall.io/png/front/7/2/7230f119-b663-483c-aa9b-eb22259fcc2d.png?1783903437",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0812,
+        0.6321,
+        0.318,
+        0.0363
+      ],
+      [
+        0.3349,
+        0.7523,
+        0.3288,
+        0.0363
+      ]
+    ]
+  },
+  "72c6d541-e2cb-4d6e-acac-90a8f53b7006": {
+    "name": "Elegant Parlor",
+    "picture": "https://cards.scryfall.io/png/front/7/2/72c6d541-e2cb-4d6e-acac-90a8f53b7006.png?1783912824",
+    "reader": 1,
+    "boxes": [
+      [
+        0.082,
+        0.6855,
+        0.3279,
+        0.0377
+      ],
+      [
+        0.2285,
+        0.7682,
+        0.3279,
+        0.0377
+      ]
+    ]
+  },
+  "7413d321-d39f-442d-afe7-755c855864e2": {
+    "name": "Reckless Rage",
+    "picture": "https://cards.scryfall.io/png/front/7/4/7413d321-d39f-442d-afe7-755c855864e2.png?1783910212",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0826,
+        0.6595,
+        0.3207,
+        0.0382
+      ]
+    ]
+  },
+  "74379bab-1bf2-4dcd-b055-d2ac0bf2c390": {
+    "name": "Abrupt Decay",
+    "picture": "https://cards.scryfall.io/png/front/7/4/74379bab-1bf2-4dcd-b055-d2ac0bf2c390.png?1783910597",
+    "reader": 1,
+    "boxes": []
+  },
+  "752bf493-5839-47e8-95f2-6d8201907428": {
+    "name": "Tormod's Crypt",
+    "picture": "https://cards.scryfall.io/png/front/7/5/752bf493-5839-47e8-95f2-6d8201907428.png?1783918410",
+    "reader": 1,
+    "boxes": null
+  },
+  "75bbe89f-09af-494e-b58e-271f64bde4b5": {
+    "name": "Snuff Out",
+    "picture": "https://cards.scryfall.io/png/front/7/5/75bbe89f-09af-494e-b58e-271f64bde4b5.png?1783938751",
+    "reader": 1,
+    "boxes": [
+      [
+        0.6356,
+        0.6883,
+        0.2529,
+        0.031
+      ]
+    ]
+  },
+  "76ec3366-98f3-4903-8f7b-cfcdd60e3be1": {
+    "name": "Boros Garrison",
+    "picture": "https://cards.scryfall.io/png/front/7/6/76ec3366-98f3-4903-8f7b-cfcdd60e3be1.png?1783912508",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0827,
+        0.6557,
+        0.3494,
+        0.031
+      ],
+      [
+        0.2292,
+        0.7374,
+        0.3494,
+        0.0315
+      ]
+    ]
+  },
+  "7740ff55-67bb-409e-90f7-2c2c8b8c770a": {
+    "name": "Valgavoth, Terror Eater",
+    "picture": "https://cards.scryfall.io/png/front/7/7/7740ff55-67bb-409e-90f7-2c2c8b8c770a.png?1783909475",
+    "reader": 1,
+    "boxes": [
+      [
+        0.162,
+        0.8307,
+        0.1867,
+        0.031
+      ]
+    ]
+  },
+  "787eadf3-5005-4ae5-820f-4012a4d4e1a5": {
+    "name": "Restless Cottage",
+    "picture": "https://cards.scryfall.io/png/front/7/8/787eadf3-5005-4ae5-820f-4012a4d4e1a5.png?1783915056",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0827,
+        0.6412,
+        0.3017,
+        0.032
+      ],
+      [
+        0.2117,
+        0.721,
+        0.3017,
+        0.032
+      ],
+      [
+        0.2729,
+        0.8172,
+        0.3017,
+        0.032
+      ]
+    ]
+  },
+  "78d5f47a-47fd-4bf9-b4ff-36966f506afe": {
+    "name": "Wild Mongrel",
+    "picture": "https://cards.scryfall.io/png/front/7/8/78d5f47a-47fd-4bf9-b4ff-36966f506afe.png?1783932445",
+    "reader": 1,
+    "boxes": [
+      [
+        0.441,
+        0.6835,
+        0.3227,
+        0.0382
+      ]
+    ]
+  },
+  "797b266b-4403-4ba4-9ffd-9c62fd981153": {
+    "name": "Yavimaya Coast",
+    "picture": "https://cards.scryfall.io/png/front/7/9/797b266b-4403-4ba4-9ffd-9c62fd981153.png?1783910622",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3945,
+        0.7624,
+        0.4132,
+        0.0377
+      ]
+    ]
+  },
+  "7a6001b3-da55-4213-80e2-27ef749ebec5": {
+    "name": "Gempalm Incinerator",
+    "picture": "https://cards.scryfall.io/png/front/7/a/7a6001b3-da55-4213-80e2-27ef749ebec5.png?1783938767",
+    "reader": 1,
+    "boxes": [
+      [
+        0.4289,
+        0.7456,
+        0.4711,
+        0.0372
+      ]
+    ]
+  },
+  "7a6b087b-a3ac-4c4d-a519-ec5584b4b42d": {
+    "name": "Exalted Angel",
+    "picture": "https://cards.scryfall.io/png/front/7/a/7a6b087b-a3ac-4c4d-a519-ec5584b4b42d.png?1783913032",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3179,
+        0.6912,
+        0.3178,
+        0.0377
+      ]
+    ]
+  },
+  "7a78246d-4cbd-4b6c-bc3a-277f96db900b": {
+    "name": "Kabira Crossroads",
+    "picture": "https://cards.scryfall.io/png/front/7/a/7a78246d-4cbd-4b6c-bc3a-277f96db900b.png?1783908602",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0827,
+        0.6912,
+        0.4186,
+        0.031
+      ],
+      [
+        0.2292,
+        0.7374,
+        0.4186,
+        0.031
+      ]
+    ]
+  },
+  "7ad684fb-cfb0-48b2-802f-bda96afafdc3": {
+    "name": "Mistvault Bridge",
+    "picture": "https://cards.scryfall.io/png/front/7/a/7ad684fb-cfb0-48b2-802f-bda96afafdc3.png?1783919646",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1182,
+        0.5984,
+        0.3791,
+        0.0536
+      ]
+    ]
+  },
+  "7b06c8a8-6e6d-40a2-b843-e3d6aac3f399": {
+    "name": "Adarkar Wastes",
+    "picture": "https://cards.scryfall.io/png/front/7/b/7b06c8a8-6e6d-40a2-b843-e3d6aac3f399.png?1791938812",
+    "reader": 1,
+    "boxes": [
+      [
+        0.4336,
+        0.7008,
+        0.3301,
+        0.0305
+      ]
+    ]
+  },
+  "7b8197b9-0cd1-4fa1-9668-d1b5f1759151": {
+    "name": "Phyrexian Dreadnought",
+    "picture": "https://cards.scryfall.io/png/front/7/b/7b8197b9-0cd1-4fa1-9668-d1b5f1759151.png?1783947042",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2665,
+        0.6749,
+        0.5221,
+        0.0387
+      ],
+      [
+        0.4906,
+        0.784,
+        0.2221,
+        0.0382
+      ],
+      [
+        0.1041,
+        0.8201,
+        0.3281,
+        0.0377
+      ]
+    ]
+  },
+  "7b8feac4-df85-4a38-a695-859e7995cfe6": {
+    "name": "Goblin Piledriver",
+    "picture": "https://cards.scryfall.io/png/front/7/b/7b8feac4-df85-4a38-a695-859e7995cfe6.png?1783932055",
+    "reader": 1,
+    "boxes": null
+  },
+  "7bb5a3ef-4ef9-455b-b797-783f845275af": {
+    "name": "Unholy Heat",
+    "picture": "https://cards.scryfall.io/png/front/7/b/7bb5a3ef-4ef9-455b-b797-783f845275af.png?1783910601",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0827,
+        0.6326,
+        0.2896,
+        0.0368
+      ],
+      [
+        0.3394,
+        0.7124,
+        0.2896,
+        0.0368
+      ]
+    ]
+  },
+  "7c024bae-5631-4e20-ac69-df392ac9e109": {
+    "name": "Orcish Bowmasters",
+    "picture": "https://cards.scryfall.io/png/front/7/c/7c024bae-5631-4e20-ac69-df392ac9e109.png?1783916299",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2262,
+        0.6883,
+        0.4227,
+        0.031
+      ],
+      [
+        0.0839,
+        0.8258,
+        0.4227,
+        0.031
+      ]
+    ]
+  },
+  "7caad74f-c0d0-4eca-94be-b89a2c9a3980": {
+    "name": "Crosis's Catacombs",
+    "picture": "https://cards.scryfall.io/png/front/7/c/7caad74f-c0d0-4eca-94be-b89a2c9a3980.png?1783945599",
+    "reader": 1,
+    "boxes": null
+  },
+  "7cbb17af-e17e-438a-ad72-0c942e6706b6": {
+    "name": "Deduce",
+    "picture": "https://cards.scryfall.io/png/front/7/c/7cbb17af-e17e-438a-ad72-0c942e6706b6.png?1783912912",
+    "reader": 1,
+    "boxes": []
+  },
+  "7d131beb-9458-4ad4-8074-85e116a3d24d": {
+    "name": "Dryad Arbor",
+    "picture": "https://cards.scryfall.io/png/front/7/d/7d131beb-9458-4ad4-8074-85e116a3d24d.png?1783910587",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0881,
+        0.7182,
+        0.2741,
+        0.0416
+      ]
+    ]
+  },
+  "7d67e614-03d2-4034-b82f-25962fc378d4": {
+    "name": "Siege-Gang Commander",
+    "picture": "https://cards.scryfall.io/png/front/7/d/7d67e614-03d2-4034-b82f-25962fc378d4.png?1783903455",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2229,
+        0.6307,
+        0.5308,
+        0.0363
+      ],
+      [
+        0.598,
+        0.7427,
+        0.2509,
+        0.0363
+      ],
+      [
+        0.0839,
+        0.7758,
+        0.2737,
+        0.03
+      ]
+    ]
+  },
+  "7dca83ce-1b75-4dcc-a839-598106a92ca9": {
+    "name": "Citadel Gate",
+    "picture": "https://cards.scryfall.io/png/front/7/d/7dca83ce-1b75-4dcc-a839-598106a92ca9.png?1783908472",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0826,
+        0.6374,
+        0.2617,
+        0.0291
+      ],
+      [
+        0.147,
+        0.6802,
+        0.261,
+        0.0296
+      ]
+    ]
+  },
+  "7e689df7-b85d-4346-bee8-5e978b5cbbbc": {
+    "name": "Goblin Sharpshooter",
+    "picture": "https://cards.scryfall.io/png/front/7/e/7e689df7-b85d-4346-bee8-5e978b5cbbbc.png?1783945054",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1208,
+        0.6172,
+        0.4107,
+        0.0344
+      ],
+      [
+        0.6403,
+        0.7244,
+        0.1435,
+        0.0291
+      ],
+      [
+        0.1202,
+        0.7566,
+        0.2737,
+        0.0344
+      ],
+      [
+        0.1752,
+        0.7994,
+        0.3986,
+        0.0344
+      ]
+    ]
+  },
+  "7ed00113-a0d7-4825-b066-f911a1ffb900": {
+    "name": "Bramble Wurm",
+    "picture": "https://cards.scryfall.io/png/front/7/e/7ed00113-a0d7-4825-b066-f911a1ffb900.png?1783908103",
+    "reader": 1,
+    "boxes": []
+  },
+  "7f1af32a-dba2-4c2f-b0ee-9c83849fda53": {
+    "name": "Cryptic Serpent",
+    "picture": "https://cards.scryfall.io/png/front/7/f/7f1af32a-dba2-4c2f-b0ee-9c83849fda53.png?1783915703",
+    "reader": 1,
+    "boxes": []
+  },
+  "8076a8c3-7c6c-4636-b5d8-9b09ee95f92c": {
+    "name": "Sacred Foundry",
+    "picture": "https://cards.scryfall.io/png/front/8/0/8076a8c3-7c6c-4636-b5d8-9b09ee95f92c.png?1783913254",
+    "reader": 1,
+    "boxes": [
+      [
+        0.156,
+        0.7436,
+        0.3635,
+        0.0382
+      ]
+    ]
+  },
+  "80c2a3c7-1486-4ff9-88ec-79ec67a437f8": {
+    "name": "Glaring Fleshraker",
+    "picture": "https://cards.scryfall.io/png/front/8/0/80c2a3c7-1486-4ff9-88ec-79ec67a437f8.png?1783911308",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0834,
+        0.8432,
+        0.3883,
+        0.0358
+      ]
+    ]
+  },
+  "815dd60c-989b-4ace-9f47-44e3405a0065": {
+    "name": "Smash to Smithereens",
+    "picture": "https://cards.scryfall.io/png/front/8/1/815dd60c-989b-4ace-9f47-44e3405a0065.png?1783931848",
+    "reader": 1,
+    "boxes": [
+      [
+        0.6,
+        0.6393,
+        0.2113,
+        0.0324
+      ],
+      [
+        0.0853,
+        0.6749,
+        0.2798,
+        0.032
+      ]
+    ]
+  },
+  "81d82869-bb51-4a66-96ad-1ccd81a9734d": {
+    "name": "Pithing Needle",
+    "picture": "https://cards.scryfall.io/png/front/8/1/81d82869-bb51-4a66-96ad-1ccd81a9734d.png?1783913158",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1822,
+        0.6172,
+        0.303,
+        0.0339
+      ]
+    ]
+  },
+  "82d503c7-d392-4fab-aace-26b3c8afa888": {
+    "name": "Werebear",
+    "picture": "https://cards.scryfall.io/png/front/8/2/82d503c7-d392-4fab-aace-26b3c8afa888.png?1783910007",
+    "reader": 1,
+    "boxes": [
+      [
+        0.4074,
+        0.6821,
+        0.2133,
+        0.0324
+      ]
+    ]
+  },
+  "84bf9d60-64b8-4209-acfe-e07eefc6bf1f": {
+    "name": "Dimir Aqueduct",
+    "picture": "https://cards.scryfall.io/png/front/8/4/84bf9d60-64b8-4209-acfe-e07eefc6bf1f.png?1783909578",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0827,
+        0.673,
+        0.3709,
+        0.0377
+      ],
+      [
+        0.2292,
+        0.7201,
+        0.3715,
+        0.0377
+      ]
+    ]
+  },
+  "85b0dc2f-7d96-47a6-89f9-8318f0b74f12": {
+    "name": "Nantuko Vigilante",
+    "picture": "https://cards.scryfall.io/png/front/8/5/85b0dc2f-7d96-47a6-89f9-8318f0b74f12.png?1783910163",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2598,
+        0.7528,
+        0.4019,
+        0.0382
+      ]
+    ]
+  },
+  "85d22d5d-3875-42ff-b51e-c6e21db201f5": {
+    "name": "Generous Ent",
+    "picture": "https://cards.scryfall.io/png/front/8/5/85d22d5d-3875-42ff-b51e-c6e21db201f5.png?1783916266",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2091,
+        0.6903,
+        0.2761,
+        0.0281
+      ]
+    ]
+  },
+  "85e9e58a-0ac1-405c-906e-16e981763b3a": {
+    "name": "Kor Skyfisher",
+    "picture": "https://cards.scryfall.io/png/front/8/5/85e9e58a-0ac1-405c-906e-16e981763b3a.png?1783932406",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2222,
+        0.7008,
+        0.2952,
+        0.0368
+      ]
+    ]
+  },
+  "8616629e-08f9-41ad-bfec-f86c8096f1cb": {
+    "name": "Enduring Curiosity",
+    "picture": "https://cards.scryfall.io/png/front/8/6/8616629e-08f9-41ad-bfec-f86c8096f1cb.png?1783909497",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2164,
+        0.7643,
+        0.4031,
+        0.0358
+      ]
+    ]
+  },
+  "872301b2-b6e7-4972-a479-66a7e304c1d3": {
+    "name": "Stomping Ground",
+    "picture": "https://cards.scryfall.io/png/front/8/7/872301b2-b6e7-4972-a479-66a7e304c1d3.png?1783913252",
+    "reader": 1,
+    "boxes": [
+      [
+        0.156,
+        0.7436,
+        0.4119,
+        0.0416
+      ]
+    ]
+  },
+  "8795fba4-0ff3-4c04-a81c-60408608a00c": {
+    "name": "Raph & Mikey, Troublemakers",
+    "picture": "https://cards.scryfall.io/png/front/8/7/8795fba4-0ff3-4c04-a81c-60408608a00c.png?1783904069",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3105,
+        0.6787,
+        0.3205,
+        0.0368
+      ]
+    ]
+  },
+  "88231c0d-0cc8-44ec-bf95-81d1710ac141": {
+    "name": "Misty Rainforest",
+    "picture": "https://cards.scryfall.io/png/front/8/8/88231c0d-0cc8-44ec-bf95-81d1710ac141.png?1783926795",
+    "reader": 1,
+    "boxes": [
+      [
+        0.5484,
+        0.7095,
+        0.3576,
+        0.0358
+      ]
+    ]
+  },
+  "8995ceaf-b7e0-423c-8f3e-25212d522502": {
+    "name": "Sunspine Lynx",
+    "picture": "https://cards.scryfall.io/png/front/8/9/8995ceaf-b7e0-423c-8f3e-25212d522502.png?1783910815",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2312,
+        0.7489,
+        0.3386,
+        0.0377
+      ]
+    ]
+  },
+  "8a605ce4-ede6-44dd-a2ea-e953902be6bd": {
+    "name": "Rith's Grove",
+    "picture": "https://cards.scryfall.io/png/front/8/a/8a605ce4-ede6-44dd-a2ea-e953902be6bd.png?1783918401",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2296,
+        0.6802,
+        0.2878,
+        0.032
+      ]
+    ]
+  },
+  "8a8121c9-2480-419c-aa9c-5b8b55f65014": {
+    "name": "Restless Reef",
+    "picture": "https://cards.scryfall.io/png/front/8/a/8a8121c9-2480-419c-aa9c-5b8b55f65014.png?1783913714",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0834,
+        0.648,
+        0.2627,
+        0.0281
+      ],
+      [
+        0.572,
+        0.7316,
+        0.2633,
+        0.0281
+      ],
+      [
+        0.2863,
+        0.8345,
+        0.2627,
+        0.0281
+      ]
+    ]
+  },
+  "8aabc541-ff2a-416f-a973-44eda8ec4706": {
+    "name": "Squee, Goblin Nabob",
+    "picture": "https://cards.scryfall.io/png/front/8/a/8aabc541-ff2a-416f-a973-44eda8ec4706.png?1783903770",
+    "reader": 1,
+    "boxes": null
+  },
+  "8ac39c01-127f-4471-bc74-11a90c48e306": {
+    "name": "Ghost Vacuum",
+    "picture": "https://cards.scryfall.io/png/front/8/a/8ac39c01-127f-4471-bc74-11a90c48e306.png?1783909433",
+    "reader": 1,
+    "boxes": [
+      [
+        0.4087,
+        0.6932,
+        0.3225,
+        0.03
+      ],
+      [
+        0.7131,
+        0.7268,
+        0.1357,
+        0.03
+      ],
+      [
+        0.0814,
+        0.7595,
+        0.1793,
+        0.03
+      ]
+    ]
+  },
+  "8afabd77-d7b3-4544-b3ea-4423a6706b2e": {
+    "name": "Dragon's Rage Channeler",
+    "picture": "https://cards.scryfall.io/png/front/8/a/8afabd77-d7b3-4544-b3ea-4423a6706b2e.png?1783910604",
+    "reader": 1,
+    "boxes": [
+      [
+        0.49,
+        0.796,
+        0.3292,
+        0.0377
+      ],
+      [
+        0.0841,
+        0.8316,
+        0.2365,
+        0.031
+      ]
+    ]
+  },
+  "8c8f3b5e-71b4-42e0-9ddb-630e3dcf1be7": {
+    "name": "Pyroclasm",
+    "picture": "https://cards.scryfall.io/png/front/8/c/8c8f3b5e-71b4-42e0-9ddb-630e3dcf1be7.png?1783935142",
+    "reader": 1,
+    "boxes": null
+  },
+  "8cf33d80-0704-4dc4-8e8d-1dcbcbc35add": {
+    "name": "Keen-Eyed Curator",
+    "picture": "https://cards.scryfall.io/png/front/8/c/8cf33d80-0704-4dc4-8e8d-1dcbcbc35add.png?1783910807",
+    "reader": 1,
+    "boxes": [
+      [
+        0.6849,
+        0.673,
+        0.2277,
+        0.0339
+      ],
+      [
+        0.0841,
+        0.7037,
+        0.1746,
+        0.0329
+      ]
+    ]
+  },
+  "8cff3ef0-4dfb-472e-aa1e-77613dd0f6d8": {
+    "name": "Ice Tunnel",
+    "picture": "https://cards.scryfall.io/png/front/8/c/8cff3ef0-4dfb-472e-aa1e-77613dd0f6d8.png?1783928174",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0812,
+        0.6807,
+        0.2368,
+        0.0315
+      ]
+    ]
+  },
+  "8ee0fdd4-1fb5-4160-b408-2c51ef4f85d0": {
+    "name": "Goblin Matron",
+    "picture": "https://cards.scryfall.io/png/front/8/e/8ee0fdd4-1fb5-4160-b408-2c51ef4f85d0.png?1783903458",
+    "reader": 1,
+    "boxes": null
+  },
+  "8f14540a-479f-4a3c-8e5b-f482caf48451": {
+    "name": "Silverbluff Bridge",
+    "picture": "https://cards.scryfall.io/png/front/8/f/8f14540a-479f-4a3c-8e5b-f482caf48451.png?1783906005",
+    "reader": 1,
+    "boxes": []
+  },
+  "8f6c2a5e-fe13-407c-aadd-c9caf2884ff1": {
+    "name": "Prismari Charm",
+    "picture": "https://cards.scryfall.io/png/front/8/f/8f6c2a5e-fe13-407c-aadd-c9caf2884ff1.png?1783903636",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1163,
+        0.7403,
+        0.3668,
+        0.0315
+      ]
+    ]
+  },
+  "8f85e12c-196b-4459-b81f-0c9c854e9f57": {
+    "name": "Flooded Strand",
+    "picture": "https://cards.scryfall.io/png/front/8/f/8f85e12c-196b-4459-b81f-0c9c854e9f57.png?1783911240",
+    "reader": 1,
+    "boxes": [
+      [
+        0.5901,
+        0.6355,
+        0.1928,
+        0.031
+      ],
+      [
+        0.0847,
+        0.671,
+        0.1666,
+        0.031
+      ]
+    ]
+  },
+  "8f8f02f1-ccb6-48b6-ae4e-adc4fe721606": {
+    "name": "Gemstone Caverns",
+    "picture": "https://cards.scryfall.io/png/front/8/f/8f8f02f1-ccb6-48b6-ae4e-adc4fe721606.png?1783926371",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1349,
+        0.6475,
+        0.3362,
+        0.0267
+      ],
+      [
+        0.3497,
+        0.7023,
+        0.3382,
+        0.0267
+      ],
+      [
+        0.6598,
+        0.7956,
+        0.1865,
+        0.0272
+      ],
+      [
+        0.0967,
+        0.8234,
+        0.1476,
+        0.0272
+      ]
+    ]
+  },
+  "8fd0fdb6-3a6d-4831-8d1b-0b1b69304c36": {
+    "name": "Den of the Bugbear",
+    "picture": "https://cards.scryfall.io/png/front/8/f/8fd0fdb6-3a6d-4831-8d1b-0b1b69304c36.png?1783903449",
+    "reader": 1,
+    "boxes": [
+      [
+        0.8141,
+        0.6427,
+        0.0899,
+        0.0281
+      ],
+      [
+        0.0812,
+        0.673,
+        0.2838,
+        0.0329
+      ],
+      [
+        0.5208,
+        0.7542,
+        0.3764,
+        0.0334
+      ]
+    ]
+  },
+  "90538019-58eb-4b4f-b2a5-4650e5b6ec84": {
+    "name": "Parallax Wave",
+    "picture": "https://cards.scryfall.io/png/front/9/0/90538019-58eb-4b4f-b2a5-4650e5b6ec84.png?1783929733",
+    "reader": 1,
+    "boxes": [
+      [
+        0.6195,
+        0.6807,
+        0.2523,
+        0.0372
+      ],
+      [
+        0.2356,
+        0.7508,
+        0.2261,
+        0.0387
+      ],
+      [
+        0.6208,
+        0.8109,
+        0.2509,
+        0.0377
+      ]
+    ]
+  },
+  "907b3d1d-8c85-4707-80b5-c4d832df9846": {
+    "name": "Tishana's Tidebinder",
+    "picture": "https://cards.scryfall.io/png/front/9/0/907b3d1d-8c85-4707-80b5-c4d832df9846.png?1783913786",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1983,
+        0.6749,
+        0.3998,
+        0.0272
+      ],
+      [
+        0.4846,
+        0.822,
+        0.3991,
+        0.0272
+      ]
+    ]
+  },
+  "908a2215-7231-43a4-8fec-5d1e4233c028": {
+    "name": "Masticore",
+    "picture": "https://cards.scryfall.io/png/front/9/0/908a2215-7231-43a4-8fec-5d1e4233c028.png?1783946056",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1021,
+        0.7157,
+        0.2462,
+        0.0305
+      ],
+      [
+        0.1826,
+        0.7614,
+        0.2073,
+        0.03
+      ],
+      [
+        0.4309,
+        0.8403,
+        0.2274,
+        0.03
+      ]
+    ]
+  },
+  "90da33d4-fe9c-42fe-b326-2fe337dc3ecd": {
+    "name": "Blooming Marsh",
+    "picture": "https://cards.scryfall.io/png/front/9/0/90da33d4-fe9c-42fe-b326-2fe337dc3ecd.png?1783937147",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0826,
+        0.647,
+        0.3751,
+        0.0387
+      ]
+    ]
+  },
+  "92585587-cfdc-406a-9114-4f6dd8802c37": {
+    "name": "Kozilek's Command",
+    "picture": "https://cards.scryfall.io/png/front/9/2/92585587-cfdc-406a-9114-4f6dd8802c37.png?1784634156",
+    "reader": 1,
+    "boxes": []
+  },
+  "93ee60f7-31dd-4bc6-b71f-57a1a0d19d20": {
+    "name": "Unlicensed Hearse",
+    "picture": "https://cards.scryfall.io/png/front/9/3/93ee60f7-31dd-4bc6-b71f-57a1a0d19d20.png?1783923059",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0806,
+        0.7403,
+        0.4597,
+        0.032
+      ]
+    ]
+  },
+  "94c229ea-90da-4aa0-bfda-b162fb3b5b8b": {
+    "name": "Verdant Catacombs",
+    "picture": "https://cards.scryfall.io/png/front/9/4/94c229ea-90da-4aa0-bfda-b162fb3b5b8b.png?1783926791",
+    "reader": 1,
+    "boxes": [
+      [
+        0.5833,
+        0.7061,
+        0.1831,
+        0.032
+      ],
+      [
+        0.0819,
+        0.7417,
+        0.269,
+        0.0324
+      ]
+    ]
+  },
+  "975f9ea8-af2c-456f-acd0-ffa9ea0d98c1": {
+    "name": "Krark-Clan Shaman",
+    "picture": "https://cards.scryfall.io/png/front/9/7/975f9ea8-af2c-456f-acd0-ffa9ea0d98c1.png?1783944539",
+    "reader": 1,
+    "boxes": [
+      [
+        0.549,
+        0.6624,
+        0.2643,
+        0.0324
+      ],
+      [
+        0.094,
+        0.7008,
+        0.1865,
+        0.032
+      ]
+    ]
+  },
+  "9995e0e6-7c9c-4fef-8fd2-8fb1622e6ec8": {
+    "name": "High Noon",
+    "picture": "https://cards.scryfall.io/png/front/9/9/9995e0e6-7c9c-4fef-8fd2-8fb1622e6ec8.png?1783911857",
+    "reader": 1,
+    "boxes": [
+      [
+        0.4013,
+        0.7297,
+        0.2734,
+        0.0377
+      ]
+    ]
+  },
+  "9a6b4431-7f2f-4dea-ba90-ea80d56b39bd": {
+    "name": "Leyline of the Void",
+    "picture": "https://cards.scryfall.io/png/front/9/a/9a6b4431-7f2f-4dea-ba90-ea80d56b39bd.png?1783910607",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1264,
+        0.6576,
+        0.3776,
+        0.0339
+      ]
+    ]
+  },
+  "9acf80a5-f2ca-45b4-aca8-fbc690e35401": {
+    "name": "Amalia Benavides Aguirre",
+    "picture": "https://cards.scryfall.io/png/front/9/a/9acf80a5-f2ca-45b4-aca8-fbc690e35401.png?1783913735",
+    "reader": 1,
+    "boxes": [
+      [
+        0.5229,
+        0.6768,
+        0.3379,
+        0.0272
+      ],
+      [
+        0.0814,
+        0.7066,
+        0.1491,
+        0.0329
+      ]
+    ]
+  },
+  "9b35c030-029d-4286-ab79-0165c8688c6c": {
+    "name": "Breeding Pool",
+    "picture": "https://cards.scryfall.io/png/front/9/b/9b35c030-029d-4286-ab79-0165c8688c6c.png?1783913258",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1499,
+        0.746,
+        0.303,
+        0.0368
+      ]
+    ]
+  },
+  "9b848caa-aad8-4060-8f86-304a8556de2d": {
+    "name": "Goblin Lackey",
+    "picture": "https://cards.scryfall.io/png/front/9/b/9b848caa-aad8-4060-8f86-304a8556de2d.png?1783946330",
+    "reader": 1,
+    "boxes": null
+  },
+  "9b911653-7b96-4cf3-a907-13c5c53a14f7": {
+    "name": "Overlord of the Balemurk",
+    "picture": "https://cards.scryfall.io/png/front/9/b/9b911653-7b96-4cf3-a907-13c5c53a14f7.png?1783909475",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2695,
+        0.7845,
+        0.4569,
+        0.0262
+      ]
+    ]
+  },
+  "9bf1fd55-9e9f-49c2-bf4f-439a18f7f36a": {
+    "name": "Wind-Scarred Crag",
+    "picture": "https://cards.scryfall.io/png/front/9/b/9bf1fd55-9e9f-49c2-bf4f-439a18f7f36a.png?1783928676",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0786,
+        0.6816,
+        0.412,
+        0.0358
+      ],
+      [
+        0.2088,
+        0.7581,
+        0.4107,
+        0.0353
+      ]
+    ]
+  },
+  "9c6d0f64-b8e1-41bc-ab86-bd6783daf72a": {
+    "name": "Molten Tributary",
+    "picture": "https://cards.scryfall.io/png/front/9/c/9c6d0f64-b8e1-41bc-ab86-bd6783daf72a.png?1783903726",
+    "reader": 1,
+    "boxes": []
+  },
+  "9d48aaff-46ab-411b-9456-171d4709f951": {
+    "name": "Fear of Missing Out",
+    "picture": "https://cards.scryfall.io/png/front/9/d/9d48aaff-46ab-411b-9456-171d4709f951.png?1783909470",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2171,
+        0.6287,
+        0.4193,
+        0.0358
+      ],
+      [
+        0.541,
+        0.7037,
+        0.3265,
+        0.0358
+      ],
+      [
+        0.0834,
+        0.7364,
+        0.0893,
+        0.0291
+      ]
+    ]
+  },
+  "9db3ba6d-eb7f-4f5b-9a3b-c6239c3baa42": {
+    "name": "Marsh Flats",
+    "picture": "https://cards.scryfall.io/png/front/9/d/9db3ba6d-eb7f-4f5b-9a3b-c6239c3baa42.png?1783926796",
+    "reader": 1,
+    "boxes": [
+      [
+        0.592,
+        0.7037,
+        0.2899,
+        0.0324
+      ]
+    ]
+  },
+  "9de5fadd-4559-479f-b45d-abe792f0f6e5": {
+    "name": "Glacial Floodplain",
+    "picture": "https://cards.scryfall.io/png/front/9/d/9de5fadd-4559-479f-b45d-abe792f0f6e5.png?1783928177",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0799,
+        0.6936,
+        0.3536,
+        0.0334
+      ]
+    ]
+  },
+  "9e26f6ad-c1b8-4ec6-a179-e86ce09824c1": {
+    "name": "Godless Shrine",
+    "picture": "https://cards.scryfall.io/png/front/9/e/9e26f6ad-c1b8-4ec6-a179-e86ce09824c1.png?1783913256",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1553,
+        0.7441,
+        0.3426,
+        0.031
+      ]
+    ]
+  },
+  "9e5af16b-55d0-4d54-bca3-6bdb5971de48": {
+    "name": "Escape Tunnel",
+    "picture": "https://cards.scryfall.io/png/front/9/e/9e5af16b-55d0-4d54-bca3-6bdb5971de48.png?1787680391",
+    "reader": 1,
+    "boxes": []
+  },
+  "9eb7b2ae-a364-485b-ae75-10dbb0af5541": {
+    "name": "Arboreal Grazer",
+    "picture": "https://cards.scryfall.io/png/front/9/e/9eb7b2ae-a364-485b-ae75-10dbb0af5541.png?1783907052",
+    "reader": 1,
+    "boxes": []
+  },
+  "9f2b39be-0fec-4647-ade1-8e1626dc5470": {
+    "name": "Rest in Peace",
+    "picture": "https://cards.scryfall.io/png/front/9/f/9f2b39be-0fec-4647-ade1-8e1626dc5470.png?1783935189",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2114,
+        0.6638,
+        0.2717,
+        0.0291
+      ]
+    ]
+  },
+  "9fad6994-1280-4a8e-a2f5-34b4ed6ef6f5": {
+    "name": "Contaminated Aquifer",
+    "picture": "https://cards.scryfall.io/png/front/9/f/9fad6994-1280-4a8e-a2f5-34b4ed6ef6f5.png?1783906991",
+    "reader": 1,
+    "boxes": []
+  },
+  "a178cfe8-f9fa-4255-88d0-54a0bed079f5": {
+    "name": "Malevolent Rumble",
+    "picture": "https://cards.scryfall.io/png/front/a/1/a178cfe8-f9fa-4255-88d0-54a0bed079f5.png?1783911259",
+    "reader": 1,
+    "boxes": []
+  },
+  "a360362f-baac-4853-8332-beefed7cfd58": {
+    "name": "Phyrexian Furnace",
+    "picture": "https://cards.scryfall.io/png/front/a/3/a360362f-baac-4853-8332-beefed7cfd58.png?1783921147",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3792,
+        0.7331,
+        0.4107,
+        0.0358
+      ]
+    ]
+  },
+  "a5931aad-2528-41e5-a94e-f129c51af5ef": {
+    "name": "Nyxborn Hydra",
+    "picture": "https://cards.scryfall.io/png/front/a/5/a5931aad-2528-41e5-a94e-f129c51af5ef.png?1787681921",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0819,
+        0.7648,
+        0.2731,
+        0.0305
+      ],
+      [
+        0.2732,
+        0.8561,
+        0.2737,
+        0.0305
+      ]
+    ]
+  },
+  "a6a62aa3-8edb-4000-8ebd-15ec4b00eed7": {
+    "name": "Floodpits Drowner",
+    "picture": "https://cards.scryfall.io/png/front/a/6/a6a62aa3-8edb-4000-8ebd-15ec4b00eed7.png?1783909494",
+    "reader": 1,
+    "boxes": [
+      [
+        0.205,
+        0.7133,
+        0.3615,
+        0.0329
+      ],
+      [
+        0.3811,
+        0.8124,
+        0.3615,
+        0.0329
+      ]
+    ]
+  },
+  "a7a8b6b8-b95f-4014-b17a-a6d44d965995": {
+    "name": "City of Traitors",
+    "picture": "https://cards.scryfall.io/png/front/a/7/a7a8b6b8-b95f-4014-b17a-a6d44d965995.png?1783946497",
+    "reader": 1,
+    "boxes": null
+  },
+  "a7ad622a-42ff-48fa-ae95-12e0a5bd9387": {
+    "name": "Uldaros Theorix",
+    "picture": "https://cards.scryfall.io/png/front/a/7/a7ad622a-42ff-48fa-ae95-12e0a5bd9387.png?1788878220",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2057,
+        0.673,
+        0.3151,
+        0.0272
+      ]
+    ]
+  },
+  "a807e7ee-0be2-49bc-a359-f4e5b8168cc0": {
+    "name": "Faerie Seer",
+    "picture": "https://cards.scryfall.io/png/front/a/8/a807e7ee-0be2-49bc-a359-f4e5b8168cc0.png?1783910131",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2296,
+        0.6932,
+        0.2583,
+        0.032
+      ]
+    ]
+  },
+  "a8493df6-9954-4e33-867c-ca4bcf3953b2": {
+    "name": "Plaguebearer",
+    "picture": "https://cards.scryfall.io/png/front/a/8/a8493df6-9954-4e33-867c-ca4bcf3953b2.png?1783946515",
+    "reader": 1,
+    "boxes": []
+  },
+  "a8747d77-0f4c-4db9-9f11-639c961d14d5": {
+    "name": "Murktide Regent",
+    "picture": "https://cards.scryfall.io/png/front/a/8/a8747d77-0f4c-4db9-9f11-639c961d14d5.png?1783913651",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0799,
+        0.7398,
+        0.2952,
+        0.03
+      ],
+      [
+        0.6651,
+        0.8566,
+        0.1657,
+        0.0252
+      ],
+      [
+        0.0806,
+        0.8826,
+        0.1348,
+        0.0353
+      ]
+    ]
+  },
+  "a9738cda-adb1-47fb-9f4c-ecd930228c4d": {
+    "name": "Ragavan, Nimble Pilferer",
+    "picture": "https://cards.scryfall.io/png/front/a/9/a9738cda-adb1-47fb-9f4c-ecd930228c4d.png?1791803835",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2725,
+        0.6316,
+        0.4603,
+        0.0324
+      ]
+    ]
+  },
+  "aa548dcd-c1dd-492d-a69f-c65dfeef0633": {
+    "name": "Sokenzan, Crucible of Defiance",
+    "picture": "https://cards.scryfall.io/png/front/a/a/aa548dcd-c1dd-492d-a69f-c65dfeef0633.png?1783923814",
+    "reader": 1,
+    "boxes": [
+      [
+        0.643,
+        0.6922,
+        0.2328,
+        0.0372
+      ],
+      [
+        0.0819,
+        0.7273,
+        0.4831,
+        0.0329
+      ]
+    ]
+  },
+  "aabe97cd-b627-4620-8051-8f54a5d97328": {
+    "name": "Wooded Ridgeline",
+    "picture": "https://cards.scryfall.io/png/front/a/a/aabe97cd-b627-4620-8051-8f54a5d97328.png?1783910623",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0814,
+        0.6941,
+        0.4139,
+        0.0377
+      ]
+    ]
+  },
+  "aaf4dad6-2a00-419e-95d0-023c80ff973a": {
+    "name": "Lava Dart",
+    "picture": "https://cards.scryfall.io/png/front/a/a/aaf4dad6-2a00-419e-95d0-023c80ff973a.png?1783910242",
+    "reader": 1,
+    "boxes": null
+  },
+  "aba6f75a-fd8a-4add-a917-56446f94f2fb": {
+    "name": "Volcanic Spite",
+    "picture": "https://cards.scryfall.io/png/front/a/b/aba6f75a-fd8a-4add-a917-56446f94f2fb.png?1783910099",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0812,
+        0.6331,
+        0.2905,
+        0.0348
+      ]
+    ]
+  },
+  "ac17bee2-5b9f-4b8f-8647-e44d9175e055": {
+    "name": "Underground River",
+    "picture": "https://cards.scryfall.io/png/front/a/c/ac17bee2-5b9f-4b8f-8647-e44d9175e055.png?1783907693",
+    "reader": 1,
+    "boxes": []
+  },
+  "ace83f5b-2349-46b8-b27f-bf705912a6df": {
+    "name": "Cavalier of Thorns",
+    "picture": "https://cards.scryfall.io/png/front/a/c/ace83f5b-2349-46b8-b27f-bf705912a6df.png?1783904559",
+    "reader": 1,
+    "boxes": []
+  },
+  "ad4adc3e-ec41-4406-8ff2-59ba8067cf4e": {
+    "name": "Superior Spider-Man",
+    "picture": "https://cards.scryfall.io/png/front/a/d/ad4adc3e-ec41-4406-8ff2-59ba8067cf4e.png?1783905308",
+    "reader": 1,
+    "boxes": null
+  },
+  "aec5d380-d354-4750-931a-6c91853e2edc": {
+    "name": "Burst Lightning",
+    "picture": "https://cards.scryfall.io/png/front/a/e/aec5d380-d354-4750-931a-6c91853e2edc.png?1783909068",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0827,
+        0.7624,
+        0.3608,
+        0.0377
+      ]
+    ]
+  },
+  "b199a31d-5e2d-411d-961a-ff7633030767": {
+    "name": "Basking Broodscale",
+    "picture": "https://cards.scryfall.io/png/front/b/1/b199a31d-5e2d-411d-961a-ff7633030767.png?1787681843",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2208,
+        0.7898,
+        0.3912,
+        0.0344
+      ]
+    ]
+  },
+  "b1f6b5b5-12ca-468d-bc53-dd0cde60e7b6": {
+    "name": "Leatherhead, Swamp Stalker",
+    "picture": "https://cards.scryfall.io/png/front/b/1/b1f6b5b5-12ca-468d-bc53-dd0cde60e7b6.png?1783904088",
+    "reader": 1,
+    "boxes": [
+      [
+        0.082,
+        0.6758,
+        0.258,
+        0.0291
+      ],
+      [
+        0.2957,
+        0.7518,
+        0.258,
+        0.0291
+      ]
+    ]
+  },
+  "b338e078-629c-4cac-bd1d-e1f0a132728d": {
+    "name": "Refurbished Familiar",
+    "picture": "https://cards.scryfall.io/png/front/b/3/b338e078-629c-4cac-bd1d-e1f0a132728d.png?1783911277",
+    "reader": 1,
+    "boxes": [
+      [
+        0.201,
+        0.7412,
+        0.385,
+        0.0262
+      ]
+    ]
+  },
+  "b356bf24-0c6b-457e-b53e-263a0100f611": {
+    "name": "Nimble Mongoose",
+    "picture": "https://cards.scryfall.io/png/front/b/3/b356bf24-0c6b-457e-b53e-263a0100f611.png?1783931996",
+    "reader": 1,
+    "boxes": null
+  },
+  "b3d6027c-813f-46df-95b4-e2e305a67620": {
+    "name": "Torch the Tower",
+    "picture": "https://cards.scryfall.io/png/front/b/3/b3d6027c-813f-46df-95b4-e2e305a67620.png?1783915088",
+    "reader": 1,
+    "boxes": [
+      [
+        0.082,
+        0.7095,
+        0.3305,
+        0.0281
+      ],
+      [
+        0.7151,
+        0.847,
+        0.2002,
+        0.0281
+      ],
+      [
+        0.082,
+        0.8778,
+        0.133,
+        0.0281
+      ]
+    ]
+  },
+  "b41920ea-a57c-41ec-a3bd-765abb902bc3": {
+    "name": "Faerie Conclave",
+    "picture": "https://cards.scryfall.io/png/front/b/4/b41920ea-a57c-41ec-a3bd-765abb902bc3.png?1783914938",
+    "reader": 1,
+    "boxes": null
+  },
+  "b43aee5e-b12e-43ea-9fae-16310acdc640": {
+    "name": "Genesis",
+    "picture": "https://cards.scryfall.io/png/front/b/4/b43aee5e-b12e-43ea-9fae-16310acdc640.png?1783945111",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1202,
+        0.6537,
+        0.159,
+        0.03
+      ],
+      [
+        0.6846,
+        0.7715,
+        0.1845,
+        0.0296
+      ]
+    ]
+  },
+  "b4b266e2-1cad-40df-bc0e-3e1464b299b3": {
+    "name": "Thorn of the Black Rose",
+    "picture": "https://cards.scryfall.io/png/front/b/4/b4b266e2-1cad-40df-bc0e-3e1464b299b3.png?1783915664",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2218,
+        0.6768,
+        0.5396,
+        0.03
+      ]
+    ]
+  },
+  "b598c93e-dae1-4d71-a9e4-917abf76d2d0": {
+    "name": "Raucous Theater",
+    "picture": "https://cards.scryfall.io/png/front/b/5/b598c93e-dae1-4d71-a9e4-917abf76d2d0.png?1783912823",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0827,
+        0.6883,
+        0.3722,
+        0.03
+      ],
+      [
+        0.2252,
+        0.7682,
+        0.3722,
+        0.03
+      ]
+    ]
+  },
+  "b61aae1a-9fdc-4e19-98ba-8a11839ca51c": {
+    "name": "Forsaken City",
+    "picture": "https://cards.scryfall.io/png/front/b/6/b61aae1a-9fdc-4e19-98ba-8a11839ca51c.png?1783922339",
+    "reader": 1,
+    "boxes": null
+  },
+  "b666a543-6570-4789-9ec4-8d8922181274": {
+    "name": "Faerie Macabre",
+    "picture": "https://cards.scryfall.io/png/front/b/6/b666a543-6570-4789-9ec4-8d8922181274.png?1783910609",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2689,
+        0.6932,
+        0.3675,
+        0.031
+      ]
+    ]
+  },
+  "b669e43e-3b11-42c9-8f20-0acce129e63c": {
+    "name": "Engineered Plague",
+    "picture": "https://cards.scryfall.io/png/front/b/6/b669e43e-3b11-42c9-8f20-0acce129e63c.png?1783945504",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1933,
+        0.6177,
+        0.4167,
+        0.0377
+      ]
+    ]
+  },
+  "b6a944ef-dbf2-47c9-a245-dfd2533a0680": {
+    "name": "Uktabi Orangutan",
+    "picture": "https://cards.scryfall.io/png/front/b/6/b6a944ef-dbf2-47c9-a245-dfd2533a0680.png?1783946155",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2665,
+        0.6412,
+        0.4093,
+        0.0382
+      ]
+    ]
+  },
+  "b6b0b957-cebe-4767-9e6c-b0d33f45efec": {
+    "name": "Aura of Silence",
+    "picture": "https://cards.scryfall.io/png/front/b/6/b6b0b957-cebe-4767-9e6c-b0d33f45efec.png?1783931877",
+    "reader": 1,
+    "boxes": null
+  },
+  "b70fbe1c-d3f4-4e28-a830-2072dee1b7b5": {
+    "name": "Terravore",
+    "picture": "https://cards.scryfall.io/png/front/b/7/b70fbe1c-d3f4-4e28-a830-2072dee1b7b5.png?1783918435",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0819,
+        0.7456,
+        0.2543,
+        0.0315
+      ]
+    ]
+  },
+  "b759b0f6-342c-4bba-89f1-8451835d8c45": {
+    "name": "Old-Growth Troll",
+    "picture": "https://cards.scryfall.io/png/front/b/7/b759b0f6-342c-4bba-89f1-8451835d8c45.png?1783928208",
+    "reader": 1,
+    "boxes": null
+  },
+  "bb02ff74-e73f-467e-ac26-429d279a8e95": {
+    "name": "Jackal Pup",
+    "picture": "https://cards.scryfall.io/png/front/b/b/bb02ff74-e73f-467e-ac26-429d279a8e95.png?1783931739",
+    "reader": 1,
+    "boxes": null
+  },
+  "bb1920f1-aab3-4066-8be9-029102886d03": {
+    "name": "Tangled Islet",
+    "picture": "https://cards.scryfall.io/png/front/b/b/bb1920f1-aab3-4066-8be9-029102886d03.png?1783903717",
+    "reader": 1,
+    "boxes": []
+  },
+  "bd1d13f7-fd38-4f0b-a8e0-1eac78668117": {
+    "name": "Windswept Heath",
+    "picture": "https://cards.scryfall.io/png/front/b/d/bd1d13f7-fd38-4f0b-a8e0-1eac78668117.png?1783911233",
+    "reader": 1,
+    "boxes": [
+      [
+        0.5827,
+        0.6537,
+        0.2566,
+        0.0377
+      ],
+      [
+        0.0827,
+        0.6883,
+        0.1565,
+        0.031
+      ]
+    ]
+  },
+  "bdd581e3-6ed4-4a2c-91d6-ef3aa304b7e8": {
+    "name": "Gemstone Mine",
+    "picture": "https://cards.scryfall.io/png/front/b/d/bdd581e3-6ed4-4a2c-91d6-ef3aa304b7e8.png?1783910106",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2598,
+        0.6186,
+        0.3442,
+        0.031
+      ],
+      [
+        0.0651,
+        0.7326,
+        0.414,
+        0.0392
+      ],
+      [
+        0.6551,
+        0.8004,
+        0.2207,
+        0.0421
+      ],
+      [
+        0.1229,
+        0.835,
+        0.1321,
+        0.0353
+      ]
+    ]
+  },
+  "bf0e94c9-61c4-4cc0-b5ce-db62bc2660ee": {
+    "name": "Deranged Hermit",
+    "picture": "https://cards.scryfall.io/png/front/b/f/bf0e94c9-61c4-4cc0-b5ce-db62bc2660ee.png?1783946230",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2497,
+        0.7278,
+        0.3583,
+        0.0377
+      ]
+    ]
+  },
+  "bf220c06-3cce-4bdd-aa58-83940c223e9c": {
+    "name": "Commercial District",
+    "picture": "https://cards.scryfall.io/png/front/b/f/bf220c06-3cce-4bdd-aa58-83940c223e9c.png?1783912825",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0834,
+        0.697,
+        0.4004,
+        0.0281
+      ],
+      [
+        0.2097,
+        0.7691,
+        0.4004,
+        0.0281
+      ]
+    ]
+  },
+  "bf28a1dc-99d6-457e-bbc9-e77819480f79": {
+    "name": "Phelia, Exuberant Shepherd",
+    "picture": "https://cards.scryfall.io/png/front/b/f/bf28a1dc-99d6-457e-bbc9-e77819480f79.png?1787682041",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2987,
+        0.6811,
+        0.5764,
+        0.0363
+      ],
+      [
+        0.3161,
+        0.8763,
+        0.1449,
+        0.0296
+      ]
+    ]
+  },
+  "bf8f052d-8840-4905-a807-9a305f4fd8f7": {
+    "name": "Hall of Storm Giants",
+    "picture": "https://cards.scryfall.io/png/front/b/f/bf8f052d-8840-4905-a807-9a305f4fd8f7.png?1783926434",
+    "reader": 1,
+    "boxes": null
+  },
+  "c009b8b7-c057-4139-99ff-336687250622": {
+    "name": "Force of Vigor",
+    "picture": "https://cards.scryfall.io/png/front/c/0/c009b8b7-c057-4139-99ff-336687250622.png?1783919925",
+    "reader": 1,
+    "boxes": []
+  },
+  "c184406c-b22c-4b9b-9d3a-3e7b17efd8a0": {
+    "name": "Barbarian Ring",
+    "picture": "https://cards.scryfall.io/png/front/c/1/c184406c-b22c-4b9b-9d3a-3e7b17efd8a0.png?1783911208",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3341,
+        0.6624,
+        0.3473,
+        0.0377
+      ],
+      [
+        0.0827,
+        0.7797,
+        0.3568,
+        0.0377
+      ]
+    ]
+  },
+  "c2086d4e-c202-4677-8dee-ecabd61cf921": {
+    "name": "Ingot Chewer",
+    "picture": "https://cards.scryfall.io/png/front/c/2/c2086d4e-c202-4677-8dee-ecabd61cf921.png?1783904551",
+    "reader": 1,
+    "boxes": []
+  },
+  "c2b48497-b104-454c-8b5b-596393470f2d": {
+    "name": "Mogg Fanatic",
+    "picture": "https://cards.scryfall.io/png/front/c/2/c2b48497-b104-454c-8b5b-596393470f2d.png?1783932072",
+    "reader": 1,
+    "boxes": null
+  },
+  "c2debda1-542e-4f28-b984-da79de35eab3": {
+    "name": "Mesmeric Fiend",
+    "picture": "https://cards.scryfall.io/png/front/c/2/c2debda1-542e-4f28-b984-da79de35eab3.png?1783910305",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2443,
+        0.6282,
+        0.3187,
+        0.0286
+      ],
+      [
+        0.2497,
+        0.7677,
+        0.3294,
+        0.0291
+      ]
+    ]
+  },
+  "c322a163-e094-477d-b897-d32fc915a505": {
+    "name": "End the Festivities",
+    "picture": "https://cards.scryfall.io/png/front/c/3/c322a163-e094-477d-b897-d32fc915a505.png?1787701502",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0812,
+        0.6537,
+        0.4187,
+        0.032
+      ]
+    ]
+  },
+  "c353a09f-8a5a-41ce-97dc-60e7350460c0": {
+    "name": "Walking Ballista",
+    "picture": "https://cards.scryfall.io/png/front/c/3/c353a09f-8a5a-41ce-97dc-60e7350460c0.png?1783918795",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0792,
+        0.6393,
+        0.3664,
+        0.0382
+      ],
+      [
+        0.6906,
+        0.722,
+        0.1905,
+        0.0387
+      ],
+      [
+        0.0812,
+        0.7576,
+        0.1831,
+        0.032
+      ],
+      [
+        0.0799,
+        0.8407,
+        0.3784,
+        0.0382
+      ]
+    ]
+  },
+  "c375a022-5b57-496d-a802-e4ea8376e9e4": {
+    "name": "Eiganjo, Seat of the Empire",
+    "picture": "https://cards.scryfall.io/png/front/c/3/c375a022-5b57-496d-a802-e4ea8376e9e4.png?1783923818",
+    "reader": 1,
+    "boxes": [
+      [
+        0.6423,
+        0.6898,
+        0.1885,
+        0.0382
+      ],
+      [
+        0.0826,
+        0.7254,
+        0.4362,
+        0.0382
+      ]
+    ]
+  },
+  "c5333556-eea2-41ae-833e-007b9d540700": {
+    "name": "Bitter Triumph",
+    "picture": "https://cards.scryfall.io/png/front/c/5/c5333556-eea2-41ae-833e-007b9d540700.png?1783907094",
+    "reader": 1,
+    "boxes": []
+  },
+  "c7c51eae-2c45-4f12-859d-56bd83247c2e": {
+    "name": "Crystal Vein",
+    "picture": "https://cards.scryfall.io/png/front/c/7/c7c51eae-2c45-4f12-859d-56bd83247c2e.png?1783909995",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3906,
+        0.747,
+        0.2865,
+        0.0387
+      ]
+    ]
+  },
+  "c819de09-dac2-407a-98c8-775865e9bdf8": {
+    "name": "Deserted Beach",
+    "picture": "https://cards.scryfall.io/png/front/c/8/c819de09-dac2-407a-98c8-775865e9bdf8.png?1783908057",
+    "reader": 1,
+    "boxes": []
+  },
+  "c8769e97-aee8-4466-a9d7-0f4245ae4a97": {
+    "name": "Concealed Courtyard",
+    "picture": "https://cards.scryfall.io/png/front/c/8/c8769e97-aee8-4466-a9d7-0f4245ae4a97.png?1783937145",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0839,
+        0.6552,
+        0.4717,
+        0.0372
+      ]
+    ]
+  },
+  "c904cd73-b3bf-4fbd-a0a0-1b2aaaf880b0": {
+    "name": "Ichor Wellspring",
+    "picture": "https://cards.scryfall.io/png/front/c/9/c904cd73-b3bf-4fbd-a0a0-1b2aaaf880b0.png?1789753329",
+    "reader": 1,
+    "boxes": []
+  },
+  "c977d89a-bfd1-4e98-9d95-3e41c53dd188": {
+    "name": "Emry, Lurker of the Loch",
+    "picture": "https://cards.scryfall.io/png/front/c/9/c977d89a-bfd1-4e98-9d95-3e41c53dd188.png?1783906044",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2292,
+        0.7383,
+        0.133,
+        0.0377
+      ]
+    ]
+  },
+  "cd70adab-39db-4cc9-ae37-a342f9109bec": {
+    "name": "Hallowed Fountain",
+    "picture": "https://cards.scryfall.io/png/front/c/d/cd70adab-39db-4cc9-ae37-a342f9109bec.png?1783913255",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1539,
+        0.7441,
+        0.4354,
+        0.0315
+      ]
+    ]
+  },
+  "cdfadb17-76ad-4d4d-9fa7-33c4b88b4c0a": {
+    "name": "Sowing Mycospawn",
+    "picture": "https://cards.scryfall.io/png/front/c/d/cdfadb17-76ad-4d4d-9fa7-33c4b88b4c0a.png?1783911255",
+    "reader": 1,
+    "boxes": []
+  },
+  "ce35e6fb-ff54-44c4-a216-7ddd37f46882": {
+    "name": "Screaming Nemesis",
+    "picture": "https://cards.scryfall.io/png/front/c/e/ce35e6fb-ff54-44c4-a216-7ddd37f46882.png?1783909465",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2803,
+        0.6691,
+        0.3702,
+        0.0329
+      ]
+    ]
+  },
+  "d051f427-77a9-4217-bf4b-c77f05fb2498": {
+    "name": "Spyglass Siren",
+    "picture": "https://cards.scryfall.io/png/front/d/0/d051f427-77a9-4217-bf4b-c77f05fb2498.png?1787681517",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2309,
+        0.7013,
+        0.3234,
+        0.0382
+      ]
+    ]
+  },
+  "d0e3e7b3-7ba9-47a2-b46c-a40bffb445e2": {
+    "name": "Twisted Landscape",
+    "picture": "https://cards.scryfall.io/png/front/d/0/d0e3e7b3-7ba9-47a2-b46c-a40bffb445e2.png?1783911232",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3354,
+        0.6903,
+        0.4219,
+        0.0368
+      ]
+    ]
+  },
+  "d1b4e58d-3b91-4019-99d2-392757024df6": {
+    "name": "Sheltered by Ghosts",
+    "picture": "https://cards.scryfall.io/png/front/d/1/d1b4e58d-3b91-4019-99d2-392757024df6.png?1787680071",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2222,
+        0.6888,
+        0.4288,
+        0.0372
+      ],
+      [
+        0.3752,
+        0.7561,
+        0.4288,
+        0.0372
+      ]
+    ]
+  },
+  "d3ca43a4-d194-440f-8099-f1fa103a108d": {
+    "name": "Aven Interrupter",
+    "picture": "https://cards.scryfall.io/png/front/d/3/d3ca43a4-d194-440f-8099-f1fa103a108d.png?1783911861",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2017,
+        0.7124,
+        0.3205,
+        0.0329
+      ]
+    ]
+  },
+  "d644be98-83df-4546-a448-247f40299993": {
+    "name": "Kappa Cannoneer",
+    "picture": "https://cards.scryfall.io/png/front/d/6/d644be98-83df-4546-a448-247f40299993.png?1789752906",
+    "reader": 1,
+    "boxes": []
+  },
+  "d6f47fe1-36c6-4af9-a9eb-f2919e8e3446": {
+    "name": "Masked Vandal",
+    "picture": "https://cards.scryfall.io/png/front/d/6/d6f47fe1-36c6-4af9-a9eb-f2919e8e3446.png?1783913111",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2269,
+        0.7278,
+        0.3449,
+        0.032
+      ]
+    ]
+  },
+  "d74d6cdb-a087-4b3d-bf25-509200ed6d93": {
+    "name": "Scattershot Archer",
+    "picture": "https://cards.scryfall.io/png/front/d/7/d74d6cdb-a087-4b3d-bf25-509200ed6d93.png?1783942473",
+    "reader": 1,
+    "boxes": null
+  },
+  "da54e458-1d4f-45f0-a225-99eb9c4049fb": {
+    "name": "Rustvale Bridge",
+    "picture": "https://cards.scryfall.io/png/front/d/a/da54e458-1d4f-45f0-a225-99eb9c4049fb.png?1783906007",
+    "reader": 1,
+    "boxes": []
+  },
+  "daf68138-63c1-4201-998c-eb412463f664": {
+    "name": "Fiery Islet",
+    "picture": "https://cards.scryfall.io/png/front/d/a/daf68138-63c1-4201-998c-eb412463f664.png?1783914582",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3724,
+        0.6903,
+        0.2062,
+        0.0329
+      ]
+    ]
+  },
+  "dbd40dc5-26b3-4244-bfb8-62a0d88a2253": {
+    "name": "Balustrade Spy",
+    "picture": "https://cards.scryfall.io/png/front/d/b/dbd40dc5-26b3-4244-bfb8-62a0d88a2253.png?1783908740",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2292,
+        0.7076,
+        0.3426,
+        0.0377
+      ]
+    ]
+  },
+  "de734753-e102-489b-9160-b3f3d10be4f1": {
+    "name": "Meddling Mage",
+    "picture": "https://cards.scryfall.io/png/front/d/e/de734753-e102-489b-9160-b3f3d10be4f1.png?1783930129",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1463,
+        0.6417,
+        0.3348,
+        0.0358
+      ]
+    ]
+  },
+  "df901113-e273-4fe0-a264-8e9e26e70905": {
+    "name": "Wall of Blossoms",
+    "picture": "https://cards.scryfall.io/png/front/d/f/df901113-e273-4fe0-a264-8e9e26e70905.png?1783907035",
+    "reader": 1,
+    "boxes": []
+  },
+  "df9d9075-2d1e-4848-b661-816d539e05eb": {
+    "name": "Emperor of Bones",
+    "picture": "https://cards.scryfall.io/png/front/d/f/df9d9075-2d1e-4848-b661-816d539e05eb.png?1783911281",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2077,
+        0.7653,
+        0.3332,
+        0.031
+      ],
+      [
+        0.3663,
+        0.7932,
+        0.3225,
+        0.031
+      ]
+    ]
+  },
+  "e20da6b5-1057-4a28-9e85-07de714e262f": {
+    "name": "Wan Shi Tong, Librarian",
+    "picture": "https://cards.scryfall.io/png/front/e/2/e20da6b5-1057-4a28-9e85-07de714e262f.png?1783904979",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1996,
+        0.7114,
+        0.2728,
+        0.0329
+      ],
+      [
+        0.6728,
+        0.8422,
+        0.1679,
+        0.0272
+      ],
+      [
+        0.082,
+        0.872,
+        0.1068,
+        0.0329
+      ]
+    ]
+  },
+  "e2a01edd-dbc0-4ed4-b827-9b608290e9a1": {
+    "name": "Detective's Phoenix",
+    "picture": "https://cards.scryfall.io/png/front/e/2/e2a01edd-dbc0-4ed4-b827-9b608290e9a1.png?1783911273",
+    "reader": 1,
+    "boxes": [
+      [
+        0.3394,
+        0.8403,
+        0.3722,
+        0.0272
+      ]
+    ]
+  },
+  "e2a49801-9838-4487-9ec6-cf087e1bb053": {
+    "name": "Krosan Tusker",
+    "picture": "https://cards.scryfall.io/png/front/e/2/e2a49801-9838-4487-9ec6-cf087e1bb053.png?1783908634",
+    "reader": 1,
+    "boxes": [
+      [
+        0.4483,
+        0.7268,
+        0.3426,
+        0.0368
+      ]
+    ]
+  },
+  "e33ad733-6706-420f-940c-d228ddcbf638": {
+    "name": "Augur of Bolas",
+    "picture": "https://cards.scryfall.io/png/front/e/3/e33ad733-6706-420f-940c-d228ddcbf638.png?1783931896",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2249,
+        0.6494,
+        0.3429,
+        0.0387
+      ]
+    ]
+  },
+  "e3fa18bf-0caa-46e4-b0a6-7d3fc242ca02": {
+    "name": "Sandstone Needle",
+    "picture": "https://cards.scryfall.io/png/front/e/3/e3fa18bf-0caa-46e4-b0a6-7d3fc242ca02.png?1787700088",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1222,
+        0.6446,
+        0.3328,
+        0.0286
+      ],
+      [
+        0.1222,
+        0.7456,
+        0.3435,
+        0.0281
+      ],
+      [
+        0.339,
+        0.8057,
+        0.3388,
+        0.0329
+      ]
+    ]
+  },
+  "e4e107ee-912d-45e0-8421-bb6ee6f38c86": {
+    "name": "Breath Weapon",
+    "picture": "https://cards.scryfall.io/png/front/e/4/e4e107ee-912d-45e0-8421-bb6ee6f38c86.png?1787677921",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0819,
+        0.6932,
+        0.3261,
+        0.0368
+      ]
+    ]
+  },
+  "e4e7d3b7-9b0c-463d-975c-ef81d7fd8dad": {
+    "name": "Wall of Roots",
+    "picture": "https://cards.scryfall.io/png/front/e/4/e4e7d3b7-9b0c-463d-975c-ef81d7fd8dad.png?1783907034",
+    "reader": 1,
+    "boxes": null
+  },
+  "e697ea72-e10e-4fed-be8f-8c6455cc3fc8": {
+    "name": "Cavern of Souls",
+    "picture": "https://cards.scryfall.io/png/front/e/6/e697ea72-e10e-4fed-be8f-8c6455cc3fc8.png?1783921785",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1531,
+        0.6393,
+        0.3536,
+        0.031
+      ]
+    ]
+  },
+  "e6d45abe-4962-47d9-a54e-7e623ea8647c": {
+    "name": "Eddymurk Crab",
+    "picture": "https://cards.scryfall.io/png/front/e/6/e6d45abe-4962-47d9-a54e-7e623ea8647c.png?1783910850",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0827,
+        0.7787,
+        0.3279,
+        0.0339
+      ],
+      [
+        0.2131,
+        0.8528,
+        0.3279,
+        0.0339
+      ]
+    ]
+  },
+  "e744b593-13fe-4967-b492-ac02f5815e57": {
+    "name": "Geothermal Crevice",
+    "picture": "https://cards.scryfall.io/png/front/e/7/e744b593-13fe-4967-b492-ac02f5815e57.png?1783945645",
+    "reader": 1,
+    "boxes": null
+  },
+  "e802838f-cc8c-4313-8c3b-32a6a7248e64": {
+    "name": "Leonardo, Big Brother",
+    "picture": "https://cards.scryfall.io/png/front/e/8/e802838f-cc8c-4313-8c3b-32a6a7248e64.png?1783904124",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0827,
+        0.8326,
+        0.2217,
+        0.031
+      ]
+    ]
+  },
+  "e8fe855c-fe94-4de7-a033-9892a9d6ee0e": {
+    "name": "Voldaren Epicure",
+    "picture": "https://cards.scryfall.io/png/front/e/8/e8fe855c-fe94-4de7-a033-9892a9d6ee0e.png?1783908106",
+    "reader": 1,
+    "boxes": []
+  },
+  "e90add90-e272-44cb-ac39-3a346dbc3982": {
+    "name": "Thought-Knot Seer",
+    "picture": "https://cards.scryfall.io/png/front/e/9/e90add90-e272-44cb-ac39-3a346dbc3982.png?1783929738",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2081,
+        0.6758,
+        0.4133,
+        0.0358
+      ],
+      [
+        0.2081,
+        0.8172,
+        0.4127,
+        0.0353
+      ]
+    ]
+  },
+  "eb098550-22e6-4079-8c59-ed9ec2f764e3": {
+    "name": "Captain Marvel, Earth's Protector",
+    "picture": "https://cards.scryfall.io/png/front/e/b/eb098550-22e6-4079-8c59-ed9ec2f764e3.png?1783902976",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1486,
+        0.7855,
+        0.3393,
+        0.0358
+      ]
+    ]
+  },
+  "eb0e0404-4846-4891-acfa-bd0951ecf9c6": {
+    "name": "Endurance",
+    "picture": "https://cards.scryfall.io/png/front/e/b/eb0e0404-4846-4891-acfa-bd0951ecf9c6.png?1783926831",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2034,
+        0.7278,
+        0.2107,
+        0.0272
+      ]
+    ]
+  },
+  "ec359d58-72af-4de7-b62a-69c48a914a68": {
+    "name": "Khalni Garden",
+    "picture": "https://cards.scryfall.io/png/front/e/c/ec359d58-72af-4de7-b62a-69c48a914a68.png?1783910411",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0819,
+        0.6561,
+        0.3415,
+        0.0324
+      ],
+      [
+        0.2289,
+        0.7383,
+        0.3415,
+        0.0324
+      ]
+    ]
+  },
+  "ecc1027a-8c07-44a0-bdde-fa2844cff694": {
+    "name": "Vivi Ornitier",
+    "picture": "https://cards.scryfall.io/png/front/e/c/ecc1027a-8c07-44a0-bdde-fa2844cff694.png?1783906561",
+    "reader": 1,
+    "boxes": [
+      [
+        0.5841,
+        0.6672,
+        0.3037,
+        0.03
+      ],
+      [
+        0.7023,
+        0.8124,
+        0.0933,
+        0.03
+      ],
+      [
+        0.0841,
+        0.8451,
+        0.176,
+        0.03
+      ]
+    ]
+  },
+  "ed87b471-79f9-45ec-9188-69e970f6121e": {
+    "name": "The Sackville-Bagginses",
+    "picture": "https://cards.scryfall.io/png/front/e/d/ed87b471-79f9-45ec-9188-69e970f6121e.png?1784894871",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1963,
+        0.6374,
+        0.4414,
+        0.032
+      ]
+    ]
+  },
+  "ee241079-1e5a-4224-b9cb-4fd3e0da687c": {
+    "name": "Orim's Chant",
+    "picture": "https://cards.scryfall.io/png/front/e/e/ee241079-1e5a-4224-b9cb-4fd3e0da687c.png?1783911218",
+    "reader": 1,
+    "boxes": null
+  },
+  "ee6d08be-a6fc-44a5-932d-b6a8705534c0": {
+    "name": "Obsidian Charmaw",
+    "picture": "https://cards.scryfall.io/png/front/e/e/ee6d08be-a6fc-44a5-932d-b6a8705534c0.png?1783926840",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2208,
+        0.7999,
+        0.4174,
+        0.03
+      ]
+    ]
+  },
+  "ef59fa4b-a116-431c-a946-31007f0f034d": {
+    "name": "Yavimaya, Cradle of Growth",
+    "picture": "https://cards.scryfall.io/png/front/e/f/ef59fa4b-a116-431c-a946-31007f0f034d.png?1791939277",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0873,
+        0.7706,
+        0.2133,
+        0.0382
+      ]
+    ]
+  },
+  "eff598b0-0b32-41d0-b980-584576e58626": {
+    "name": "Talisman of Resilience",
+    "picture": "https://cards.scryfall.io/png/front/e/f/eff598b0-0b32-41d0-b980-584576e58626.png?1783909582",
+    "reader": 1,
+    "boxes": [
+      [
+        0.4322,
+        0.696,
+        0.4811,
+        0.03
+      ]
+    ]
+  },
+  "f19d2b68-1415-4a0c-bb68-cfacb611c4d2": {
+    "name": "Gruul Turf",
+    "picture": "https://cards.scryfall.io/png/front/f/1/f19d2b68-1415-4a0c-bb68-cfacb611c4d2.png?1783904526",
+    "reader": 1,
+    "boxes": []
+  },
+  "f2392fbb-d9c4-4688-b99c-4e7614c60c12": {
+    "name": "Volatile Fjord",
+    "picture": "https://cards.scryfall.io/png/front/f/2/f2392fbb-d9c4-4688-b99c-4e7614c60c12.png?1783928170",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0772,
+        0.6797,
+        0.3053,
+        0.0377
+      ]
+    ]
+  },
+  "f4072640-0f9b-4f0a-84cc-eda415cc92e7": {
+    "name": "Avenging Hunter",
+    "picture": "https://cards.scryfall.io/png/front/f/4/f4072640-0f9b-4f0a-84cc-eda415cc92e7.png?1783922721",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2262,
+        0.7124,
+        0.3946,
+        0.0382
+      ]
+    ]
+  },
+  "f427cf73-9f5e-4ef5-bc4f-29ffbfda9d57": {
+    "name": "Professor of Symbology",
+    "picture": "https://cards.scryfall.io/png/front/f/4/f427cf73-9f5e-4ef5-bc4f-29ffbfda9d57.png?1783927387",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2282,
+        0.6355,
+        0.5335,
+        0.0382
+      ]
+    ]
+  },
+  "f4710dd6-9ff4-459e-93bf-5c41351e87a4": {
+    "name": "Thraben Charm",
+    "picture": "https://cards.scryfall.io/png/front/f/4/f4710dd6-9ff4-459e-93bf-5c41351e87a4.png?1787682061",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1074,
+        0.685,
+        0.363,
+        0.0305
+      ]
+    ]
+  },
+  "f5566c7e-7486-4237-a6e4-f7e641e11b22": {
+    "name": "Desert",
+    "picture": "https://cards.scryfall.io/png/front/f/5/f5566c7e-7486-4237-a6e4-f7e641e11b22.png?1783921141",
+    "reader": 1,
+    "boxes": [
+      [
+        0.1557,
+        0.7475,
+        0.1576,
+        0.0315
+      ]
+    ]
+  },
+  "f641c488-8208-4086-a972-3e689e5ce1e6": {
+    "name": "Thwart",
+    "picture": "https://cards.scryfall.io/png/front/f/6/f641c488-8208-4086-a972-3e689e5ce1e6.png?1783910216",
+    "reader": 1,
+    "boxes": null
+  },
+  "f6869304-a130-4a46-92b0-0c8bfa633c5c": {
+    "name": "Foil",
+    "picture": "https://cards.scryfall.io/png/front/f/6/f6869304-a130-4a46-92b0-0c8bfa633c5c.png?1783941753",
+    "reader": 1,
+    "boxes": [
+      [
+        0.7417,
+        0.7225,
+        0.1281,
+        0.0324
+      ]
+    ]
+  },
+  "f75715ce-744f-409c-aeb1-e66eb9186a74": {
+    "name": "Blackcleave Cliffs",
+    "picture": "https://cards.scryfall.io/png/front/f/7/f75715ce-744f-409c-aeb1-e66eb9186a74.png?1783909578",
+    "reader": 1,
+    "boxes": [
+      [
+        0.0827,
+        0.6441,
+        0.3964,
+        0.031
+      ]
+    ]
+  },
+  "f87e5072-525e-4b0b-a5c3-ee5e89a81e1d": {
+    "name": "Ravenous Rats",
+    "picture": "https://cards.scryfall.io/png/front/f/8/f87e5072-525e-4b0b-a5c3-ee5e89a81e1d.png?1783938754",
+    "reader": 1,
+    "boxes": null
+  },
+  "f8c3cca4-23c0-4c14-ab56-51ba011f5974": {
+    "name": "Sanctifier en-Vec",
+    "picture": "https://cards.scryfall.io/png/front/f/8/f8c3cca4-23c0-4c14-ab56-51ba011f5974.png?1783926886",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2175,
+        0.6927,
+        0.3442,
+        0.0296
+      ]
+    ]
+  },
+  "fa940e68-010e-4b68-be8a-555d7068f7b4": {
+    "name": "Firebending Lesson",
+    "picture": "https://cards.scryfall.io/png/front/f/a/fa940e68-010e-4b68-be8a-555d7068f7b4.png?1783904958",
+    "reader": 1,
+    "boxes": null
+  },
+  "fae383ee-bbdf-435b-9884-ce7b0484f8ed": {
+    "name": "Baleful Strix",
+    "picture": "https://cards.scryfall.io/png/front/f/a/fae383ee-bbdf-435b-9884-ce7b0484f8ed.png?1787680201",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2282,
+        0.7177,
+        0.2865,
+        0.0324
+      ]
+    ]
+  },
+  "fb4c5dd4-79dc-4bd2-8c18-897924a4a959": {
+    "name": "Nantuko Shade",
+    "picture": "https://cards.scryfall.io/png/front/f/b/fb4c5dd4-79dc-4bd2-8c18-897924a4a959.png?1783918476",
+    "reader": 1,
+    "boxes": null
+  },
+  "fc310a26-b6a0-4e42-98ab-bdfd7b06cb63": {
+    "name": "Beza, the Bounding Spring",
+    "picture": "https://cards.scryfall.io/png/front/f/c/fc310a26-b6a0-4e42-98ab-bdfd7b06cb63.png?1783910866",
+    "reader": 1,
+    "boxes": [
+      [
+        0.2131,
+        0.647,
+        0.5382,
+        0.0339
+      ]
+    ]
+  },
+  "fd5a8bd5-fbd6-4e0d-9aee-685b8c2068ae": {
+    "name": "Prismatic Ending",
+    "picture": "https://cards.scryfall.io/png/front/f/d/fd5a8bd5-fbd6-4e0d-9aee-685b8c2068ae.png?1783910618",
+    "reader": 1,
+    "boxes": []
+  },
+  "ff45073c-5ac1-4295-833e-58b253319c9b": {
+    "name": "Fireblast",
+    "picture": "https://cards.scryfall.io/png/front/f/f/ff45073c-5ac1-4295-833e-58b253319c9b.png?1783910278",
+    "reader": 1,
+    "boxes": null
+  }
+}

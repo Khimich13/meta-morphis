@@ -58,6 +58,14 @@ jobs:
           # new uv release can't change the build unnoticed. Update the two
           # together.
           version: "0.12.7"
+      # Reads where a card's name is printed in its text box, for the
+      # printings not yet in meta_morphis/name_in_text.json - see
+      # meta_morphis/name_in_text.py
+      - name: Install Tesseract
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends tesseract-ocr
+
       # A format that fails keeps its previous file and the run carries
       # on, so the other formats are still published; the last step below
       # then marks the run as failed, so GitHub reports it.

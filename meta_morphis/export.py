@@ -11,7 +11,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TypedDict
+from typing import Any, TypedDict
 
 from meta_morphis import config
 from meta_morphis.db.connection import get_connection
@@ -19,6 +19,7 @@ from meta_morphis.db.init_db import init_db
 from meta_morphis.meta.repo import get_meta_timestamp
 from meta_morphis.meta.service import get_meta_cards
 from meta_morphis.models.card import Card
+from meta_morphis.name_in_text import NameInText, ReadText, is_summon_printing, never_read, short_name
 from meta_morphis.scryfall.service import fetch_cards, get_display_printings
 from meta_morphis.utils.text import card_count
 
@@ -40,8 +41,14 @@ class ExportCard(TypedDict):
     art_box: list[float] | None
     # Where the name sits on the front picture, as [left, top, width,
     # height]: the app paints over it to ask which card it is from the
-    # full picture. None when the name shows elsewhere on the card too.
+    # full picture. None when the name might show elsewhere on the card
+    # and can't be covered there.
     name_box: list[float] | None
+    # Where else the name is printed on the front picture, in the text
+    # box, as a list of [left, top, width, height]: one box for each
+    # line a name runs over. The app paints over these too. Empty when
+    # name_box is None.
+    name_text_boxes: list[list[float]]
     # The front side's artwork alone, and who painted it. Scryfall asks
     # for the artist to be named wherever the artwork is shown by itself.
     art: str
@@ -180,13 +187,49 @@ def without_keyword_reminders(oracle_text: str, keywords: list[str]) -> str:
         lines.append(line)
     return "\n".join(lines)
 
-def name_box(card: Card) -> list[float] | None:
+def printed_as_oracle(card: Card) -> bool:
+    """Printed with "this creature" and the like, as the Oracle text"""
+    raw = card.raw
+    return ((raw.get("released_at") or "") >= SELF_REFERENCE_PRINTED_FROM
+            and raw.get("set_type") in NEW_CARD_SET_TYPES)
+
+def may_show_name_in_text(card: Card) -> bool:
+    """True when the name may be printed in the text box: the name or a
+    legend's short name in its Oracle or flavor text, "this creature"
+    and the like on an older printing, or a "Summon" type line. Which of
+    these the printing really shows, only its picture can tell.
+    """
+    raw = card.raw
+    oracle_text = raw.get("oracle_text") or ""
+    text = oracle_text + "\n" + (raw.get("flavor_text") or "")
+    if card.name in text or short_name(card.name) in text:
+        return True
+    rules = without_keyword_reminders(oracle_text, card.keywords)
+    if SELF_REFERENCE.search(rules) and not printed_as_oracle(card):
+        return True
+    return is_summon_printing(card)
+
+def name_boxes(
+    card: Card, read_text: ReadText = never_read
+) -> tuple[list[float] | None, list[list[float]]]:
     """Where the name sits on the front picture, for the question
-    "which card is this?" asked with the full card: [left, top, width,
-    height], up to just before the mana cost. None when the name
-    shows anywhere else on the picture, or might: then the question is
+    "which card is this?" asked with the full card: in the title bar,
+    [left, top, width, height] up to just before the mana cost, and
+    wherever `read_text` finds it in the text box. (None, []) when the
+    name can't be covered everywhere it shows: then the question is
     never asked about this card.
     """
+    title = title_name_box(card)
+    if title is None or not may_show_name_in_text(card):
+        return title, []
+    in_text = read_text(card)
+    if in_text is None:
+        return None, []
+    return title, in_text
+
+def title_name_box(card: Card) -> list[float] | None:
+    """Where the name sits in the title bar, or None for a card whose
+    title bar isn't measured, or that prints more than one name"""
     raw = card.raw
     # One name on one side: a double-faced, split or adventure card
     # prints more than one
@@ -197,19 +240,6 @@ def name_box(card: Card) -> list[float] | None:
         return None
     area = NAME_AREAS.get(card.frame or "")
     if area is None:
-        return None
-    oracle_text = raw.get("oracle_text") or ""
-    text = oracle_text + "\n" + (raw.get("flavor_text") or "")
-    # The short name too: a legend's text calls it "Ragavan"
-    short_name = card.name.split(",")[0]
-    if card.name in text or short_name in text:
-        return None
-    printed_as_oracle = (
-        (raw.get("released_at") or "") >= SELF_REFERENCE_PRINTED_FROM
-        and raw.get("set_type") in NEW_CARD_SET_TYPES
-    )
-    rules = without_keyword_reminders(oracle_text, card.keywords)
-    if SELF_REFERENCE.search(rules) and not printed_as_oracle:
         return None
     left = max([area.left] + [NAME_AFTER_ICON[effect]
                               for effect in raw.get("frame_effects") or []
@@ -230,7 +260,7 @@ def horizontal_sides(card: Card) -> list[bool]:
         return [side == 0 for side in range(sides)]
     return [False] * sides
 
-def build_card(card: Card) -> ExportCard | None:
+def build_card(card: Card, read_text: ReadText = never_read) -> ExportCard | None:
     # Without an id the app can't tell cards apart, and without its
     # pictures and artist it can't show or ask about the card - leave
     # such a card out.
@@ -248,13 +278,15 @@ def build_card(card: Card) -> ExportCard | None:
     # printing's id, so both links must contain this card's id.
     if card.id not in art or not all(card.id in image for image in images):
         return None
+    title, in_text = name_boxes(card, read_text)
     return {
         "oracle_id": card.oracle_id,
         "name": card.name,
         "images": images,
         "large_images": large_image_urls(card),
         "art_box": art_box(card),
-        "name_box": name_box(card),
+        "name_box": title,
+        "name_text_boxes": in_text,
         "art": art,
         "artist": front.artist,
         "horizontal": horizontal_sides(card),
@@ -266,7 +298,9 @@ def _staleness(card: Card) -> float:
     # cache in scryfall/service.py treats it as stale
     return math.inf if card.age < 0 else card.age
 
-def build_export(format_name: str, cards: list[Card], list_updated: str) -> ExportFile:
+def build_export(
+    format_name: str, cards: list[Card], list_updated: str, read_text: ReadText = never_read
+) -> ExportFile:
     # The app tells cards apart by oracle id, so each may appear only once.
     # Two names on the list can still lead to one card, e.g. an old
     # spelling and the new one after Scryfall renamed it. Usually both
@@ -277,7 +311,7 @@ def build_export(format_name: str, cards: list[Card], list_updated: str) -> Expo
     # carries the card's current name - whichever name the list put first.
     kept: dict[str, tuple[Card, ExportCard]] = {}
     for card in cards:
-        built = build_card(card)
+        built = build_card(card, read_text)
         if built is None:
             log.warning(f"Leaving out '{card.name}' - no oracle id, picture or artist, "
                   "or pictures of different printings")
@@ -315,6 +349,13 @@ def write_json(path: Path, data: object) -> None:
         # the half-written file to be published
         temp.unlink(missing_ok=True)
 
+def load_name_in_text(path: Path) -> dict[str, Any]:
+    """The pictures read on earlier runs - see name_in_text.py"""
+    if not path.exists():
+        return {}
+    results: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    return results
+
 def write_export(data: ExportFile, out_dir: Path) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"{data['format']}.json"
@@ -329,7 +370,8 @@ def is_basic_land(card: Card) -> bool:
     return "Basic" in card.type_line.split("—")[0].split()
 
 def export_format(
-    conn: sqlite3.Connection, format_name: str, kind: str, out_dir: Path
+    conn: sqlite3.Connection, format_name: str, kind: str, out_dir: Path,
+    read_text: ReadText = never_read,
 ) -> Path:
     """Exports one list of one format, e.g. "pauper" and "lands", to a
     file named after the list - see list_name in config.py."""
@@ -339,7 +381,7 @@ def export_format(
     cards = [card for card in fetch_cards(conn, meta) if not is_basic_land(card)]
     # The printing each card is shown with - see scryfall/artwork.py
     cards = get_display_printings(conn, cards)
-    data = build_export(name, cards, list_updated)
+    data = build_export(name, cards, list_updated, read_text)
     minimum = config.min_cards(kind)
     if len(data["cards"]) < minimum:
         raise RuntimeError(
@@ -367,7 +409,8 @@ def _check_list_age(conn: sqlite3.Connection, format_name: str) -> str:
     return datetime.fromtimestamp(fetched, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 def export_all(
-    conn: sqlite3.Connection, formats: list[str], kinds: list[str], out_dir: Path
+    conn: sqlite3.Connection, formats: list[str], kinds: list[str], out_dir: Path,
+    read_text: ReadText = never_read,
 ) -> list[str]:
     """Exports each list of each format on its own: one that fails keeps
     the file it had, and the others are still written. Then writes
@@ -385,7 +428,7 @@ def export_all(
         for kind in kinds:
             name = config.list_name(format_name, kind)
             try:
-                export_format(conn, format_name, kind, out_dir)
+                export_format(conn, format_name, kind, out_dir, read_text)
             except Exception:
                 # With the full error, so the log says why
                 log.exception(f"Could not export {name} - keeping its previous file, if any")
@@ -423,11 +466,18 @@ def main() -> int:
     """
     # Show this package's progress and warnings, one plain line each
     logging.basicConfig(level=logging.INFO, format="%(message)s")
-    with get_connection() as conn:
-        init_db(conn)
-        failed = export_all(
-            conn, config.GOLDFISH_FORMATS, config.GOLDFISH_LISTS, config.EXPORT_DIR
-        )
+    read_text = NameInText(load_name_in_text(config.NAME_IN_TEXT_PATH))
+    try:
+        with get_connection() as conn:
+            init_db(conn)
+            failed = export_all(
+                conn, config.GOLDFISH_FORMATS, config.GOLDFISH_LISTS, config.EXPORT_DIR,
+                read_text,
+            )
+    finally:
+        # Even after a failure: the pictures read so far took their time
+        if read_text.changed:
+            write_json(config.NAME_IN_TEXT_PATH, dict(sorted(read_text.results.items())))
 
     if failed:
         log.error(f"Failed to export: {', '.join(failed)}")

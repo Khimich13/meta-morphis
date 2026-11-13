@@ -11,6 +11,7 @@ from pytest import MonkeyPatch
 
 from meta_morphis import config
 from meta_morphis.export import (
+    ExportCard,
     build_card,
     build_export,
     export_all,
@@ -18,11 +19,13 @@ from meta_morphis.export import (
     art_box,
     horizontal_sides,
     is_basic_land,
-    name_box,
+    name_boxes,
+    title_name_box,
     write_json,
 )
 from meta_morphis.models.card import Card
 from meta_morphis.models.meta import MetaEntry
+from meta_morphis.name_in_text import ReadText
 
 
 def _raw(name: str, oracle_id: str = "oid", **extra: Any) -> dict[str, Any]:
@@ -53,17 +56,19 @@ def _list_fetched(monkeypatch: MonkeyPatch, fetched: int | None, now: int = FETC
 
 def test_build_card_single_faced() -> None:
     card = Card.from_raw(_raw("Hydroblast", oracle_id="b94c0336"))
-    assert build_card(card) == {
+    expected: ExportCard = {
         "oracle_id": "b94c0336",
         "name": "Hydroblast",
         "images": ["grid/id-Hydroblast.webp"],
         "large_images": ["large/id-Hydroblast.jpg"],
         "art_box": [0.079, 0.114, 0.840, 0.440],
         "name_box": None,
+        "name_text_boxes": [],
         "art": "art/id-Hydroblast.webp",
         "artist": "Some Artist",
         "horizontal": [False],
     }
+    assert build_card(card) == expected
 
 def test_build_card_falls_back_to_jpg_images() -> None:
     card = Card.from_raw(
@@ -172,30 +177,51 @@ def _english(name: str, **extra: Any) -> Card:
 def test_name_box_follows_the_frame(frame: str, box: list[float]) -> None:
     # A land: no mana cost, so the name's area runs to near the bar's end
     card = _english("Ice Tunnel", frame=frame, oracle_text="Tap: Add one mana.")
-    assert name_box(card) == box
+    assert title_name_box(card) == box
 
 def test_name_box_ends_before_the_mana_cost() -> None:
     # Three symbols of 0.0515, and the gap of 0.02, before 0.928
     card = _english("Lórien Revealed", mana_cost="{3}{U}{U}", oracle_text="Draw three cards.")
-    assert name_box(card) == [0.08, 0.052, 0.6735, 0.051]
+    assert title_name_box(card) == [0.08, 0.052, 0.6735, 0.051]
 
 def test_name_box_starts_after_an_icon() -> None:
     lesson = _english("Firebending Lesson", mana_cost="{R}", frame_effects=["lesson"])
     tombstone = _english("Lava Dart", frame="1997", frame_effects=["tombstone"])
-    assert name_box(lesson) == [0.165, 0.052, 0.6915, 0.051]
-    assert name_box(tombstone) == [0.105, 0.048, 0.793, 0.046]
+    assert title_name_box(lesson) == [0.165, 0.052, 0.6915, 0.051]
+    assert title_name_box(tombstone) == [0.105, 0.048, 0.793, 0.046]
 
-def test_no_name_box_when_the_name_shows_elsewhere() -> None:
+TITLE = [0.08, 0.052, 0.828, 0.051]
+IN_TEXT = [[0.1, 0.7, 0.2, 0.03]]
+
+class _ReadAs:
+    """Reads every picture with the same result, and remembers which"""
+    def __init__(self, boxes: list[list[float]] | None) -> None:
+        self.boxes = boxes
+        self.cards: list[str] = []
+
+    def __call__(self, card: Card) -> list[list[float]] | None:
+        self.cards.append(card.name)
+        return self.boxes
+
+def test_the_name_in_the_text_is_covered_where_the_picture_shows_it() -> None:
     # In the rules text, in the flavor text, or a legend's short name
     in_text = _english("Lava Dart", oracle_text="Lava Dart deals 1 damage to any target.")
     in_flavor = _english("Annul", flavor_text="Annul it all.")
     legend = _english("Ragavan, Nimble Pilferer",
                       oracle_text="Whenever Ragavan deals combat damage, create a Treasure.")
-    assert name_box(in_text) is None
-    assert name_box(in_flavor) is None
-    assert name_box(legend) is None
+    for card in (in_text, in_flavor, legend):
+        assert name_boxes(card, _ReadAs(IN_TEXT)) == (title_name_box(card), IN_TEXT)
+        # Not found everywhere for sure, or not read at all: not asked
+        assert name_boxes(card, _ReadAs(None)) == (None, [])
+        assert name_boxes(card) == (None, [])
 
-def test_no_name_box_for_an_old_printing_that_refers_to_itself() -> None:
+def test_the_text_is_read_only_when_it_may_show_the_name() -> None:
+    plain = _english("Counterspell", oracle_text="Counter target spell.")
+    read = _ReadAs(IN_TEXT)
+    assert name_boxes(plain, read) == (TITLE, [])
+    assert read.cards == []
+
+def test_the_text_is_read_for_an_old_printing_that_refers_to_itself() -> None:
     # Printed with its name where the Oracle text now says "this land"
     old = _english("Volatile Fjord", oracle_text="This land enters tapped.",
                    released_at="2021-02-05", set_type="expansion")
@@ -204,11 +230,24 @@ def test_no_name_box_for_an_old_printing_that_refers_to_itself() -> None:
                        released_at="2026-10-19", set_type="masters")
     new = _english("Seam Rip", oracle_text="When this enchantment enters, exile a card.",
                    released_at="2025-08-01", set_type="expansion")
-    assert name_box(old) is None
-    assert name_box(reprint) is None
-    assert name_box(new) == [0.08, 0.052, 0.828, 0.051]
+    read = _ReadAs([])
+    assert name_boxes(old, read) == (TITLE, [])
+    assert name_boxes(reprint, read) == (TITLE, [])
+    assert name_boxes(new, read) == (TITLE, [])
+    assert read.cards == ["Volatile Fjord", "Baleful Strix"]
 
-def test_name_box_despite_a_keyword_reminder_that_refers_to_itself() -> None:
+def test_the_text_is_read_for_a_summon_type_line() -> None:
+    # "Summon Ball Lightning": an old creature's type line could be its name
+    old = Card.from_raw(_raw("Ball Lightning", lang="en", type_line="Creature — Elemental",
+                             released_at="1997-03-24", oracle_text="Trample"))
+    new = Card.from_raw(_raw("Ball Lightning", lang="en", type_line="Creature — Elemental",
+                             released_at="2010-07-16", oracle_text="Trample"))
+    read = _ReadAs([])
+    name_boxes(old, read)
+    name_boxes(new, read)
+    assert read.cards == ["Ball Lightning"]
+
+def test_a_keyword_reminder_that_refers_to_itself_needs_no_reading() -> None:
     # A keyword's reminder text is printed "this card" on old printings too
     looting = _english(
         "Faithless Looting", keywords=["Flashback"], released_at="2019-06-14",
@@ -220,8 +259,8 @@ def test_name_box_despite_a_keyword_reminder_that_refers_to_itself() -> None:
         "Dryad Arbor", released_at="2024-08-02", set_type="masters",
         oracle_text="(This land isn't a spell, it's affected by summoning sickness, "
         "and it has \"{T}: Add {G}.\")")
-    assert name_box(looting) == [0.08, 0.052, 0.828, 0.051]
-    assert name_box(arbor) is None
+    assert name_boxes(looting) == (TITLE, [])
+    assert name_boxes(arbor) == (None, [])
 
 def test_no_name_box_for_more_than_one_name_another_language_frame_or_a_planeswalker() -> None:
     adventure = _english("Bonecrusher Giant // Stomp", layout="adventure")
@@ -229,10 +268,10 @@ def test_no_name_box_for_more_than_one_name_another_language_frame_or_a_planeswa
     future = _english("Future Card", frame="future")
     walker = Card.from_raw(_raw("Teferi, Time Raveler", lang="en",
                                 type_line="Legendary Planeswalker — Teferi"))
-    assert name_box(walker) is None
-    assert name_box(adventure) is None
-    assert name_box(french) is None
-    assert name_box(future) is None
+    assert title_name_box(walker) is None
+    assert title_name_box(adventure) is None
+    assert title_name_box(french) is None
+    assert title_name_box(future) is None
 
 def test_horizontal_sides() -> None:
     upright = Card.from_raw(_raw("Counterspell"))
@@ -358,6 +397,7 @@ def test_export_format_writes_the_file(
             "large_images": ["large/id-Lórien Revealed.jpg"],
             "art_box": [0.079, 0.114, 0.840, 0.440],
             "name_box": None,
+            "name_text_boxes": [],
             "art": "art/id-Lórien Revealed.webp",
             "artist": "Some Artist",
             "horizontal": [False],
@@ -457,10 +497,11 @@ def test_export_format_fails_without_any_list(
 
 def _fake_export(
     fails: tuple[str, ...] = (),
-) -> Callable[[sqlite3.Connection, str, str, Path], Path]:
+) -> Callable[[sqlite3.Connection, str, str, Path, ReadText], Path]:
     """export_format that writes an empty file, or fails for the named lists"""
     def fake_export(
-        conn: sqlite3.Connection, format_name: str, kind: str, out_dir: Path
+        conn: sqlite3.Connection, format_name: str, kind: str, out_dir: Path,
+        read_text: ReadText,
     ) -> Path:
         name = config.list_name(format_name, kind)
         if name in fails:

@@ -58,6 +58,8 @@ SCRYFALL_HEADERS = {
     "User-Agent": "meta-morphis/0.1.0 (+https://github.com/Khimich13/meta-morphis)",
     "Accept": "application/json",
 }
+# For downloading card pictures, which are not JSON
+SCRYFALL_IMAGE_HEADERS = {"User-Agent": SCRYFALL_HEADERS["User-Agent"]}
 SCRYFALL_REFRESH_RATE = 30 * DAY
 SCRYFALL_BATCH_SIZE_LIMIT = 75
 SCRYFALL_BAD_NAMES_LOOKUP_COOLDOWN = 7 * DAY
@@ -95,6 +97,12 @@ EXPORT_STALE_AFTER = 3 * DAY
 # Database
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = Path(os.environ.get("META_MORPHIS_DB") or PROJECT_ROOT / "data" / "cards.db")
+
+# Where each printing's name was found in its text box, read from its
+# picture - see name_in_text.py. Kept in git, unlike the database: the
+# first reading of every card takes hours, and the daily run reads only
+# printings missing from it.
+NAME_IN_TEXT_PATH = PROJECT_ROOT / "meta_morphis" / "name_in_text.json"
 
 # Web app data: one <format>.json per format, read by the app, and
 # formats.json listing the formats that have one

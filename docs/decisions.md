@@ -32,14 +32,21 @@ what has been done is in the commit history.
   each day counts.
 - **Two kinds of question:** a card's artwork alone, or its full picture with
   the name painted over by the title bar around it, the mana cost still
-  showing. The second is asked only about a card whose name is printed
-  nowhere else on it: one name on one side, in English, not a planeswalker
-  (its title bar has another shape), not in its rules or flavor text, and
-  without "this creature" and the like in its Oracle text unless the
-  printing is from a new set from Foundations on (older printings and
-  reprints print the name there instead). A keyword's reminder text doesn't
-  count: it says "this card" on every printing. A card that can be asked both
-  ways gets either, half the time each.
+  showing, and painted over in the text box too. The second is asked only
+  about a card with one name on one side, in English, not a planeswalker
+  (its title bar has another shape). A card that can be asked both ways
+  gets either, half the time each.
+- **The name in the text box is found by reading the picture** with
+  Tesseract, once per printing, whenever it may be printed there: in the
+  Oracle or flavor text, as "this creature" and the like on a printing
+  older than Foundations or a reprint (which may print the name instead),
+  or as an old creature's "Summon" type line. A keyword's reminder text
+  doesn't count: it says "this card" on every printing. A reading that
+  leaves anything like a word of the name uncovered, or reads the text
+  poorly, leaves the card to its artwork: a missed name gives the answer
+  away. What was read is kept in git, as the first reading of many cards
+  takes hours. The app doesn't paint over the text box yet: until it does,
+  a card with its name there is asked only by its artwork.
 - **Each card is shown in its most familiar printing:** the artwork that
   appears on the most regular English paper printings, in its newest
   printing. The question and the full card after answering always show the

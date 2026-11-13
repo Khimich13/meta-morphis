@@ -48,8 +48,11 @@ export function makeQuestion(
   const others = allCards.filter((other) => other.oracle_id !== card.oracle_id);
   const wrong = shuffle(others, random).slice(0, OPTION_COUNT - 1);
   const options = shuffle([card, ...wrong], random);
-  // Either kind, half the time each, for a card whose name can be hidden
-  const kind: QuestionKind = card.name_box && random() < 0.5 ? 'picture' : 'artwork';
+  // Either kind, half the time each, for a card whose name can be hidden.
+  // Not yet for one with its name in its text box: the question doesn't
+  // paint over it there.
+  const hideable = card.name_box && !card.name_text_boxes?.length;
+  const kind: QuestionKind = hideable && random() < 0.5 ? 'picture' : 'artwork';
   return { card, kind, options };
 }
 

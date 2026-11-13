@@ -39,7 +39,9 @@ like an app, and works offline once a list has been opened.
 
 - **`meta_morphis/`** (Python) reads MTGGoldfish's lists of most played
   cards and fetches each card's data from Scryfall, keeping both in a SQLite
-  cache. Its exporter writes a JSON file for each format and list.
+  cache. Its exporter writes a JSON file for each format and list. It reads
+  card pictures with Tesseract to find a card's name in its text box, and
+  keeps what it found in `meta_morphis/name_in_text.json`, in git.
 - **`web/`** (React, TypeScript, Vite) is the app. It reads those JSON files
   and loads card pictures from Scryfall's image servers. Progress is kept in
   the browser.
@@ -50,8 +52,10 @@ The reasoning behind these choices is in [docs/decisions.md](docs/decisions.md).
 
 ## Running it locally
 
-You need [uv](https://docs.astral.sh/uv/) for Python 3.10 or newer, and
-Node.js 26.
+You need [uv](https://docs.astral.sh/uv/) for Python 3.10 or newer,
+Node.js 26, and [Tesseract](https://tesseract-ocr.github.io/) (`sudo apt
+install tesseract-ocr`). Without Tesseract the export still works, but cards
+with their name in their text box are asked only by their artwork.
 
 Write the card files (the first run fetches everything and takes a few
 minutes):
@@ -59,6 +63,10 @@ minutes):
 ```bash
 uv run python -m meta_morphis.export
 ```
+
+It reads the pictures of printings not yet in
+`meta_morphis/name_in_text.json` and adds them there: commit the file, so
+the daily run doesn't read them again.
 
 Start the app at http://localhost:5173:
 
