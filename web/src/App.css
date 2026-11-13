@@ -38,22 +38,77 @@ body {
      cutout and rounded corners. The top one is the bar's. */
   padding: 0 calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom))
     calc(16px + env(safe-area-inset-left));
+  /* How far down the bar floats: just under the time and battery, up
+     into the spare room the phone leaves below them. Safari keeps pinned
+     things below the status bar anyway; there, the small gap keeps it from
+     painting its own band behind the time and battery (see below). Tried
+     on an iPhone with iOS 26: 5px is the least that works. */
+  --bar-top: max(5px, env(safe-area-inset-top) - 10px);
 }
 
 /* Back, and the list's name: laid out like the lesson's bar, and kept at
-   the top while the cards scroll under it. Its own background covers
-   them, up under the status bar too. */
+   the top while the cards scroll under it. Its background lets them show
+   through, blurred so the name stays readable over any art.
+
+   In Safari it floats a little below the top edge. iOS 26
+   Safari paints its own solid band behind the time and battery when a
+   pinned bar with a background touches the top edge, even a see-through
+   one; with the bar clear of the edge, it shows the cards there. */
 .card-list-bar {
   position: sticky;
-  top: 0;
+  top: var(--bar-top);
+  /* The whole width of the screen, past the list's side padding; the
+     padding keeps the arrow lined up with the cards */
+  margin: var(--bar-top) calc(-16px - env(safe-area-inset-right)) 0
+    calc(-16px - env(safe-area-inset-left));
   /* Above the cards, which may be turning over */
   z-index: 1;
   display: grid;
   grid-template-columns: 44px 1fr 44px;
   align-items: center;
   gap: 8px;
-  padding: calc(8px + env(safe-area-inset-top)) 0 8px;
-  background: var(--page);
+  padding: 8px calc(16px + env(safe-area-inset-right)) 8px calc(16px + env(safe-area-inset-left));
+  /* Rounded at the top only: the bottom edge runs straight across */
+  border-radius: 20px 20px 0 0;
+  /* Frosted glass: mostly the page's own color, with the cards behind
+     blurred and their colors brightened showing faintly through */
+  background: color-mix(in srgb, var(--page) 90%, transparent);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  backdrop-filter: blur(12px) saturate(180%);
+}
+
+/* The same glass in a strip under the bar, fading out downward, so the
+   cards blur gradually as they scroll up rather than at a sharp line */
+.card-list-bar::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 24px;
+  background: inherit;
+  -webkit-backdrop-filter: inherit;
+  backdrop-filter: inherit;
+  -webkit-mask-image: linear-gradient(black, transparent);
+  mask-image: linear-gradient(black, transparent);
+  /* Only a look: taps go through to the cards */
+  pointer-events: none;
+}
+
+/* Opened from the home screen, the app draws the page behind the time and
+   battery itself, unlike Safari. There the bar reaches up behind them, so
+   they sit on the same blurred background as the list's name. */
+@media (display-mode: standalone) {
+  .card-list {
+    --bar-top: 0px;
+  }
+
+  .card-list-bar {
+    /* The back button and the name up into the spare room the phone
+       leaves below the time and battery */
+    padding-top: max(4px, env(safe-area-inset-top) - 4px);
+    border-radius: 0;
+  }
 }
 
 .card-list-bar h1 {
@@ -105,7 +160,7 @@ body {
   text-align: center;
   /* Scrolled into view below the bar, not under it - see useBarHeight in
      screens/CardList.tsx */
-  scroll-margin-top: var(--bar-height, 0px);
+  scroll-margin-top: calc(var(--bar-top) + var(--bar-height, 0px));
 }
 
 /* A shorter record (a new card has labels only) sits right above its
