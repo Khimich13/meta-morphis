@@ -111,6 +111,19 @@ body {
   }
 }
 
+/* On a laptop or desktop, with a mouse or trackpad, there is no Safari
+   band to dodge, so the bar sits flush against the top edge. Phones and
+   tablets without a pointer keep the gap above. */
+@media (hover: hover) and (pointer: fine) {
+  .card-list {
+    --bar-top: 0px;
+  }
+
+  .card-list-bar {
+    border-radius: 0;
+  }
+}
+
 /* Hidden behind the large view. Above the cards (z-index), it was above
    the layer that dims the page too (body::after, see LargeView.css), and
    showed undimmed behind the close button and the card count. Hidden
