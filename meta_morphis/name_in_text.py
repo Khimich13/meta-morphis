@@ -30,6 +30,8 @@ from PIL import Image
 
 from meta_morphis import config
 from meta_morphis.models.card import Card
+from meta_morphis.scryfall.client import fetch_catalog
+from meta_morphis.utils.http import RequestUnavailable
 
 log = logging.getLogger(__name__)
 
@@ -38,7 +40,7 @@ log = logging.getLogger(__name__)
 ReadText = Callable[[Card], list[list[float]] | None]
 
 # Raise it when the reading changes, so every printing is read again
-READER_VERSION = 3
+READER_VERSION = 4
 
 # Where to read on a card's picture, as shares of its width and height:
 # the text box, below the type line and above the artist's credit, the
@@ -56,9 +58,9 @@ SCALE = 2
 # height: Tesseract's boxes can end a letter short. Less on the left,
 # where a name starting a line is next to the text box's border.
 PAD_LEFT, PAD_RIGHT, PAD_Y = 0.002, 0.006, 0.003
-# A word of the name standing alone - "Goblin" in "a Goblin card" - is
-# covered too, up to this many. A card with more is left out: so many
-# covers would look odd.
+# A word of the name standing alone - "Locthwain's persistence" in a
+# flavor text - is covered too, up to this many. A card with more is left
+# out: so many covers would look odd.
 MAX_LIKE_NAME = 3
 # Readings Tesseract is less sure of than this, on average over the
 # words it read (0 to 100), may have missed the name
@@ -114,18 +116,33 @@ def matches(read: str, wanted: str) -> bool:
     return any(longer[:i] + longer[i + 1:] == shorter for i in range(len(longer)))
 
 
-def find_name(words: list[Word], name: str) -> list[list[float]] | None:
+def edits(a: str, b: str) -> int:
+    """How many letters must change, go or come to make a into b"""
+    row = list(range(len(b) + 1))
+    for i, letter in enumerate(a, 1):
+        before, row[0] = row[0], i
+        for j, other in enumerate(b, 1):
+            before, row[j] = row[j], min(row[j] + 1, row[j - 1] + 1, before + (letter != other))
+    return row[-1]
+
+
+def find_name(
+    words: list[Word], name: str, game_words: frozenset[str] = frozenset()
+) -> list[list[float]] | None:
     """Boxes in pixels, [left, top, right, bottom], around each time the
     name is printed among the words: one box per line it runs over. The
     full name is looked for first, then a legend's short name.
 
     A word left over that is like one of the name's may be the name read
-    badly. It is covered too when it is a whole word of the name, with no
-    piece of the name next to it: "Goblin" in "a Goblin card". Otherwise
-    the name may be read badly around it, and the card is left out (None):
-    "Jackal,Pup" run together, whose box may be too short, or "Superior"
-    before "Spider-" and "Man", a name broken at a line's end. So it is
-    when more than MAX_LIKE_NAME words are left.
+    badly. When it has a piece of the name next to it, or only starts like
+    a word of the name, it may well be, and the card is left out (None):
+    "Superior" before "Spider-" and "Man", a name broken at a line's end,
+    or "Jackal,Pup" run together, whose box may be too short. Standing
+    alone, it is left as it is when it is a game word - a subtype such as
+    "Goblin" in "a Goblin card", among `game_words`, normalized - which
+    says nothing of which card it is. Any other is covered: a place or a
+    person, such as "Locthwain's" in a flavor text, gives the answer away.
+    So is a card left out with more than MAX_LIKE_NAME to cover.
     """
     read = [normalize(word.text) for word in words]
     used: set[int] = set()
@@ -161,21 +178,30 @@ def find_name(words: list[Word], name: str) -> list[list[float]] | None:
     # The name in one piece, to find pieces of it: "spider" and "man" in
     # "superiorspiderman"
     whole = "".join(normalize(part) for part in name.split())
+    # Game words left in sight: only for a name of more than one word,
+    # whose other words tell it from the game word itself
+    plain = name_words & game_words if len(name.split()) > 1 else set()
 
-    def is_piece(i: int) -> bool:
-        return 0 <= i < len(read) and len(read[i]) >= 3 and read[i] in whole
+    def near_name(i: int) -> bool:
+        """The word at i may be a piece or a word of the name, read badly"""
+        if not 0 <= i < len(read) or len(read[i]) < 3:
+            return False
+        return read[i] in whole or any(edits(read[i], part) <= 2
+                                       for part in name_words if len(part) >= 5)
 
     like_name: list[Word] = []
     for i, text in enumerate(read):
-        if i in used or not any(text.startswith(part) or matches(text, part)
-                                for part in name_words):
+        if i in used:
             continue
-        alone = (any(matches(text, part) for part in name_words)
-                 and not is_piece(i - 1) and not is_piece(i + 1))
-        if not alone:
+        like = [part for part in name_words if matches(text, part)]
+        if not like and not any(text.startswith(part) for part in name_words):
+            continue
+        if not like or near_name(i - 1) or near_name(i + 1):
             log.info(f"Not covering the name of '{name}': '{words[i].text}' is left in "
                      "its text, and may be part of the name read badly")
             return None
+        if all(part in plain for part in like):
+            continue
         like_name.append(words[i])
     if len(like_name) > MAX_LIKE_NAME:
         listed = ", ".join(f"'{word.text}'" for word in like_name)
@@ -233,7 +259,9 @@ def read_words(picture: bytes, from_top: float) -> tuple[list[Word], float, tupl
     return words, confidence, (width, height)
 
 
-def name_in_text(card: Card, picture: bytes) -> list[list[float]] | None:
+def name_in_text(
+    card: Card, picture: bytes, game_words: frozenset[str] = frozenset()
+) -> list[list[float]] | None:
     """Where the name is printed on the card outside its title bar, as
     [left, top, width, height] shares of the picture: an empty list when
     it isn't. None when the reading can't be trusted to have found every
@@ -250,7 +278,7 @@ def name_in_text(card: Card, picture: bytes) -> list[list[float]] | None:
         log.info(f"Not covering the name of '{card.name}': only {len(words)} words "
                  f"of its text were read, of about {oracle_words}")
         return None
-    found = find_name(words, card.name)
+    found = find_name(words, card.name, game_words)
     if found is None:
         return None
     return [
@@ -271,13 +299,20 @@ class NameInText:
     name changes, or READER_VERSION does.
     """
 
-    def __init__(self, results: dict[str, Any]) -> None:
+    def __init__(self, results: dict[str, Any], game_words: frozenset[str]) -> None:
         self.results = results
         self.changed = False
-        self._can_read = shutil.which("tesseract") is not None
-        if not self._can_read:
+        self.game_words = game_words
+        self._can_read = shutil.which("tesseract") is not None and bool(game_words)
+        if shutil.which("tesseract") is None:
             log.warning("Tesseract is not installed: cards with their name in "
-                        "their text box are asked only by their artwork")
+                        "their text box not read before are asked only by their artwork")
+        elif not game_words:
+            # Read without them, "a Goblin card" would be covered, and
+            # saved that way
+            log.warning("Scryfall's lists of subtypes could not be fetched: cards with "
+                        "their name in their text box not read before are asked only "
+                        "by their artwork")
 
     def __call__(self, card: Card) -> list[list[float]] | None:
         picture_url = (card.raw.get("image_uris") or {}).get("png")
@@ -295,7 +330,7 @@ class NameInText:
         if picture is None:
             return None
         try:
-            boxes = name_in_text(card, picture)
+            boxes = name_in_text(card, picture, self.game_words)
         except (OSError, subprocess.SubprocessError) as e:
             # Not saved: tried again on the next run
             log.warning(f"Could not read the picture of '{card.name}': {e}")
@@ -304,6 +339,23 @@ class NameInText:
                                  "reader": READER_VERSION, "boxes": boxes}
         self.changed = True
         return boxes
+
+
+def fetch_game_words() -> frozenset[str]:
+    """Every subtype a card's text may use as a game word, normalized:
+    "goblin", "urzas". Empty when Scryfall can't be reached."""
+    words: set[str] = set()
+    for catalog in config.SCRYFALL_SUBTYPE_CATALOGS:
+        try:
+            found = fetch_catalog(catalog)
+        except RequestUnavailable as e:
+            log.warning(f"Could not fetch Scryfall's {catalog}: {e}")
+            return frozenset()
+        if not found:
+            log.warning(f"Scryfall has no {catalog} list")
+            return frozenset()
+        words.update(normalize(word) for word in found)
+    return frozenset(words)
 
 
 def _download(url: str) -> bytes | None:

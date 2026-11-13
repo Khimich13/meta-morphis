@@ -19,7 +19,14 @@ from meta_morphis.db.init_db import init_db
 from meta_morphis.meta.repo import get_meta_timestamp
 from meta_morphis.meta.service import get_meta_cards
 from meta_morphis.models.card import Card
-from meta_morphis.name_in_text import NameInText, ReadText, is_summon_printing, never_read, short_name
+from meta_morphis.name_in_text import (
+    NameInText,
+    ReadText,
+    fetch_game_words,
+    is_summon_printing,
+    never_read,
+    short_name,
+)
 from meta_morphis.scryfall.service import fetch_cards, get_display_printings
 from meta_morphis.utils.text import card_count
 
@@ -466,7 +473,7 @@ def main() -> int:
     """
     # Show this package's progress and warnings, one plain line each
     logging.basicConfig(level=logging.INFO, format="%(message)s")
-    read_text = NameInText(load_name_in_text(config.NAME_IN_TEXT_PATH))
+    read_text = NameInText(load_name_in_text(config.NAME_IN_TEXT_PATH), fetch_game_words())
     try:
         with get_connection() as conn:
             init_db(conn)

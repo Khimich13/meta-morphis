@@ -42,11 +42,14 @@ what has been done is in the commit history.
   older than Foundations or a reprint (which may print the name instead),
   or as an old creature's "Summon" type line. A keyword's reminder text
   doesn't count: it says "this card" on every printing. A word of the
-  name standing alone ("a Goblin card") is covered too, up to three. A
-  reading that leaves anything else like a word of the name - run
-  together, broken at a line's end, or with a piece of the name next to
-  it - or reads the text poorly, leaves the card to its artwork: a missed
-  name gives the answer away. What was read is kept in git, as the first reading of many cards
+  name standing alone is left in sight when it is a subtype from
+  Scryfall's lists ("a Goblin card"), which tells nothing of which card it
+  is, and covered otherwise, up to three: a place or a person, like
+  "Locthwain's" in a flavor text, gives the answer away. A reading that
+  leaves anything else like a word of the name - run together, broken at
+  a line's end, or with a piece of the name next to it - or reads the
+  text poorly, leaves the card to its artwork: a missed name gives the
+  answer away. What was read is kept in git, as the first reading of many cards
   takes hours. The app paints over the name there from the paper just
   above and below it, which leaves out the print and the box's border.
 - **Each card is shown in its most familiar printing:** the artwork that

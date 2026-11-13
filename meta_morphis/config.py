@@ -38,6 +38,14 @@ SCRYFALL_COLLECTION_URL = "https://api.scryfall.com/cards/collection"
 SCRYFALL_NAMED_URL = "https://api.scryfall.com/cards/named"
 SCRYFALL_SYMBOLOGY_URL = "https://api.scryfall.com/symbology"
 SCRYFALL_SEARCH_URL = "https://api.scryfall.com/cards/search"
+SCRYFALL_CATALOG_URL = "https://api.scryfall.com/catalog/"
+# The subtypes printed on type lines, which a card's text uses as plain
+# game words: "a Goblin card". Planeswalker types are left out: they are
+# people's names, like "Jace".
+SCRYFALL_SUBTYPE_CATALOGS = [
+    "creature-types", "land-types", "artifact-types",
+    "enchantment-types", "spell-types", "battle-types",
+]
 # Printings a player could meet at a table, for choosing a card's
 # artwork: paper and English only, and none of the special versions -
 # promos, gold-bordered and oversized cards (not tournament-legal),

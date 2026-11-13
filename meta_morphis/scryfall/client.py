@@ -42,6 +42,15 @@ def fetch_symbology() -> dict[str, Any] | None:
         return None
     return _parse_json(raw)
 
+def fetch_catalog(name: str) -> list[str] | None:
+    """One of Scryfall's lists of game words, such as "creature-types".
+    None if there is no such list."""
+    raw = _request("GET", config.SCRYFALL_CATALOG_URL + name)
+    if raw is None:
+        return None
+    words: list[str] = _parse_json(raw).get("data", [])
+    return words
+
 def search_printings(oracle_ids: list[str]) -> list[dict[str, Any]]:
     """Every regular printing of these cards, in one search. Keep the
     list to SCRYFALL_PRINTINGS_PER_SEARCH cards: longer queries lose

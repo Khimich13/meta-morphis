@@ -8,6 +8,7 @@ from meta_morphis import config
 from meta_morphis.scryfall.client import (
     fetch_batch,
     fetch_by_oracle_ids,
+    fetch_catalog,
     fetch_single,
     fetch_symbology,
     search_printings,
@@ -210,6 +211,7 @@ def test_fetch_single_bad_200_response(monkeypatch: MonkeyPatch) -> None:
     lambda: fetch_by_oracle_ids(["o1"]),
     lambda: fetch_single("Lightning Bolt"),
     lambda: fetch_symbology(),
+    lambda: fetch_catalog("creature-types"),
 ])
 def test_requests_use_scryfall_pacing(monkeypatch: MonkeyPatch, call: Any) -> None:
     seen: list[dict[str, Any]] = []
