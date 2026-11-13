@@ -82,6 +82,8 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
   const landscape = useLandscape();
   const grid = useRef<HTMLUListElement>(null);
   useKeepPlaceOnResize(grid, large.isOpen);
+  const bar = useRef<HTMLElement>(null);
+  useBarHeight(bar);
 
   // Cards per row, chosen by pinching, for upright and for sideways; null:
   // as many as fit
@@ -127,8 +129,10 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
 
   return (
     <main className="card-list">
-      <header className="card-list-bar">
-        <button onClick={onBack}>← Back</button>
+      <header className="card-list-bar" ref={bar}>
+        <button className="back" onClick={onBack} aria-label="Back">
+          ←
+        </button>
         <h1>
           Most played {what}in {formatLabel(selection.format)}
         </h1>
@@ -306,6 +310,26 @@ function useKeepPlaceOnResize(grid: RefObject<HTMLElement | null>, largeViewOpen
       observer.disconnect();
     };
   }, [grid]);
+}
+
+/**
+ * Keeps --bar-height on the screen set to the height of its bar, which
+ * stays at the top while the cards scroll under it. A long list name
+ * takes two lines, so the height isn't known ahead. The cards use it to
+ * be scrolled into view below the bar, not under it (see .card-grid li
+ * in App.css).
+ */
+function useBarHeight(bar: RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const element = bar.current;
+    const screen = element?.parentElement;
+    if (!element || !screen) return;
+    const observer = new ResizeObserver(() => {
+      screen.style.setProperty('--bar-height', `${element.offsetHeight}px`);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [bar]);
 }
 
 /** Scrolls the list just enough to show the card at this position */
