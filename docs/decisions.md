@@ -45,8 +45,8 @@ what has been done is in the commit history.
   leaves anything like a word of the name uncovered, or reads the text
   poorly, leaves the card to its artwork: a missed name gives the answer
   away. What was read is kept in git, as the first reading of many cards
-  takes hours. The app doesn't paint over the text box yet: until it does,
-  a card with its name there is asked only by its artwork.
+  takes hours. The app paints over the name there from the paper just
+  above and below it, which leaves out the print and the box's border.
 - **Each card is shown in its most familiar printing:** the artwork that
   appears on the most regular English paper printings, in its newest
   printing. The question and the full card after answering always show the

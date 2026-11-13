@@ -12,8 +12,31 @@ export type Random = () => number;
  */
 export const FILL_REACH = 0.025;
 
+/**
+ * Where the name is painted over:
+ *   title - in the title bar, where the name is all the print, and the
+ *           bar's shading runs every way
+ *   text  - in the text box, dark print on a light background. The rows
+ *           and columns just outside a name there run along the letters of
+ *           the words and lines next to it, and a name starting a line has
+ *           the box's border at its left.
+ */
+export type Area = 'title' | 'text';
+
+/**
+ * Which of the colors around a pixel is taken, by brightness: the middle
+ * one in the title bar, a lighter one - the paper - in the text box
+ */
+const PICK: Record<Area, number> = { title: 0.5, text: 0.85 };
+
 /** How many columns to each side of the name the left and right colors are taken from */
 const SIDE_COLUMNS = 3;
+
+/**
+ * A pixel further than this from the smoothed color next to it, in
+ * brightness (the sum of red, green and blue), is print, not grain
+ */
+const INK = 150;
 
 /** How far the colors along the top and bottom are smoothed sideways, in pixels */
 const SMOOTHING = 3;
@@ -22,15 +45,18 @@ const SMOOTHING = 3;
  * The pixels of the name's area, as RGBA, painted from the title bar
  * around it so that no edge shows:
  *
- *   - Each pixel blends the colors on all four sides of the area (a Coons
- *     patch): at every edge it meets the bar exactly, and in between it
- *     follows the bar's own shading.
- *   - The colors along the top and bottom are the middle ones, by
- *     brightness, of their neighbours: a letter's tail touching those rows
- *     is dark among light pixels (or light among dark ones), and so never
- *     chosen. They are then smoothed a little, so no column stands out.
+ *   - In the title bar, each pixel blends the colors on all four sides of
+ *     the area (a Coons patch): at every edge it meets the bar exactly, and
+ *     in between it follows the bar's own shading. In the text box, only
+ *     the colors above and below are blended: the sides may be the border.
+ *   - The colors along the top and bottom are chosen among their
+ *     neighbours by brightness (see PICK): a letter's tail touching those
+ *     rows is dark among light pixels (or light among dark ones), and so
+ *     never chosen. They are then smoothed a little, so no column stands
+ *     out. The sides are chosen the same way.
  *   - Last, it gets the same fine grain as the bar, measured on the rows
- *     above and below, so it doesn't look smoother than the print around it.
+ *     above and below, so it doesn't look smoother than the print around
+ *     it. Letters in those rows don't count as grain.
  *
  * `around` is the area with one row more above and below it, and `reach`
  * columns more to its left and right, as RGBA, `aroundWidth` pixels wide.
@@ -39,8 +65,10 @@ export function fillName(
   around: Uint8ClampedArray,
   aroundWidth: number,
   reach: number,
+  area: Area = 'title',
   random: Random = Math.random,
 ): Uint8ClampedArray<ArrayBuffer> {
+  const pick = PICK[area];
   const width = aroundWidth - 2 * reach;
   const height = around.length / 4 / aroundWidth - 2;
   const pixel = (x: number, y: number): Color => {
@@ -52,26 +80,35 @@ export function fillName(
   const edgeRow = (y: number) =>
     smooth(
       Array.from({ length: width }, (_, x) =>
-        middle(Array.from({ length: 2 * reach + 1 }, (_, i) => pixel(x + i, y))),
+        choose(Array.from({ length: 2 * reach + 1 }, (_, i) => pixel(x + i, y)), pick),
       ),
     );
   const above = edgeRow(0);
   const below = edgeRow(height + 1);
   const side = (from: number, step: number) =>
     Array.from({ length: height }, (_, y) =>
-      middle(Array.from({ length: SIDE_COLUMNS }, (_, i) => pixel(from + i * step, y + 1))),
+      choose(
+        Array.from({ length: SIDE_COLUMNS }, (_, i) => pixel(from + i * step, y + 1)),
+        pick,
+      ),
     );
   const left = side(reach - 1, -1);
   const right = side(reach + width, 1);
 
   // How grainy the bar is: how far its pixels just above and below the
-  // area stray, on average, from the smoothed colors there
+  // area stray, on average, from the smoothed colors there - leaving out
+  // the print of the words and lines next to it
   let strays = 0;
+  let counted = 0;
   for (let x = 0; x < width; x++) {
-    strays += ((brightness(pixel(x + reach, 0)) - brightness(above[x])) / 3) ** 2;
-    strays += ((brightness(pixel(x + reach, height + 1)) - brightness(below[x])) / 3) ** 2;
+    for (const [y, edge] of [[0, above[x]], [height + 1, below[x]]] as const) {
+      const stray = brightness(pixel(x + reach, y)) - brightness(edge);
+      if (Math.abs(stray) > INK) continue;
+      strays += (stray / 3) ** 2;
+      counted++;
+    }
   }
-  const grain = Math.sqrt(strays / (2 * width));
+  const grain = counted ? Math.sqrt(strays / counted) : 0;
   const pixels = new Uint8ClampedArray(width * height * 4);
   for (let y = 0; y < height; y++) {
     // How far down and across, with the edges just outside at 0 and 1
@@ -82,6 +119,10 @@ export function fillName(
       const at = (y * width + x) * 4;
       for (let c = 0; c < 3; c++) {
         const vertical = above[x][c] * (1 - down) + below[x][c] * down;
+        if (area === 'text') {
+          pixels[at + c] = vertical + noise;
+          continue;
+        }
         const sideways = left[y][c] * (1 - across) + right[y][c] * across;
         // What the two share - the corners - would otherwise count twice
         const corners =
@@ -103,9 +144,10 @@ function brightness([r, g, b]: Color): number {
   return r + g + b;
 }
 
-/** The middle color of some, by brightness */
-function middle(colors: Color[]): Color {
-  return [...colors].sort((a, b) => brightness(a) - brightness(b))[Math.floor(colors.length / 2)];
+/** The color at `pick` of some, by brightness: 0.5 is the middle one */
+function choose(colors: Color[], pick: number): Color {
+  const sorted = [...colors].sort((a, b) => brightness(a) - brightness(b));
+  return sorted[Math.min(colors.length - 1, Math.floor(colors.length * pick))];
 }
 
 /** Each color averaged with its SMOOTHING neighbours to each side */

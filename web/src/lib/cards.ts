@@ -21,10 +21,11 @@ export interface Card {
    */
   art_box?: [number, number, number, number] | null;
   /**
-   * Where the title bar sits on the front picture, as shares of its width
-   * and height: [left, top, width, height]. The app covers it to ask which
-   * card it is from the full picture. Null when the name can't be covered
-   * everywhere it shows, missing in files written before it was added.
+   * Where the name sits in the title bar on the front picture, as shares of
+   * its width and height: [left, top, width, height]. The app covers it,
+   * and name_text_boxes, to ask which card it is from the full picture.
+   * Null when the name can't be covered everywhere it shows, missing in
+   * files written before it was added.
    */
   name_box?: [number, number, number, number] | null;
   /**

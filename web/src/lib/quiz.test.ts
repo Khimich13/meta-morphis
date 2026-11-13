@@ -75,20 +75,17 @@ test('the correct option is not always in the same place', () => {
 
 test('a card whose name can be hidden is asked both ways', () => {
   const hideable: Card = { ...CARDS[0], name_box: [0.06, 0.045, 0.88, 0.058] };
-  const kinds = new Set(SEEDS.map((seed) => makeQuestion(hideable, CARDS, seeded(seed)).kind));
-  expect(kinds).toEqual(new Set(['artwork', 'picture']));
+  // Also with its name in its text box, painted over there too
+  const inText: Card = { ...hideable, name_text_boxes: [[0.1, 0.7, 0.2, 0.03]] };
+  for (const card of [hideable, inText]) {
+    const kinds = new Set(SEEDS.map((seed) => makeQuestion(card, CARDS, seeded(seed)).kind));
+    expect(kinds).toEqual(new Set(['artwork', 'picture']));
+  }
 });
 
-test('a card whose name shows elsewhere is asked by its artwork only', () => {
-  const inText: Card = {
-    ...CARDS[0],
-    name_box: [0.06, 0.045, 0.88, 0.058],
-    name_text_boxes: [[0.1, 0.7, 0.2, 0.03]],
-  };
-  for (const card of [CARDS[0], inText]) {
-    const kinds = new Set(SEEDS.map((seed) => makeQuestion(card, CARDS, seeded(seed)).kind));
-    expect(kinds).toEqual(new Set(['artwork']));
-  }
+test('a card whose name can not be hidden is asked by its artwork only', () => {
+  const kinds = new Set(SEEDS.map((seed) => makeQuestion(CARDS[0], CARDS, seeded(seed)).kind));
+  expect(kinds).toEqual(new Set(['artwork']));
 });
 
 const TODAY = '2026-10-15';

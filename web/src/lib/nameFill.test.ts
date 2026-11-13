@@ -25,7 +25,7 @@ const NO_GRAIN = () => 0.25;
 
 test('a plain bar is filled with its own color, opaque', () => {
   const plain = around(Array.from({ length: 4 }, () => Array(11).fill(120)));
-  const pixels = fillName(plain, 11, 3, NO_GRAIN);
+  const pixels = fillName(plain, 11, 3, 'title', NO_GRAIN);
   expect(grays(pixels, 5)).toEqual([Array(5).fill(120), Array(5).fill(120)]);
   expect(pixels.filter((_, i) => i % 4 === 3).every((alpha) => alpha === 255)).toBe(true);
 });
@@ -38,7 +38,7 @@ test('the fill follows shading from top to bottom, meeting each edge', () => {
     Array(11).fill(200),
     Array(11).fill(255),
   ]);
-  const pixels = grays(fillName(shaded, 11, 3, NO_GRAIN), 5);
+  const pixels = grays(fillName(shaded, 11, 3, 'title', NO_GRAIN), 5);
   expect(pixels).toEqual([Array(5).fill(100), Array(5).fill(200)]);
 });
 
@@ -46,7 +46,7 @@ test("a letter's tail touching the row above is left out", () => {
   const bar = Array.from({ length: 4 }, () => Array(11).fill(200));
   // A dark pixel just above the middle of the area
   bar[0][5] = 20;
-  const pixels = grays(fillName(around(bar), 11, 3, NO_GRAIN), 5);
+  const pixels = grays(fillName(around(bar), 11, 3, 'title', NO_GRAIN), 5);
   expect(pixels.flat().every((gray) => gray === 200)).toBe(true);
 });
 
@@ -61,4 +61,24 @@ test('the fill has the grain of the bar around it', () => {
   const without = grays(fillName(around(plainEdges), 31, 3), 25).flat();
   expect(spread(without)).toBe(0);
   expect(spread(withGrain)).toBeGreaterThan(10);
+});
+
+test('print next to the area is not taken for grain', () => {
+  // A plain bar, with dark letters in the rows above and below
+  const printed = Array.from({ length: 6 }, () => Array(31).fill(200));
+  printed[0] = printed[0].map((gray, x) => (x % 5 === 0 ? 30 : gray));
+  printed[5] = printed[5].map((gray, x) => (x % 7 === 0 ? 30 : gray));
+  const pixels = grays(fillName(around(printed), 31, 3), 25).flat();
+  expect(pixels.every((gray) => gray === 200)).toBe(true);
+});
+
+test('in the text box, the paper is taken, not the print or the border', () => {
+  // Paper at 220 with letters in the rows above and below, and the box's
+  // dark border just left of the area
+  const box = Array.from({ length: 4 }, () => Array(11).fill(220));
+  box[0] = box[0].map((gray, x) => (x % 3 === 0 ? 20 : gray));
+  box[3] = box[3].map((gray, x) => (x % 2 === 0 ? 20 : gray));
+  for (const row of box) row.splice(0, 3, 90, 90, 90);
+  const pixels = grays(fillName(around(box), 11, 3, 'text', NO_GRAIN), 5);
+  expect(pixels.flat().every((gray) => gray === 220)).toBe(true);
 });
