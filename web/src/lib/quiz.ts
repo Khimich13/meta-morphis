@@ -40,17 +40,22 @@ export function shuffle<T>(items: readonly T[], random: Random = Math.random): T
   return result;
 }
 
+/**
+ * A question about the card. `kind` keeps the kind of an earlier question
+ * about it; without it, the kind is picked at random.
+ */
 export function makeQuestion(
   card: Card,
   allCards: readonly Card[],
   random: Random = Math.random,
+  kind?: QuestionKind,
 ): Question {
   const others = allCards.filter((other) => other.oracle_id !== card.oracle_id);
   const wrong = shuffle(others, random).slice(0, OPTION_COUNT - 1);
   const options = shuffle([card, ...wrong], random);
   // Either kind, half the time each, for a card whose name can be hidden
-  const kind: QuestionKind = card.name_box && random() < 0.5 ? 'picture' : 'artwork';
-  return { card, kind, options };
+  const picked: QuestionKind = kind ?? (card.name_box && random() < 0.5 ? 'picture' : 'artwork');
+  return { card, kind: picked, options };
 }
 
 /**
@@ -161,10 +166,11 @@ export function afterAnswer(
   }
 
   // Back of the queue, as a new question: new wrong options in a new
-  // order, so the answer can't be remembered by its place
+  // order, so the answer can't be remembered by its place. The kind
+  // stays, so the card is asked the same way it was missed
   return {
     ...lesson,
-    queue: [...rest, makeQuestion(card, allCards, random)],
+    queue: [...rest, makeQuestion(card, allCards, random, current.kind)],
     missed: isFirstTry(lesson, card) ? [...lesson.missed, card.oracle_id] : lesson.missed,
   };
 }

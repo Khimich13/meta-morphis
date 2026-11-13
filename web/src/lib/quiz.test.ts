@@ -219,6 +219,22 @@ test('a missed card comes back at the end as a new question', () => {
   expect(isFirstTry(after, missed)).toBe(false);
 });
 
+test('a missed card comes back as the same kind of question', () => {
+  const pictured = CARDS.map((c) => ({ ...c, name_box: [0, 0, 1, 0.1] }) as Card);
+  for (const seed of SEEDS) {
+    let lesson = startLesson(pictured, EMPTY_PROGRESS, TODAY, seeded(seed));
+    const kind = lesson.queue[0].kind;
+    // Missed again and again, it never changes kind
+    for (let round = 0; round < 3; round++) {
+      lesson = afterAnswer(lesson, false, pictured, seeded(seed + round));
+      expect(lesson.queue[lesson.queue.length - 1].kind).toBe(kind);
+      for (let i = 0; i < LESSON_LENGTH - 1; i++) {
+        lesson = { ...lesson, queue: [...lesson.queue.slice(1), lesson.queue[0]] };
+      }
+    }
+  }
+});
+
 test('a card right only on a repeat does not count toward the score', () => {
   let lesson = startLesson(CARDS, EMPTY_PROGRESS, TODAY, seeded(1));
   const card = onScreen(lesson);
