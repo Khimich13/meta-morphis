@@ -430,3 +430,23 @@ html:has(.enlarged.leaving[open]) {
   color: #fff;
   font-size: 1.5rem;
 }
+
+/* On an upright screen, just above the card's top right corner, rather
+   than in the screen's corner, far above the card. The card is as wide
+   as .zoom-content's formula, and in the middle of the whole screen, not
+   of the view's padding: its top is half the height it leaves. The ✕
+   sits 20px in from its button's sides, so the button reaches 12px past
+   the card's edge to put the ✕ near the corner. Never above the top
+   (the iPhone's clock): on a screen too short for the button, it covers
+   the card's top a little. Sideways and on a computer, the card almost
+   reaches the top, so the ✕ stays in the corner. */
+@media (orientation: portrait) {
+  .enlarged .close {
+    --card-width: min(100cqw, 100cqh * 488 / 680);
+    top: max(
+      8px + env(safe-area-inset-top),
+      (var(--page-height, 100dvh) - var(--card-width) * 680 / 488) / 2 - 48px
+    );
+    right: calc((100cqw + 32px - var(--card-width)) / 2 - 12px);
+  }
+}
