@@ -217,6 +217,10 @@
   /* Scaled to fit - never cropped or stretched */
   object-fit: contain;
   object-position: top;
+  /* Softened like the rest of the app. Small, as it lands in the card's
+     square-cornered art box after an answer. The box always matches the
+     picture's own shape, so the corners round the picture itself. */
+  border-radius: 5px;
 }
 
 /* A picture question's card with its name covered (NameHidden in
