@@ -2,6 +2,7 @@
 the artwork that appears on the most printings - the art a player has
 most likely seen.
 """
+
 from typing import Any
 
 
@@ -32,6 +33,7 @@ def choose_printing(printings: list[dict[str, Any]]) -> dict[str, Any] | None:
     scanned_well = [p for p in most_printed if not _scan_is_off(p)]
     return max(scanned_well or most_printed, key=_released)
 
+
 def is_regular_printing(printing: dict[str, Any]) -> bool:
     """The same rules as SCRYFALL_REGULAR_PRINTINGS in config.py, checked
     on the printing's own data. Scryfall can silently drop filters from a
@@ -52,6 +54,7 @@ def is_regular_printing(printing: dict[str, Any]) -> bool:
         and not printing.get("full_art")
     )
 
+
 # The timeshifted sets, which reprint in the old frame artwork first
 # printed in a modern frame. Scryfall cut the artwork of most of these
 # printings with the modern frame's rectangle: the cut has strips of the
@@ -62,6 +65,7 @@ def is_regular_printing(printing: dict[str, Any]) -> bool:
 # the artwork, which players have also seen in its own frame.
 ART_CUT_FOR_MODERN_FRAME_SETS = {"tsr", "h1r", "h2r"}
 
+
 def _scan_is_off(printing: dict[str, Any]) -> bool:
     # An etched foil (e.g. Multiverse Legends' Thalia, Ragavan, Kaheera)
     # is scanned grey and grainy, its frame dark and metallic
@@ -71,6 +75,7 @@ def _scan_is_off(printing: dict[str, Any]) -> bool:
         and printing.get("set") in ART_CUT_FOR_MODERN_FRAME_SETS
     )
     return etched or art_cut_for_modern_frame
+
 
 def _illustration_id(printing: dict[str, Any]) -> str | None:
     # A double-faced card has an artwork per face; the front's is the
@@ -84,11 +89,13 @@ def _illustration_id(printing: dict[str, Any]) -> str | None:
         return front
     return None
 
+
 def _has_pictures(printing: dict[str, Any]) -> bool:
     if "image_uris" in printing:
         return True
     faces = printing.get("card_faces") or []
     return bool(faces) and all("image_uris" in face for face in faces)
+
 
 def _released(printing: dict[str, Any]) -> str:
     # YYYY-MM-DD, so comparing the text compares the dates

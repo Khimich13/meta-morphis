@@ -1,8 +1,7 @@
 from typing import Any
 
 import pytest
-from pytest import LogCaptureFixture
-from pytest import MonkeyPatch
+from pytest import LogCaptureFixture, MonkeyPatch
 
 from meta_morphis.utils.http import RequestUnavailable, request_with_retries
 
@@ -30,7 +29,7 @@ def test_request_success(monkeypatch: MonkeyPatch) -> None:
         headers: dict[str, str] | None = None,
         params: dict[str, str] | None = None,
         json: Any = None,
-        timeout: float = 10
+        timeout: float = 10,
     ) -> FakeResponse:
         return FakeResponse(200, "OK")
 
@@ -38,9 +37,12 @@ def test_request_success(monkeypatch: MonkeyPatch) -> None:
     result = request_with_retries("GET", "http://fake")
     assert result == "OK"
 
+
 # the pacing timestamp used to be a function local, reset to 0.0 on every call,
 # so min_delay could never be enforced between separate top-level calls
-def test_request_with_retries_paces_between_separate_calls(monkeypatch: MonkeyPatch) -> None:
+def test_request_with_retries_paces_between_separate_calls(
+    monkeypatch: MonkeyPatch,
+) -> None:
     clock = [1000.0]
     monkeypatch.setattr("time.monotonic", lambda: clock[0])
 
@@ -54,7 +56,7 @@ def test_request_with_retries_paces_between_separate_calls(monkeypatch: MonkeyPa
         headers: dict[str, str] | None = None,
         params: dict[str, str] | None = None,
         json: Any = None,
-        timeout: float = 10
+        timeout: float = 10,
     ) -> FakeResponse:
         return FakeResponse(200, "OK")
 
@@ -68,9 +70,12 @@ def test_request_with_retries_paces_between_separate_calls(monkeypatch: MonkeyPa
 
     assert slept == [pytest.approx(0.19)]
 
+
 # Pacing used to read the wall clock, so a clock correction mid-run (set
 # back an hour) turned into an hour-long sleep before the next request
-def test_request_with_retries_pacing_ignores_wall_clock_changes(monkeypatch: MonkeyPatch) -> None:
+def test_request_with_retries_pacing_ignores_wall_clock_changes(
+    monkeypatch: MonkeyPatch,
+) -> None:
     wall_clock = [1_000_000.0]
     monkeypatch.setattr("time.time", lambda: wall_clock[0])
     monkeypatch.setattr("time.monotonic", lambda: 500.0)
@@ -89,6 +94,7 @@ def test_request_with_retries_pacing_ignores_wall_clock_changes(monkeypatch: Mon
 
     assert slept == [pytest.approx(0.2)]
 
+
 def test_request_retry_then_success(monkeypatch: MonkeyPatch) -> None:
     """Should retry on non-200 and succeed on next attempt."""
     calls: list[int] = []
@@ -100,7 +106,7 @@ def test_request_retry_then_success(monkeypatch: MonkeyPatch) -> None:
         headers: dict[str, str] | None = None,
         params: dict[str, str] | None = None,
         json: Any = None,
-        timeout: float = 10
+        timeout: float = 10,
     ) -> FakeResponse:
         calls.append(1)
         if len(calls) == 1:
@@ -114,6 +120,7 @@ def test_request_retry_then_success(monkeypatch: MonkeyPatch) -> None:
     assert result == "OK"
     assert len(calls) == 2
 
+
 def test_request_retry_after(monkeypatch: MonkeyPatch) -> None:
     calls: list[int] = []
 
@@ -124,7 +131,7 @@ def test_request_retry_after(monkeypatch: MonkeyPatch) -> None:
         headers: dict[str, str] | None = None,
         params: dict[str, str] | None = None,
         json: Any = None,
-        timeout: float = 10
+        timeout: float = 10,
     ) -> FakeResponse:
         calls.append(1)
         if len(calls) == 1:
@@ -140,8 +147,11 @@ def test_request_retry_after(monkeypatch: MonkeyPatch) -> None:
     assert result == "OK"
     assert slept == [1.0]
 
+
 # A negative Retry-After (e.g. from clock skew on the server)
-def test_request_retry_after_negative_value_is_clamped(monkeypatch: MonkeyPatch) -> None:
+def test_request_retry_after_negative_value_is_clamped(
+    monkeypatch: MonkeyPatch,
+) -> None:
     calls: list[int] = []
 
     def fake_request(
@@ -151,7 +161,7 @@ def test_request_retry_after_negative_value_is_clamped(monkeypatch: MonkeyPatch)
         headers: dict[str, str] | None = None,
         params: dict[str, str] | None = None,
         json: Any = None,
-        timeout: float = 10
+        timeout: float = 10,
     ) -> FakeResponse:
         calls.append(1)
         if len(calls) == 1:
@@ -167,6 +177,7 @@ def test_request_retry_after_negative_value_is_clamped(monkeypatch: MonkeyPatch)
     assert result == "OK"
     assert slept == [0.0]
 
+
 # An absurdly large Retry-After (e.g. "3600") used to block for the full
 # duration on every retry, even on a call with a 5s timeout - it must be
 # capped at max_retry_after instead of honoured verbatim.
@@ -180,7 +191,7 @@ def test_request_retry_after_huge_value_is_capped(monkeypatch: MonkeyPatch) -> N
         headers: dict[str, str] | None = None,
         params: dict[str, str] | None = None,
         json: Any = None,
-        timeout: float = 10
+        timeout: float = 10,
     ) -> FakeResponse:
         calls.append(1)
         if len(calls) == 1:
@@ -192,14 +203,19 @@ def test_request_retry_after_huge_value_is_capped(monkeypatch: MonkeyPatch) -> N
     slept: list[float] = []
     monkeypatch.setattr("time.sleep", lambda x: slept.append(x))
 
-    result = request_with_retries("GET", "http://fake", max_retries=3, max_retry_after=60.0)
+    result = request_with_retries(
+        "GET", "http://fake", max_retries=3, max_retry_after=60.0
+    )
     assert result == "OK"
     assert slept == [60.0]
+
 
 # "inf"/"nan" parse successfully as floats but aren't usable delays -
 # time.sleep(inf) raises OverflowError and time.sleep(nan) raises
 # ValueError, so these must fall back to exponential backoff instead.
-def test_request_retry_after_non_finite_falls_back_to_backoff(monkeypatch: MonkeyPatch) -> None:
+def test_request_retry_after_non_finite_falls_back_to_backoff(
+    monkeypatch: MonkeyPatch,
+) -> None:
     calls: list[int] = []
 
     def fake_request(
@@ -209,7 +225,7 @@ def test_request_retry_after_non_finite_falls_back_to_backoff(monkeypatch: Monke
         headers: dict[str, str] | None = None,
         params: dict[str, str] | None = None,
         json: Any = None,
-        timeout: float = 10
+        timeout: float = 10,
     ) -> FakeResponse:
         calls.append(1)
         if len(calls) == 1:
@@ -225,6 +241,7 @@ def test_request_retry_after_non_finite_falls_back_to_backoff(monkeypatch: Monke
     assert result == "OK"
     assert slept == [0.5]
 
+
 # A 429 without Retry-After falls back to default_retry_after when the
 # caller knows the API's lockout length, instead of retrying on the
 # short backoff inside the lockout.
@@ -238,7 +255,7 @@ def test_request_429_without_retry_after_uses_default(monkeypatch: MonkeyPatch) 
         headers: dict[str, str] | None = None,
         params: dict[str, str] | None = None,
         json: Any = None,
-        timeout: float = 10
+        timeout: float = 10,
     ) -> FakeResponse:
         calls.append(1)
         if len(calls) == 1:
@@ -256,6 +273,7 @@ def test_request_429_without_retry_after_uses_default(monkeypatch: MonkeyPatch) 
     assert result == "OK"
     assert slept == [30.0]
 
+
 # The server's own Retry-After still wins over default_retry_after.
 def test_request_retry_after_header_beats_default(monkeypatch: MonkeyPatch) -> None:
     calls: list[int] = []
@@ -267,7 +285,7 @@ def test_request_retry_after_header_beats_default(monkeypatch: MonkeyPatch) -> N
         headers: dict[str, str] | None = None,
         params: dict[str, str] | None = None,
         json: Any = None,
-        timeout: float = 10
+        timeout: float = 10,
     ) -> FakeResponse:
         calls.append(1)
         if len(calls) == 1:
@@ -285,6 +303,7 @@ def test_request_retry_after_header_beats_default(monkeypatch: MonkeyPatch) -> N
     assert result == "OK"
     assert slept == [2.0]
 
+
 def test_request_failure(monkeypatch: MonkeyPatch) -> None:
     def fake_request(
         method: str,
@@ -293,7 +312,7 @@ def test_request_failure(monkeypatch: MonkeyPatch) -> None:
         headers: dict[str, str] | None = None,
         params: dict[str, str] | None = None,
         json: Any = None,
-        timeout: float = 10
+        timeout: float = 10,
     ) -> FakeResponse:
         return FakeResponse(500, "fail")
 
@@ -303,9 +322,12 @@ def test_request_failure(monkeypatch: MonkeyPatch) -> None:
     with pytest.raises(RequestUnavailable):
         request_with_retries("GET", "http://fake", max_retries=3)
 
+
 # A clean 404/422 means "this genuinely doesn't exist" and must return None immediately
 @pytest.mark.parametrize("status", [404, 422])
-def test_request_not_found_returns_none_without_retrying(monkeypatch: MonkeyPatch, status: int) -> None:
+def test_request_not_found_returns_none_without_retrying(
+    monkeypatch: MonkeyPatch, status: int
+) -> None:
     calls: list[int] = []
 
     def fake_request(
@@ -315,7 +337,7 @@ def test_request_not_found_returns_none_without_retrying(monkeypatch: MonkeyPatc
         headers: dict[str, str] | None = None,
         params: dict[str, str] | None = None,
         json: Any = None,
-        timeout: float = 10
+        timeout: float = 10,
     ) -> FakeResponse:
         calls.append(1)
         return FakeResponse(status, "not found")
@@ -326,6 +348,7 @@ def test_request_not_found_returns_none_without_retrying(monkeypatch: MonkeyPatc
     result = request_with_retries("GET", "http://fake", max_retries=3)
     assert result is None
     assert len(calls) == 1
+
 
 def test_request_network_error_raises_after_retries(monkeypatch: MonkeyPatch) -> None:
     import requests
@@ -339,9 +362,12 @@ def test_request_network_error_raises_after_retries(monkeypatch: MonkeyPatch) ->
     with pytest.raises(RequestUnavailable):
         request_with_retries("GET", "http://fake", max_retries=3)
 
+
 # min_delay=0.0 keeps pacing out of `slept` - with sleep mocked no real time
 # passes between attempts, so pacing would otherwise add its own sleeps.
-def test_request_network_error_backs_off_exponentially(monkeypatch: MonkeyPatch) -> None:
+def test_request_network_error_backs_off_exponentially(
+    monkeypatch: MonkeyPatch,
+) -> None:
     import requests
 
     def fake_request(*args: Any, **kwargs: Any) -> FakeResponse:
@@ -353,10 +379,13 @@ def test_request_network_error_backs_off_exponentially(monkeypatch: MonkeyPatch)
     monkeypatch.setattr("time.sleep", lambda x: slept.append(x))
 
     with pytest.raises(RequestUnavailable):
-        request_with_retries("GET", "http://fake", max_retries=3, min_delay=0.0, backoff_base=0.5)
+        request_with_retries(
+            "GET", "http://fake", max_retries=3, min_delay=0.0, backoff_base=0.5
+        )
 
     # No sleep after the last attempt - it raises instead
     assert slept == [0.5, 1.0]
+
 
 def test_request_server_error_backs_off_exponentially(monkeypatch: MonkeyPatch) -> None:
     def fake_request(
@@ -366,7 +395,7 @@ def test_request_server_error_backs_off_exponentially(monkeypatch: MonkeyPatch) 
         headers: dict[str, str] | None = None,
         params: dict[str, str] | None = None,
         json: Any = None,
-        timeout: float = 10
+        timeout: float = 10,
     ) -> FakeResponse:
         return FakeResponse(503, "unavailable")
 
@@ -376,9 +405,12 @@ def test_request_server_error_backs_off_exponentially(monkeypatch: MonkeyPatch) 
     monkeypatch.setattr("time.sleep", lambda x: slept.append(x))
 
     with pytest.raises(RequestUnavailable):
-        request_with_retries("GET", "http://fake", max_retries=3, min_delay=0.0, backoff_base=0.5)
+        request_with_retries(
+            "GET", "http://fake", max_retries=3, min_delay=0.0, backoff_base=0.5
+        )
 
     assert slept == [0.5, 1.0]
+
 
 def test_request_rate_limit_exhausted_raises(monkeypatch: MonkeyPatch) -> None:
     def fake_request(
@@ -388,7 +420,7 @@ def test_request_rate_limit_exhausted_raises(monkeypatch: MonkeyPatch) -> None:
         headers: dict[str, str] | None = None,
         params: dict[str, str] | None = None,
         json: Any = None,
-        timeout: float = 10
+        timeout: float = 10,
     ) -> FakeResponse:
         return FakeResponse(429, "rate", headers={"Retry-After": "0"})
 
@@ -398,6 +430,7 @@ def test_request_rate_limit_exhausted_raises(monkeypatch: MonkeyPatch) -> None:
     with pytest.raises(RequestUnavailable):
         request_with_retries("GET", "http://fake", max_retries=3)
 
+
 def test_request_unexpected_status_raises(monkeypatch: MonkeyPatch) -> None:
     def fake_request(
         method: str,
@@ -406,7 +439,7 @@ def test_request_unexpected_status_raises(monkeypatch: MonkeyPatch) -> None:
         headers: dict[str, str] | None = None,
         params: dict[str, str] | None = None,
         json: Any = None,
-        timeout: float = 10
+        timeout: float = 10,
     ) -> FakeResponse:
         return FakeResponse(301, "moved")
 
@@ -414,6 +447,8 @@ def test_request_unexpected_status_raises(monkeypatch: MonkeyPatch) -> None:
 
     with pytest.raises(RequestUnavailable):
         request_with_retries("GET", "http://fake", max_retries=3)
+
+
 # Retries and waits are logged: a client that keeps getting 429s can be
 # blocked, so they should be visible in the daily run's log
 def test_request_logs_rate_limits_and_retries(
@@ -427,6 +462,8 @@ def test_request_logs_rate_limits_and_retries(
     monkeypatch.setattr("requests.request", lambda *args, **kwargs: responses.pop(0))
     monkeypatch.setattr("time.sleep", lambda x: None)
 
-    assert request_with_retries("GET", "https://api.example.com/x", max_retries=3) == "OK"
+    assert (
+        request_with_retries("GET", "https://api.example.com/x", max_retries=3) == "OK"
+    )
     assert "Rate limited by api.example.com, waiting 2 s" in caplog.text
     assert "Server error 503 from api.example.com, retrying in 1 s" in caplog.text

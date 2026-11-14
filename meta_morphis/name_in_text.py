@@ -13,6 +13,7 @@ left uncovered - a word read with a letter wrong, the name split up or
 run together - or when the text could not be read well. Leaving a card
 out costs one kind of question; showing its name gives the answer away.
 """
+
 import io
 import logging
 import re
@@ -73,6 +74,7 @@ MIN_WORDS_READ = 0.5
 @dataclass(frozen=True)
 class Word:
     """A word Tesseract read, and where, in pixels of the picture"""
+
     text: str
     left: float
     top: float
@@ -113,7 +115,7 @@ def matches(read: str, wanted: str) -> bool:
     if len(read) == len(wanted):
         return sum(a != b for a, b in zip(read, wanted)) <= 1
     shorter, longer = sorted((read, wanted), key=len)
-    return any(longer[:i] + longer[i + 1:] == shorter for i in range(len(longer)))
+    return any(longer[:i] + longer[i + 1 :] == shorter for i in range(len(longer)))
 
 
 def edits(a: str, b: str) -> int:
@@ -122,7 +124,10 @@ def edits(a: str, b: str) -> int:
     for i, letter in enumerate(a, 1):
         before, row[0] = row[0], i
         for j, other in enumerate(b, 1):
-            before, row[j] = row[j], min(row[j] + 1, row[j - 1] + 1, before + (letter != other))
+            before, row[j] = (
+                row[j],
+                min(row[j] + 1, row[j - 1] + 1, before + (letter != other)),
+            )
     return row[-1]
 
 
@@ -163,9 +168,15 @@ def find_name(
             lines: dict[tuple[str, str, str], list[float]] = {}
             for i in span:
                 word = words[i]
-                box = lines.setdefault(word.line, [word.left, word.top, word.right, word.bottom])
-                box[:] = [min(box[0], word.left), min(box[1], word.top),
-                          max(box[2], word.right), max(box[3], word.bottom)]
+                box = lines.setdefault(
+                    word.line, [word.left, word.top, word.right, word.bottom]
+                )
+                box[:] = [
+                    min(box[0], word.left),
+                    min(box[1], word.top),
+                    max(box[2], word.right),
+                    max(box[3], word.bottom),
+                ]
             boxes.extend(lines.values())
 
     name_words = {normalize(part) for part in name.split()}
@@ -181,8 +192,11 @@ def find_name(
     # Game words left in sight, also in the plural ("Storm Giants" has the
     # Giant type): only for a name of more than one word, whose other
     # words tell it from the game word itself
-    plain = {part for part in name_words
-             if part in game_words or part.endswith("s") and part[:-1] in game_words}
+    plain = {
+        part
+        for part in name_words
+        if part in game_words or part.endswith("s") and part[:-1] in game_words
+    }
     if len(name.split()) == 1:
         plain = set()
 
@@ -200,8 +214,9 @@ def find_name(
         """The word at i may be a piece or a word of the name, read badly"""
         if not 0 <= i < len(read) or len(read[i]) < 3:
             return False
-        return read[i] in whole or any(edits(read[i], part) <= 2
-                                       for part in name_words if len(part) >= 5)
+        return read[i] in whole or any(
+            edits(read[i], part) <= 2 for part in name_words if len(part) >= 5
+        )
 
     like_name: list[Word] = []
     for i, text in enumerate(read):
@@ -211,17 +226,23 @@ def find_name(
         if not like and not any(text.startswith(part) for part in name_words):
             continue
         if not like or near_name(next_word(i, -1)) or near_name(next_word(i, 1)):
-            log.info(f"Not covering the name of '{name}': '{words[i].text}' is left in "
-                     "its text, and may be part of the name read badly")
+            log.info(
+                f"Not covering the name of '{name}': '{words[i].text}' is left in "
+                "its text, and may be part of the name read badly"
+            )
             return None
         if all(part in plain for part in like):
             continue
         like_name.append(words[i])
     if len(like_name) > MAX_LIKE_NAME:
         listed = ", ".join(f"'{word.text}'" for word in like_name)
-        log.info(f"Not covering the name of '{name}': too many words like it are left: {listed}")
+        log.info(
+            f"Not covering the name of '{name}': too many words like it are left: {listed}"
+        )
         return None
-    return boxes + [[word.left, word.top, word.right, word.bottom] for word in like_name]
+    return boxes + [
+        [word.left, word.top, word.right, word.bottom] for word in like_name
+    ]
 
 
 def parse_tsv(tsv: str, left: float, top: float) -> tuple[list[Word], float]:
@@ -241,19 +262,23 @@ def parse_tsv(tsv: str, left: float, top: float) -> tuple[list[Word], float]:
             continue
         x, y = float(cells["left"]), float(cells["top"])
         width, height = float(cells["width"]), float(cells["height"])
-        words.append(Word(
-            text=text,
-            left=left + x / SCALE,
-            top=top + y / SCALE,
-            right=left + (x + width) / SCALE,
-            bottom=top + (y + height) / SCALE,
-            line=(cells["block_num"], cells["par_num"], cells["line_num"]),
-        ))
+        words.append(
+            Word(
+                text=text,
+                left=left + x / SCALE,
+                top=top + y / SCALE,
+                right=left + (x + width) / SCALE,
+                bottom=top + (y + height) / SCALE,
+                line=(cells["block_num"], cells["par_num"], cells["line_num"]),
+            )
+        )
         confidences.append(float(cells["conf"]))
     return words, statistics.fmean(confidences) if confidences else 0.0
 
 
-def read_words(picture: bytes, from_top: float) -> tuple[list[Word], float, tuple[int, int]]:
+def read_words(
+    picture: bytes, from_top: float
+) -> tuple[list[Word], float, tuple[int, int]]:
     """Reads the text box of a card's picture: the words, how sure
     Tesseract was of them, and the picture's size"""
     image = Image.open(io.BytesIO(picture)).convert("RGB")
@@ -267,7 +292,10 @@ def read_words(picture: bytes, from_top: float) -> tuple[list[Word], float, tupl
     # --psm 6: the text is one block of lines
     result = subprocess.run(
         ["tesseract", "stdin", "stdout", "--psm", "6", "tsv"],
-        input=png.getvalue(), capture_output=True, check=True, timeout=60,
+        input=png.getvalue(),
+        capture_output=True,
+        check=True,
+        timeout=60,
     )
     words, confidence = parse_tsv(result.stdout.decode("utf-8"), left, top)
     return words, confidence, (width, height)
@@ -284,24 +312,31 @@ def name_in_text(
     from_top = TYPE_LINE_TOP if is_summon_printing(card) else TEXT_TOP
     words, confidence, (width, height) = read_words(picture, from_top)
     if confidence < MIN_CONFIDENCE:
-        log.info(f"Not covering the name of '{card.name}': its text was read "
-                 f"only {confidence:.0f}% sure")
+        log.info(
+            f"Not covering the name of '{card.name}': its text was read "
+            f"only {confidence:.0f}% sure"
+        )
         return None
     oracle_words = len((card.raw.get("oracle_text") or "").split())
     if len(words) < oracle_words * MIN_WORDS_READ:
-        log.info(f"Not covering the name of '{card.name}': only {len(words)} words "
-                 f"of its text were read, of about {oracle_words}")
+        log.info(
+            f"Not covering the name of '{card.name}': only {len(words)} words "
+            f"of its text were read, of about {oracle_words}"
+        )
         return None
     found = find_name(words, card.name, game_words)
     if found is None:
         return None
     return [
-        [round(value, 4) for value in (
-            left / width - PAD_LEFT,
-            top / height - PAD_Y,
-            (right - left) / width + PAD_LEFT + PAD_RIGHT,
-            (bottom - top) / height + 2 * PAD_Y,
-        )]
+        [
+            round(value, 4)
+            for value in (
+                left / width - PAD_LEFT,
+                top / height - PAD_Y,
+                (right - left) / width + PAD_LEFT + PAD_RIGHT,
+                (bottom - top) / height + 2 * PAD_Y,
+            )
+        ]
         for left, top, right, bottom in found
     ]
 
@@ -319,23 +354,30 @@ class NameInText:
         self.game_words = game_words
         self._can_read = shutil.which("tesseract") is not None and bool(game_words)
         if shutil.which("tesseract") is None:
-            log.warning("Tesseract is not installed: cards with their name in "
-                        "their text box not read before are asked only by their artwork")
+            log.warning(
+                "Tesseract is not installed: cards with their name in "
+                "their text box not read before are asked only by their artwork"
+            )
         elif not game_words:
             # Read without them, "a Goblin card" would be covered, and
             # saved that way
-            log.warning("Scryfall's lists of subtypes could not be fetched: cards with "
-                        "their name in their text box not read before are asked only "
-                        "by their artwork")
+            log.warning(
+                "Scryfall's lists of subtypes could not be fetched: cards with "
+                "their name in their text box not read before are asked only "
+                "by their artwork"
+            )
 
     def __call__(self, card: Card) -> list[list[float]] | None:
         picture_url = (card.raw.get("image_uris") or {}).get("png")
         if not picture_url:
             return None
         saved = self.results.get(card.id)
-        if (saved and saved.get("name") == card.name
-                and saved.get("picture") == picture_url
-                and saved.get("reader") == READER_VERSION):
+        if (
+            saved
+            and saved.get("name") == card.name
+            and saved.get("picture") == picture_url
+            and saved.get("reader") == READER_VERSION
+        ):
             boxes: list[list[float]] | None = saved["boxes"]
             return boxes
         if not self._can_read:
@@ -349,8 +391,12 @@ class NameInText:
             # Not saved: tried again on the next run
             log.warning(f"Could not read the picture of '{card.name}': {e}")
             return None
-        self.results[card.id] = {"name": card.name, "picture": picture_url,
-                                 "reader": READER_VERSION, "boxes": boxes}
+        self.results[card.id] = {
+            "name": card.name,
+            "picture": picture_url,
+            "reader": READER_VERSION,
+            "boxes": boxes,
+        }
         self.changed = True
         return boxes
 

@@ -68,6 +68,7 @@ def get_meta_cards(
         _log_list_changes(name, previous, meta)
     return meta
 
+
 def list_changes(
     before: list[MetaEntry], after: list[MetaEntry]
 ) -> tuple[list[str], list[str]]:
@@ -81,6 +82,7 @@ def list_changes(
     left = [e.name for e in before if normalize_name(e.name) not in after_keys]
     return entered, left
 
+
 def _log_list_changes(
     format_name: str, before: list[MetaEntry], after: list[MetaEntry]
 ) -> None:
@@ -89,6 +91,10 @@ def _log_list_changes(
         log.info(f"The {format_name} list did not change")
         return
     if entered:
-        log.info(f"{card_count(len(entered))} entered the {format_name} list: {', '.join(entered)}")
+        log.info(
+            f"{card_count(len(entered))} entered the {format_name} list: {', '.join(entered)}"
+        )
     if left:
-        log.info(f"{card_count(len(left))} left the {format_name} list: {', '.join(left)}")
+        log.info(
+            f"{card_count(len(left))} left the {format_name} list: {', '.join(left)}"
+        )

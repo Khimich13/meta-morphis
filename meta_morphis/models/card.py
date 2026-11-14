@@ -26,6 +26,7 @@ class ImageSide:
     transform or modal double-faced card, one for everything else -
     a split or adventure card is two faces printed on a single side.
     """
+
     image_uris: dict[str, str]
     artist: str | None
 

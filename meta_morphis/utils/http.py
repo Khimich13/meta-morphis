@@ -44,8 +44,8 @@ def request_with_retries(
     min_delay: float = 0.2,
     backoff_base: float = 0.5,
     max_retry_after: float = 60.0,
-    default_retry_after: float | None = None
-) ->  str | None:
+    default_retry_after: float | None = None,
+) -> str | None:
 
     global _last_request_time
     used_retry_after = False
@@ -78,7 +78,7 @@ def request_with_retries(
                 raise RequestUnavailable(
                     f"network error after {max_retries} attempts: {e}"
                 ) from e
-            delay = backoff_base * (2 ** attempt)
+            delay = backoff_base * (2**attempt)
             log.warning(f"Network error reaching {host} ({e}), retrying in {delay:g} s")
             time.sleep(delay)
             continue
@@ -111,7 +111,7 @@ def request_with_retries(
                 # lockout and only count as more overload.
                 delay = max(0.0, min(default_retry_after, max_retry_after))
             if delay is None:
-                delay = backoff_base * (2 ** attempt)
+                delay = backoff_base * (2**attempt)
 
             if attempt + 1 == max_retries:
                 raise RequestUnavailable(f"rate limited after {max_retries} attempts")
@@ -128,7 +128,7 @@ def request_with_retries(
                 raise RequestUnavailable(
                     f"server error {status} after {max_retries} attempts"
                 )
-            delay = backoff_base * (2 ** attempt)
+            delay = backoff_base * (2**attempt)
             log.warning(f"Server error {status} from {host}, retrying in {delay:g} s")
             time.sleep(delay)
             continue
@@ -140,4 +140,6 @@ def request_with_retries(
         # Unexpected status codes - not a clean "doesn't exist", don't guess
         raise RequestUnavailable(f"unexpected status {status}")
 
-    raise RequestUnavailable(f"request could not be completed within {max_retries} attempts")
+    raise RequestUnavailable(
+        f"request could not be completed within {max_retries} attempts"
+    )

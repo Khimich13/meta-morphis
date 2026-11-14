@@ -16,12 +16,15 @@ def get_card_from_cache(conn: sqlite3.Connection, name: str) -> Card | None:
 
     key = normalize_name(name)
 
-    c.execute("""
+    c.execute(
+        """
         SELECT cards.json, cards.updated_at
         FROM card_aliases
         JOIN cards ON card_aliases.card_name = cards.name
         WHERE card_aliases.alias = ?
-    """, (key,))
+    """,
+        (key,),
+    )
 
     row = c.fetchone()
     if not row:
@@ -40,19 +43,24 @@ def get_card_from_cache(conn: sqlite3.Connection, name: str) -> Card | None:
     card.age = int(time.time()) - updated_at
     return card
 
+
 def _claim_alias(c: sqlite3.Cursor, alias: str, card_name: str) -> bool:
     """Claim `alias` for `card_name` if it's unclaimed or already owned
     by that same card. Returns False, leaving the existing row
     untouched, if it's already owned by a different card (first claim
     wins). `alias` and `card_name` must already be normalized.
     """
-    c.execute("""
+    c.execute(
+        """
         INSERT INTO card_aliases (alias, card_name)
         VALUES (?, ?)
         ON CONFLICT(alias) DO UPDATE SET card_name = excluded.card_name
         WHERE card_aliases.card_name = excluded.card_name
-    """, (alias, card_name))
+    """,
+        (alias, card_name),
+    )
     return c.rowcount > 0
+
 
 def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> None:
     """Register an extra lookup alias for an already-cached card - e.g.
@@ -67,7 +75,10 @@ def add_alias(conn: sqlite3.Connection, alias: str, card_name: str) -> None:
     alias_key = normalize_name(alias)
     card_key = normalize_name(card_name)
     if not _claim_alias(conn.cursor(), alias_key, card_key):
-        log.warning(f"Alias '{alias_key}' already belongs to another card - not claimed by '{card_key}'")
+        log.warning(
+            f"Alias '{alias_key}' already belongs to another card - not claimed by '{card_key}'"
+        )
+
 
 def rename_card(conn: sqlite3.Connection, old_name: str, new_name: str) -> None:
     """Scryfall now knows the cached card `old_name` as `new_name`, which
@@ -81,8 +92,11 @@ def rename_card(conn: sqlite3.Connection, old_name: str, new_name: str) -> None:
     if old_key == new_key:
         return
     c = conn.cursor()
-    c.execute("UPDATE card_aliases SET card_name = ? WHERE card_name = ?", (new_key, old_key))
+    c.execute(
+        "UPDATE card_aliases SET card_name = ? WHERE card_name = ?", (new_key, old_key)
+    )
     c.execute("DELETE FROM cards WHERE name = ?", (old_key,))
+
 
 def save_cards_to_cache(conn: sqlite3.Connection, cards: list[Card]) -> None:
     c = conn.cursor()
@@ -90,25 +104,26 @@ def save_cards_to_cache(conn: sqlite3.Connection, cards: list[Card]) -> None:
         key = normalize_name(card.name)
 
         # Insert/update main card row
-        c.execute("""
+        c.execute(
+            """
             INSERT INTO cards (id, name, json, updated_at)
             VALUES (?, ?, ?, ?)
             ON CONFLICT(name) DO UPDATE SET
                 id = excluded.id,
                 json = excluded.json,
                 updated_at = excluded.updated_at
-        """, (
-            card.id,
-            key,
-            json.dumps(card.raw),
-            int(time.time())
-        ))
+        """,
+            (card.id, key, json.dumps(card.raw), int(time.time())),
+        )
 
         # Insert main name -> id
-        c.execute("""
+        c.execute(
+            """
             INSERT OR REPLACE INTO card_aliases (alias, card_name)
             VALUES (?, ?)
-        """, (key, key))
+        """,
+            (key, key),
+        )
 
         # Insert face names -> id. Unlike the main alias above, a face
         # name isn't guaranteed unique across cards (e.g. "Fire" is a
@@ -120,23 +135,29 @@ def save_cards_to_cache(conn: sqlite3.Connection, cards: list[Card]) -> None:
         for face in card.faces:
             face_key = normalize_name(face.name)
             if not _claim_alias(c, face_key, key):
-                log.warning(f"Alias '{face_key}' already belongs to another card - not claimed by '{key}'")
+                log.warning(
+                    f"Alias '{face_key}' already belongs to another card - not claimed by '{key}'"
+                )
+
 
 def record_bad_name_attempt(conn: sqlite3.Connection, name: str) -> None:
     key = normalize_name(name)
 
     c = conn.cursor()
-    c.execute("""
+    c.execute(
+        """
         INSERT INTO card_lookup_failures (name, last_attempt)
         VALUES (?, ?)
         ON CONFLICT(name) DO UPDATE SET
             last_attempt = excluded.last_attempt
-    """, (
-        key,
-        int(time.time())
-    ))
+    """,
+        (key, int(time.time())),
+    )
 
-def should_skip_lookup(conn: sqlite3.Connection, name: str, cooldown: int | None = None) -> bool:
+
+def should_skip_lookup(
+    conn: sqlite3.Connection, name: str, cooldown: int | None = None
+) -> bool:
     # Default resolved at call time, not import time, so it follows config
     if cooldown is None:
         cooldown = config.SCRYFALL_BAD_NAMES_LOOKUP_COOLDOWN
@@ -145,11 +166,14 @@ def should_skip_lookup(conn: sqlite3.Connection, name: str, cooldown: int | None
     now = int(time.time())
 
     c = conn.cursor()
-    c.execute("""
+    c.execute(
+        """
         SELECT last_attempt
         FROM card_lookup_failures
         WHERE name = ?
-    """, (key,))
+    """,
+        (key,),
+    )
     row = c.fetchone()
 
     if not row:
@@ -160,12 +184,16 @@ def should_skip_lookup(conn: sqlite3.Connection, name: str, cooldown: int | None
     last_attempt = int(row[0])
     return now - cooldown < last_attempt <= now
 
+
 def get_chosen_printing(conn: sqlite3.Connection, oracle_id: str) -> Card | None:
-    row = conn.execute("""
+    row = conn.execute(
+        """
         SELECT json, updated_at
         FROM chosen_printings
         WHERE oracle_id = ?
-    """, (oracle_id,)).fetchone()
+    """,
+        (oracle_id,),
+    ).fetchone()
     if not row:
         return None
 
@@ -179,11 +207,17 @@ def get_chosen_printing(conn: sqlite3.Connection, oracle_id: str) -> Card | None
     card.age = int(time.time()) - updated_at
     return card
 
-def save_chosen_printing(conn: sqlite3.Connection, oracle_id: str, raw: dict[str, Any]) -> None:
-    conn.execute("""
+
+def save_chosen_printing(
+    conn: sqlite3.Connection, oracle_id: str, raw: dict[str, Any]
+) -> None:
+    conn.execute(
+        """
         INSERT INTO chosen_printings (oracle_id, json, updated_at)
         VALUES (?, ?, ?)
         ON CONFLICT(oracle_id) DO UPDATE SET
             json = excluded.json,
             updated_at = excluded.updated_at
-    """, (oracle_id, json.dumps(raw), int(time.time())))
+    """,
+        (oracle_id, json.dumps(raw), int(time.time())),
+    )

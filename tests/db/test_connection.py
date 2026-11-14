@@ -8,7 +8,9 @@ from meta_morphis.db.connection import get_connection
 from meta_morphis.db.init_db import init_db
 
 
-def test_get_connection_creates_missing_parent_directory(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+def test_get_connection_creates_missing_parent_directory(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
     db_path = tmp_path / "nested" / "does" / "not" / "exist" / "cards.db"
     monkeypatch.setattr("meta_morphis.db.connection.config.DB_PATH", db_path)
 
@@ -21,7 +23,10 @@ def test_get_connection_creates_missing_parent_directory(tmp_path: Path, monkeyp
     assert db_path.parent.exists()
     assert db_path.exists()
 
-def test_get_connection_enforces_foreign_keys(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+
+def test_get_connection_enforces_foreign_keys(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
     db_path = tmp_path / "cards.db"
     monkeypatch.setattr("meta_morphis.db.connection.config.DB_PATH", db_path)
 

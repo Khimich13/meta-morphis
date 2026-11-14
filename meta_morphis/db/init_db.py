@@ -42,6 +42,7 @@ def init_db(conn: sqlite3.Connection) -> None:
     c.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     conn.commit()
 
+
 def _migrate_to_v1(c: sqlite3.Cursor) -> None:
     # Create Scryfall card cache table
     c.execute("""
@@ -90,6 +91,7 @@ def _migrate_to_v1(c: sqlite3.Cursor) -> None:
         )
     """)
 
+
 def _migrate_to_v2(c: sqlite3.Cursor) -> None:
     # The printing chosen to show for each card (see scryfall/artwork.py),
     # as Scryfall's JSON for that printing
@@ -100,6 +102,7 @@ def _migrate_to_v2(c: sqlite3.Cursor) -> None:
             updated_at INTEGER NOT NULL
         )
     """)
+
 
 def _migrate_to_v3(c: sqlite3.Cursor) -> None:
     # The front face's name of a split card, which it used to be looked up

@@ -16,6 +16,7 @@ def test_single_face_card() -> None:
     assert card.mana_cost == "{1}{G}"
     assert card.faces == []
 
+
 def test_dual_face_card() -> None:
     raw: dict[str, Any] = {
         "id": "123",
@@ -23,11 +24,12 @@ def test_dual_face_card() -> None:
         "card_faces": [
             {"name": "Face A", "mana_cost": "{R}", "type_line": "Instant"},
             {"name": "Face B", "mana_cost": "{G}", "type_line": "Sorcery"},
-        ]
+        ],
     }
     card = Card.from_raw(raw)
     assert len(card.faces) == 2
     assert card.mana_cost == raw["card_faces"][0]["mana_cost"]
+
 
 def test_missing_mana_cost() -> None:
     raw = {
@@ -37,6 +39,7 @@ def test_missing_mana_cost() -> None:
     }
     card = Card.from_raw(raw)
     assert card.mana_cost is None
+
 
 def test_new_fields_default_when_absent() -> None:
     # Minimal objects, as the cache and service tests build them, must
@@ -54,17 +57,23 @@ def test_new_fields_default_when_absent() -> None:
     assert face.type_line == ""
     assert face.oracle_text == ""
 
+
 # A reversible card has no oracle_id at the top level, only on its faces.
 # Read as None, it was never given a printing and was left out of the export
 def test_reversible_card_takes_its_oracle_id_from_its_faces() -> None:
-    card = Card.from_raw({
-        "id": "1", "name": "Bolt // Bolt", "layout": "reversible_card",
-        "card_faces": [
-            {"oracle_id": "o1", "name": "Bolt", "type_line": "Instant"},
-            {"oracle_id": "o1", "name": "Bolt", "type_line": "Instant"},
-        ],
-    })
+    card = Card.from_raw(
+        {
+            "id": "1",
+            "name": "Bolt // Bolt",
+            "layout": "reversible_card",
+            "card_faces": [
+                {"oracle_id": "o1", "name": "Bolt", "type_line": "Instant"},
+                {"oracle_id": "o1", "name": "Bolt", "type_line": "Instant"},
+            ],
+        }
+    )
     assert card.oracle_id == "o1"
+
 
 def test_single_face_card_gameplay_fields() -> None:
     raw: dict[str, Any] = {
@@ -99,6 +108,7 @@ def test_single_face_card_gameplay_fields() -> None:
     assert side.image_uris == raw["image_uris"]
     assert side.artist == "Lake Hurwitz"
 
+
 def test_transform_card_has_an_image_side_per_face() -> None:
     raw: dict[str, Any] = {
         "id": "24c0d87b",
@@ -107,13 +117,22 @@ def test_transform_card_has_an_image_side_per_face() -> None:
         "type_line": "Enchantment — Saga // Enchantment Creature — Goblin Shaman",
         "artist": "Joseph Meehan",
         "card_faces": [
-            {"name": "Fable of the Mirror-Breaker", "mana_cost": "{2}{R}",
-             "type_line": "Enchantment — Saga", "colors": ["R"],
-             "image_uris": {"grid": "front.webp"}},
-            {"name": "Reflection of Kiki-Jiki", "mana_cost": "",
-             "type_line": "Enchantment Creature — Goblin Shaman", "colors": ["R"],
-             "power": "2", "toughness": "2",
-             "image_uris": {"grid": "back.webp"}},
+            {
+                "name": "Fable of the Mirror-Breaker",
+                "mana_cost": "{2}{R}",
+                "type_line": "Enchantment — Saga",
+                "colors": ["R"],
+                "image_uris": {"grid": "front.webp"},
+            },
+            {
+                "name": "Reflection of Kiki-Jiki",
+                "mana_cost": "",
+                "type_line": "Enchantment Creature — Goblin Shaman",
+                "colors": ["R"],
+                "power": "2",
+                "toughness": "2",
+                "image_uris": {"grid": "back.webp"},
+            },
         ],
     }
     card = Card.from_raw(raw)
@@ -127,6 +146,7 @@ def test_transform_card_has_an_image_side_per_face() -> None:
     assert [s.image_uris["grid"] for s in sides] == ["front.webp", "back.webp"]
     assert all(s.artist == "Joseph Meehan" for s in sides)
 
+
 def test_split_card_has_one_image_side_and_face_colors_fall_back() -> None:
     raw: dict[str, Any] = {
         "id": "room",
@@ -136,8 +156,16 @@ def test_split_card_has_one_image_side_and_face_colors_fall_back() -> None:
         "artist": "Some Artist",
         "image_uris": {"grid": "room.webp"},
         "card_faces": [
-            {"name": "Unholy Annex", "mana_cost": "{2}{B}", "type_line": "Enchantment — Room"},
-            {"name": "Ritual Chamber", "mana_cost": "{3}{B}{B}", "type_line": "Enchantment — Room"},
+            {
+                "name": "Unholy Annex",
+                "mana_cost": "{2}{B}",
+                "type_line": "Enchantment — Room",
+            },
+            {
+                "name": "Ritual Chamber",
+                "mana_cost": "{3}{B}{B}",
+                "type_line": "Enchantment — Room",
+            },
         ],
     }
     card = Card.from_raw(raw)
@@ -146,9 +174,11 @@ def test_split_card_has_one_image_side_and_face_colors_fall_back() -> None:
     assert side.image_uris == {"grid": "room.webp"}
     assert side.artist == "Some Artist"
 
+
 def test_face_missing_type_line_is_still_malformed() -> None:
     raw: dict[str, Any] = {
-        "id": "1", "name": "Broken",
+        "id": "1",
+        "name": "Broken",
         "card_faces": [{"name": "Broken"}],
     }
     with pytest.raises(KeyError):

@@ -19,8 +19,9 @@ def list_name(format_name: str, kind: str) -> str:
 
 
 GOLDFISH_LIST_URLS = {
-    list_name(format_name, kind):
-        f"https://www.mtggoldfish.com/format-staples/{format_name}/full/{kind}"
+    list_name(
+        format_name, kind
+    ): f"https://www.mtggoldfish.com/format-staples/{format_name}/full/{kind}"
     for format_name in GOLDFISH_FORMATS
     for kind in GOLDFISH_LISTS
 }
@@ -43,8 +44,12 @@ SCRYFALL_CATALOG_URL = "https://api.scryfall.com/catalog/"
 # game words: "a Goblin card". Planeswalker types are left out: they are
 # people's names, like "Jace".
 SCRYFALL_SUBTYPE_CATALOGS = [
-    "creature-types", "land-types", "artifact-types",
-    "enchantment-types", "spell-types", "battle-types",
+    "creature-types",
+    "land-types",
+    "artifact-types",
+    "enchantment-types",
+    "spell-types",
+    "battle-types",
 ]
 # Printings a player could meet at a table, for choosing a card's
 # artwork: paper and English only, and none of the special versions -

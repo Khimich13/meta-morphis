@@ -2,6 +2,7 @@
 
 Run with: uv run python -m meta_morphis.export
 """
+
 import json
 import logging
 import math
@@ -92,10 +93,12 @@ def image_urls(card: Card) -> list[str]:
             urls.append(url)
     return urls
 
+
 def large_image_urls(card: Card) -> list[str]:
     urls = [side.image_uris.get("large") for side in card.image_sides()]
     # All sides or none, so the app never mixes sizes on one card
     return [url for url in urls if url] if all(urls) else []
+
 
 # Where the artwork sits on each kind of card front, as shares of the
 # card's width and height: left, top, width, height. Measured on
@@ -116,6 +119,7 @@ SAGA_ART_BOX = (0.502, 0.113, 0.418, 0.724)
 CLASS_ART_BOX = (0.076, 0.113, 0.418, 0.724)
 # Layouts whose front has its frame's usual art box
 USUAL_ART_LAYOUTS = {"normal", "transform", "modal_dfc", "adventure", "prepare"}
+
 
 def art_box(card: Card) -> list[float] | None:
     faces = card.gameplay_faces()
@@ -139,6 +143,7 @@ def art_box(card: Card) -> list[float] | None:
         box = found
     return list(box)
 
+
 # Where the name sits in the title bar of each kind of card front, as
 # shares of the card's width and height, measured on Scryfall's pictures
 # on 2026-11-12: where the name starts, its top and height, where the
@@ -152,6 +157,7 @@ class NameArea:
     height: float
     cost_right: float
     symbol: float
+
 
 NAME_AREAS = {
     "1993": NameArea(0.075, 0.033, 0.058, 0.918, 0.050),
@@ -181,6 +187,7 @@ NEW_CARD_SET_TYPES = {"expansion", "core"}
 # Reminder text, in brackets
 REMINDER = re.compile(r"\([^)]*\)")
 
+
 def without_keyword_reminders(oracle_text: str, keywords: list[str]) -> str:
     """The Oracle text without the reminder text of its keywords, e.g.
     Flashback's "(You may cast this card from your graveyard...)". A
@@ -195,11 +202,14 @@ def without_keyword_reminders(oracle_text: str, keywords: list[str]) -> str:
         lines.append(line)
     return "\n".join(lines)
 
+
 def printed_as_oracle(card: Card) -> bool:
     """Printed with "this creature" and the like, as the Oracle text"""
     raw = card.raw
-    return ((raw.get("released_at") or "") >= SELF_REFERENCE_PRINTED_FROM
-            and raw.get("set_type") in NEW_CARD_SET_TYPES)
+    return (raw.get("released_at") or "") >= SELF_REFERENCE_PRINTED_FROM and raw.get(
+        "set_type"
+    ) in NEW_CARD_SET_TYPES
+
 
 def may_show_name_in_text(card: Card) -> bool:
     """True when the name may be printed in the text box: the name or a
@@ -219,13 +229,16 @@ def may_show_name_in_text(card: Card) -> bool:
     # sign of the name.
     name_words = {normalize(part) for part in card.name.split()}
     flavor_words = {normalize(part) for part in (raw.get("flavor_text") or "").split()}
-    if any(len(part) >= 4 and (part in flavor_words or part + "s" in flavor_words)
-           for part in name_words):
+    if any(
+        len(part) >= 4 and (part in flavor_words or part + "s" in flavor_words)
+        for part in name_words
+    ):
         return True
     rules = without_keyword_reminders(oracle_text, card.keywords)
     if SELF_REFERENCE.search(rules) and not printed_as_oracle(card):
         return True
     return is_summon_printing(card)
+
 
 def name_boxes(
     card: Card, read_text: ReadText = never_read
@@ -245,6 +258,7 @@ def name_boxes(
         return None, []
     return title, in_text
 
+
 def title_name_box(card: Card) -> list[float] | None:
     """Where the name sits in the title bar, or None for a card whose
     title bar isn't measured, or that prints more than one name"""
@@ -259,12 +273,18 @@ def title_name_box(card: Card) -> list[float] | None:
     area = NAME_AREAS.get(card.frame or "")
     if area is None:
         return None
-    left = max([area.left] + [NAME_AFTER_ICON[effect]
-                              for effect in raw.get("frame_effects") or []
-                              if effect in NAME_AFTER_ICON])
+    left = max(
+        [area.left]
+        + [
+            NAME_AFTER_ICON[effect]
+            for effect in raw.get("frame_effects") or []
+            if effect in NAME_AFTER_ICON
+        ]
+    )
     symbols = len(re.findall(r"\{[^}]*\}", card.mana_cost or ""))
     right = area.cost_right - symbols * area.symbol - NAME_GAP
     return [round(value, 4) for value in (left, area.top, right - left, area.height)]
+
 
 def horizontal_sides(card: Card) -> list[bool]:
     """Which sides are printed sideways: both halves of a split card
@@ -277,6 +297,7 @@ def horizontal_sides(card: Card) -> list[bool]:
     if card.layout == "battle":
         return [side == 0 for side in range(sides)]
     return [False] * sides
+
 
 def build_card(card: Card, read_text: ReadText = never_read) -> ExportCard | None:
     # Without an id the app can't tell cards apart, and without its
@@ -310,14 +331,19 @@ def build_card(card: Card, read_text: ReadText = never_read) -> ExportCard | Non
         "horizontal": horizontal_sides(card),
     }
 
+
 def _staleness(card: Card) -> float:
     # A negative age was written by a clock that ran ahead, so nothing
     # says how old the data really is - it counts as the oldest, as the
     # cache in scryfall/service.py treats it as stale
     return math.inf if card.age < 0 else card.age
 
+
 def build_export(
-    format_name: str, cards: list[Card], list_updated: str, read_text: ReadText = never_read
+    format_name: str,
+    cards: list[Card],
+    list_updated: str,
+    read_text: ReadText = never_read,
 ) -> ExportFile:
     # The app tells cards apart by oracle id, so each may appear only once.
     # Two names on the list can still lead to one card, e.g. an old
@@ -331,21 +357,28 @@ def build_export(
     for card in cards:
         built = build_card(card, read_text)
         if built is None:
-            log.warning(f"Leaving out '{card.name}' - no oracle id, picture or artist, "
-                  "or pictures of different printings")
+            log.warning(
+                f"Leaving out '{card.name}' - no oracle id, picture or artist, "
+                "or pictures of different printings"
+            )
             continue
         oracle_id = built["oracle_id"]
         other = kept.get(oracle_id)
         if other and _staleness(other[0]) <= _staleness(card):
-            log.warning(f"Leaving out '{card.name}' - the same card as '{other[0].name}'")
+            log.warning(
+                f"Leaving out '{card.name}' - the same card as '{other[0].name}'"
+            )
             continue
         if other:
-            log.warning(f"Leaving out '{other[0].name}' - the same card as '{card.name}'")
+            log.warning(
+                f"Leaving out '{other[0].name}' - the same card as '{card.name}'"
+            )
         kept[oracle_id] = (card, built)
 
     # Sorted so the file doesn't reshuffle between runs
     exported = sorted((built for _, built in kept.values()), key=lambda c: c["name"])
     return {"format": format_name, "list_updated": list_updated, "cards": exported}
+
 
 def write_json(path: Path, data: object) -> None:
     """Writes the whole file under a temporary name first, then swaps it
@@ -367,6 +400,7 @@ def write_json(path: Path, data: object) -> None:
         # the half-written file to be published
         temp.unlink(missing_ok=True)
 
+
 def load_name_in_text(path: Path) -> dict[str, Any]:
     """The pictures read on earlier runs - see name_in_text.py"""
     if not path.exists():
@@ -374,11 +408,13 @@ def load_name_in_text(path: Path) -> dict[str, Any]:
     results: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
     return results
 
+
 def write_export(data: ExportFile, out_dir: Path) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"{data['format']}.json"
     write_json(path, data)
     return path
+
 
 def is_basic_land(card: Card) -> bool:
     """Plains, Snow-Covered Island, Wastes and so on: "Basic" is a word of
@@ -387,8 +423,12 @@ def is_basic_land(card: Card) -> bool:
     """
     return "Basic" in card.type_line.split("—")[0].split()
 
+
 def export_format(
-    conn: sqlite3.Connection, format_name: str, kind: str, out_dir: Path,
+    conn: sqlite3.Connection,
+    format_name: str,
+    kind: str,
+    out_dir: Path,
     read_text: ReadText = never_read,
 ) -> Path:
     """Exports one list of one format, e.g. "pauper" and "lands", to a
@@ -410,6 +450,7 @@ def export_format(
     log.info(f"Wrote {path}: {card_count(len(data['cards']))}")
     return path
 
+
 def _check_list_age(conn: sqlite3.Connection, format_name: str) -> str:
     """When the MTGGoldfish list was last fetched, as UTC text. Fails if
     that is longer ago than EXPORT_STALE_AFTER - see config.py.
@@ -426,8 +467,12 @@ def _check_list_age(conn: sqlite3.Connection, format_name: str) -> str:
         )
     return datetime.fromtimestamp(fetched, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
+
 def export_all(
-    conn: sqlite3.Connection, formats: list[str], kinds: list[str], out_dir: Path,
+    conn: sqlite3.Connection,
+    formats: list[str],
+    kinds: list[str],
+    out_dir: Path,
     read_text: ReadText = never_read,
 ) -> list[str]:
     """Exports each list of each format on its own: one that fails keeps
@@ -449,11 +494,14 @@ def export_all(
                 export_format(conn, format_name, kind, out_dir, read_text)
             except Exception:
                 # With the full error, so the log says why
-                log.exception(f"Could not export {name} - keeping its previous file, if any")
+                log.exception(
+                    f"Could not export {name} - keeping its previous file, if any"
+                )
                 failed.append(name)
 
     write_formats(out_dir, formats, kinds)
     return failed
+
 
 def write_formats(out_dir: Path, formats: list[str], kinds: list[str]) -> Path:
     """Lists what has a card file, new or kept from before - a list that
@@ -463,7 +511,8 @@ def write_formats(out_dir: Path, formats: list[str], kinds: list[str]) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
     lists = {
         format_name: [
-            kind for kind in kinds
+            kind
+            for kind in kinds
             if (out_dir / f"{config.list_name(format_name, kind)}.json").exists()
         ]
         for format_name in formats
@@ -477,6 +526,7 @@ def write_formats(out_dir: Path, formats: list[str], kinds: list[str]) -> Path:
     write_json(path, data)
     return path
 
+
 def main() -> int:
     """Exit code 1 if any format failed. The files that could be written
     are still there, so the daily run can publish them and then report
@@ -484,23 +534,31 @@ def main() -> int:
     """
     # Show this package's progress and warnings, one plain line each
     logging.basicConfig(level=logging.INFO, format="%(message)s")
-    read_text = NameInText(load_name_in_text(config.NAME_IN_TEXT_PATH), fetch_game_words())
+    read_text = NameInText(
+        load_name_in_text(config.NAME_IN_TEXT_PATH), fetch_game_words()
+    )
     try:
         with get_connection() as conn:
             init_db(conn)
             failed = export_all(
-                conn, config.GOLDFISH_FORMATS, config.GOLDFISH_LISTS, config.EXPORT_DIR,
+                conn,
+                config.GOLDFISH_FORMATS,
+                config.GOLDFISH_LISTS,
+                config.EXPORT_DIR,
                 read_text,
             )
     finally:
         # Even after a failure: the pictures read so far took their time
         if read_text.changed:
-            write_json(config.NAME_IN_TEXT_PATH, dict(sorted(read_text.results.items())))
+            write_json(
+                config.NAME_IN_TEXT_PATH, dict(sorted(read_text.results.items()))
+            )
 
     if failed:
         log.error(f"Failed to export: {', '.join(failed)}")
         return 1
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

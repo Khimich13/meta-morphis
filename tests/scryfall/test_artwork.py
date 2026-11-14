@@ -3,7 +3,9 @@ from typing import Any
 from meta_morphis.scryfall.artwork import choose_printing, is_regular_printing
 
 
-def _printing(set_code: str, released: str, artwork: str, **extra: Any) -> dict[str, Any]:
+def _printing(
+    set_code: str, released: str, artwork: str, **extra: Any
+) -> dict[str, Any]:
     return {
         "id": f"id-{set_code}",
         "set": set_code,
@@ -15,9 +17,11 @@ def _printing(set_code: str, released: str, artwork: str, **extra: Any) -> dict[
         **extra,
     }
 
+
 def _chosen_set(printings: list[dict[str, Any]]) -> str | None:
     chosen = choose_printing(printings)
     return None if chosen is None else chosen["set"]
+
 
 def test_picks_the_artwork_on_the_most_printings() -> None:
     printings = [
@@ -29,6 +33,7 @@ def test_picks_the_artwork_on_the_most_printings() -> None:
     # Moeller's art is on three printings; the newest of them is shown
     assert _chosen_set(printings) == "2xm"
 
+
 def test_a_tie_goes_to_the_older_artwork() -> None:
     printings = [
         _printing("zen", "2009-10-30", "argyle"),
@@ -38,6 +43,7 @@ def test_a_tie_goes_to_the_older_artwork() -> None:
     ]
     assert _chosen_set(printings) == "gvl"
 
+
 def test_order_of_the_input_does_not_matter() -> None:
     printings = [
         _printing("2xm", "2020-08-07", "moeller"),
@@ -46,6 +52,7 @@ def test_order_of_the_input_does_not_matter() -> None:
     ]
     assert _chosen_set(printings) == "2xm"
     assert _chosen_set(list(reversed(printings))) == "2xm"
+
 
 def test_printings_without_pictures_are_ignored() -> None:
     no_pictures = _printing("new", "2026-01-01", "moeller")
@@ -58,6 +65,7 @@ def test_printings_without_pictures_are_ignored() -> None:
     # Moeller now has one printing with pictures, tied with Rush, and
     # Rush's art is older
     assert _chosen_set(printings) == "lea"
+
 
 def test_an_artwork_cut_wrong_gives_way_to_another_printing() -> None:
     printings = [
@@ -74,12 +82,15 @@ def test_an_artwork_cut_wrong_gives_way_to_another_printing() -> None:
     # With no other printing of the artwork, it is shown anyway
     assert _chosen_set(printings[2:3]) == "tsr"
 
+
 def test_an_etched_foil_gives_way_to_another_printing() -> None:
     printings = [
         _printing("dka", "2012-02-03", "schirmer"),
         _printing("a25", "2018-03-16", "schirmer"),
         _printing(
-            "mul", "2023-04-21", "schirmer",
+            "mul",
+            "2023-04-21",
+            "schirmer",
             frame_effects=["legendary", "inverted", "etched"],
         ),
         _printing("vow", "2021-11-19", "other"),
@@ -87,6 +98,7 @@ def test_an_etched_foil_gives_way_to_another_printing() -> None:
     assert _chosen_set(printings) == "a25"
     # With no other printing of the artwork, it is shown anyway
     assert _chosen_set(printings[2:3]) == "mul"
+
 
 def test_double_faced_cards_are_grouped_by_the_front_artwork() -> None:
     def double_faced(set_code: str, released: str, front: str) -> dict[str, Any]:
@@ -109,11 +121,13 @@ def test_double_faced_cards_are_grouped_by_the_front_artwork() -> None:
     ]
     assert _chosen_set(printings) == "2x2"
 
+
 def test_nothing_to_choose_from() -> None:
     assert choose_printing([]) is None
     no_artwork = _printing("x", "2020-01-01", "a")
     del no_artwork["illustration_id"]
     assert choose_printing([no_artwork]) is None
+
 
 def test_regular_printing_rules() -> None:
     regular = _printing("m10", "2009-07-17", "moeller")
@@ -134,6 +148,7 @@ def test_regular_printing_rules() -> None:
     ]
     for special in specials:
         assert not is_regular_printing({**regular, **special}), special
+
 
 # Scryfall can silently drop filters from a long query, so special
 # printings may come back: they must not decide the artwork

@@ -19,8 +19,10 @@ _HEADER = """
 </thead>
 """
 
+
 def _table(rows_html: str, header: str = _HEADER) -> str:
     return f'<table class="table-staples">{header}{rows_html}</table>'
+
 
 class FakeResponse:
     def __init__(self, status_code: int, text: str = "") -> None:
@@ -50,9 +52,11 @@ def test_parse_meta_table_valid() -> None:
     assert entry.percent == 25.0
     assert entry.avg_copies == 3.5
 
+
 def test_parse_meta_table_no_table() -> None:
     html = "<html><body>No table here</body></html>"
     assert _parse_meta_table(html) is None
+
 
 def test_parse_meta_table_missing_thead_returns_none() -> None:
     html = """
@@ -67,6 +71,7 @@ def test_parse_meta_table_missing_thead_returns_none() -> None:
     </table>
     """
     assert _parse_meta_table(html) is None
+
 
 def test_parse_meta_table_unrecognized_header_returns_none() -> None:
     html = _table(
@@ -92,6 +97,7 @@ def test_parse_meta_table_unrecognized_header_returns_none() -> None:
         """,
     )
     assert _parse_meta_table(html) is None
+
 
 def test_parse_meta_table_columns_reordered_still_parses() -> None:
     header = """
@@ -126,6 +132,7 @@ def test_parse_meta_table_columns_reordered_still_parses() -> None:
     assert entry.percent == 25.0
     assert entry.avg_copies == 3.5
 
+
 def test_parse_meta_table_double_name() -> None:
     html = _table("""
         <tr>
@@ -145,6 +152,7 @@ def test_parse_meta_table_double_name() -> None:
 
     assert entry.name == "Fire // Ice"
 
+
 def test_parse_meta_table_row_with_too_few_columns_is_skipped() -> None:
     html = _table("""
         <tr><td>1</td><td>Lightning Bolt</td></tr>
@@ -163,6 +171,7 @@ def test_parse_meta_table_row_with_too_few_columns_is_skipped() -> None:
     assert skipped_count == 1
     assert len(entries) == 1
 
+
 def test_parse_meta_table_empty_name_is_skipped() -> None:
     html = _table("""
         <tr>
@@ -179,6 +188,7 @@ def test_parse_meta_table_empty_name_is_skipped() -> None:
 
     assert skipped_count == 1
     assert entries == []
+
 
 def test_parse_meta_table_single_bad_field_is_tolerated() -> None:
     html = _table("""
@@ -202,6 +212,7 @@ def test_parse_meta_table_single_bad_field_is_tolerated() -> None:
     assert entry.percent is None
     assert entry.avg_copies == 3.5
 
+
 def test_parse_meta_table_structural_empty_row_not_counted_as_skipped() -> None:
     html = _table("""
         <tr></tr>
@@ -220,6 +231,7 @@ def test_parse_meta_table_structural_empty_row_not_counted_as_skipped() -> None:
     assert skipped_count == 0
     assert len(entries) == 1
 
+
 def test_scrape_meta_cards_success(monkeypatch: MonkeyPatch) -> None:
     html = _table("""
         <tr>
@@ -230,12 +242,15 @@ def test_scrape_meta_cards_success(monkeypatch: MonkeyPatch) -> None:
             <td>1</td>
         </tr>
     """)
-    monkeypatch.setattr("requests.request", lambda *args, **kwargs: FakeResponse(200, html))
+    monkeypatch.setattr(
+        "requests.request", lambda *args, **kwargs: FakeResponse(200, html)
+    )
 
     result = scrape_meta_cards("http://fake-url")
     assert result is not None
     assert len(result) == 1
     assert result[0].name == "Test Card"
+
 
 def test_scrape_meta_cards_retry(monkeypatch: MonkeyPatch) -> None:
     html = _table("""
@@ -260,11 +275,13 @@ def test_scrape_meta_cards_retry(monkeypatch: MonkeyPatch) -> None:
     assert result is not None
     assert len(result) == 1
 
+
 def test_scrape_meta_cards_all_fail(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr("requests.request", lambda *args, **kwargs: FakeResponse(500))
     monkeypatch.setattr("time.sleep", lambda x: None)
 
     assert scrape_meta_cards("http://fake-url") is None
+
 
 # Real MTGGoldfish name cells wrap the name in an <a> next to tooltip markup,
 # so the cell's full text would be "Relic of ProgenitusView Card Details"
@@ -284,37 +301,59 @@ def test_parse_meta_table_takes_name_from_anchor() -> None:
 
     assert entries[0].name == "Relic of Progenitus"
 
+
 # Too many malformed rows means the page itself is broken, so the whole scrape
 # is rejected (falling back to cached meta) rather than trusted. Checked at
 # the boundary: exactly the limit is still accepted, one more is not.
-def test_scrape_meta_cards_rejects_page_over_bad_rows_limit(monkeypatch: MonkeyPatch) -> None:
-    good_row = "<tr><td>1</td><td>Lightning Bolt</td><td></td><td>25%</td><td>3.5</td></tr>"
+def test_scrape_meta_cards_rejects_page_over_bad_rows_limit(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    good_row = (
+        "<tr><td>1</td><td>Lightning Bolt</td><td></td><td>25%</td><td>3.5</td></tr>"
+    )
     bad_row = "<tr><td>?</td><td>?</td></tr>"
     limit = config.GOLDFISH_BAD_ROWS_LIMIT
 
     for bad_rows, expected_ok in [(limit, True), (limit + 1, False)]:
         html = _table(good_row + bad_row * bad_rows)
-        monkeypatch.setattr("requests.request", lambda *args, **kwargs: FakeResponse(200, html))
+        monkeypatch.setattr(
+            "requests.request",
+            lambda *args, html=html, **kwargs: FakeResponse(200, html),
+        )
 
         result = scrape_meta_cards("http://fake-url")
 
         assert (result is not None) is expected_ok, f"{bad_rows} bad rows"
 
+
 # Each way of failing says why, so a failed daily run shows whether to
 # wait (site unreachable) or fix the scraper (page layout changed)
-@pytest.mark.parametrize("html, expected", [
-    ("<html><body>No table here</body></html>", "no card table"),
-    (_table("", header="<thead><tr><th class='col-card'></th></tr></thead>"), "missing a column"),
-    (_table("<tr><td>?</td><td>?</td></tr>" * (config.GOLDFISH_BAD_ROWS_LIMIT + 1)),
-     "rows of MTGGoldfish's table could not be read"),
-])
+@pytest.mark.parametrize(
+    "html, expected",
+    [
+        ("<html><body>No table here</body></html>", "no card table"),
+        (
+            _table("", header="<thead><tr><th class='col-card'></th></tr></thead>"),
+            "missing a column",
+        ),
+        (
+            _table(
+                "<tr><td>?</td><td>?</td></tr>" * (config.GOLDFISH_BAD_ROWS_LIMIT + 1)
+            ),
+            "rows of MTGGoldfish's table could not be read",
+        ),
+    ],
+)
 def test_scrape_meta_cards_logs_why_it_failed(
     monkeypatch: MonkeyPatch, caplog: pytest.LogCaptureFixture, html: str, expected: str
 ) -> None:
-    monkeypatch.setattr("requests.request", lambda *args, **kwargs: FakeResponse(200, html))
+    monkeypatch.setattr(
+        "requests.request", lambda *args, **kwargs: FakeResponse(200, html)
+    )
 
     assert scrape_meta_cards("http://fake-url") is None
     assert expected in caplog.text
+
 
 def test_scrape_meta_cards_logs_unreachable_site(
     monkeypatch: MonkeyPatch, caplog: pytest.LogCaptureFixture

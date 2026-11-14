@@ -38,7 +38,9 @@ def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[Card]:
         output.extend(updates)
 
         if unrecognized:
-            log.warning(f"Could not refresh {len(unrecognized)} outdated card(s) - using the cached copies")
+            log.warning(
+                f"Could not refresh {len(unrecognized)} outdated card(s) - using the cached copies"
+            )
             output.extend(unrecognized)
 
     if missing:
@@ -47,16 +49,23 @@ def fetch_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> list[Card]:
             try:
                 raw = fetch_batch(batch_names)
             except RequestUnavailable as e:
-                log.warning(f"Could not fetch {len(batch_names)} missing card(s), Scryfall was unreachable ({e}) - will retry next run")
+                log.warning(
+                    f"Could not fetch {len(batch_names)} missing card(s), Scryfall was unreachable ({e}) - will retry next run"
+                )
                 continue
             if raw:
                 output.extend(_process_batch_request(conn, raw, batch_names))
             else:
-                log.warning(f"Could not fetch {len(batch_names)} missing card(s) - no data received")
+                log.warning(
+                    f"Could not fetch {len(batch_names)} missing card(s) - no data received"
+                )
 
     if not output:
-        raise RuntimeError("No cards have been fetched either from Scryfall or from cache")
+        raise RuntimeError(
+            "No cards have been fetched either from Scryfall or from cache"
+        )
     return output
+
 
 def get_display_printings(conn: sqlite3.Connection, cards: list[Card]) -> list[Card]:
     """The printing of each card the app should show, in the same order -
@@ -120,11 +129,16 @@ def get_display_printings(conn: sqlite3.Connection, cards: list[Card]) -> list[C
 
     # The fallbacks, for every card that got no new choice
     return [
-        shown.get(card.oracle_id, cached.get(card.oracle_id, card)) if card.oracle_id else card
+        shown.get(card.oracle_id, cached.get(card.oracle_id, card))
+        if card.oracle_id
+        else card
         for card in cards
     ]
 
-def _classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[list[Card], list[Card], list[str]]:
+
+def _classify_cards(
+    conn: sqlite3.Connection, meta: list[MetaEntry]
+) -> tuple[list[Card], list[Card], list[str]]:
     fresh: list[Card] = []
     outdated: list[Card] = []
     missing: list[str] = []
@@ -172,7 +186,10 @@ def _classify_cards(conn: sqlite3.Connection, meta: list[MetaEntry]) -> tuple[li
 
     return fresh, outdated, missing
 
-def _fetch_updates_for_outdated(conn: sqlite3.Connection, outdated: list[Card]) -> tuple[list[Card], list[Card]]:
+
+def _fetch_updates_for_outdated(
+    conn: sqlite3.Connection, outdated: list[Card]
+) -> tuple[list[Card], list[Card]]:
     # Asked by oracle_id, a card's permanent identity, not by name: a
     # name can be answered with a different card (Scryfall's fuzzy
     # matching), and no longer finds the card once Scryfall renames it.
@@ -183,19 +200,26 @@ def _fetch_updates_for_outdated(conn: sqlite3.Connection, outdated: list[Card]) 
         try:
             raw = fetch_by_oracle_ids(batch_ids)
         except RequestUnavailable as e:
-            log.warning(f"Could not refresh {len(batch_ids)} outdated card(s), Scryfall was unreachable ({e}) - will retry next run")
+            log.warning(
+                f"Could not refresh {len(batch_ids)} outdated card(s), Scryfall was unreachable ({e}) - will retry next run"
+            )
             continue
         if raw:
             updates.extend(_save_refreshed(conn, raw, stale))
         else:
-            log.warning(f"Could not refresh {len(batch_ids)} outdated card(s) - no data received")
+            log.warning(
+                f"Could not refresh {len(batch_ids)} outdated card(s) - no data received"
+            )
 
     # Whatever got no answer, for any reason, is served from its stale copy
     refreshed = {card.oracle_id for card in updates}
     unrecognized = [card for card in outdated if card.oracle_id not in refreshed]
     return updates, unrecognized
 
-def _save_refreshed(conn: sqlite3.Connection, raw: dict[str, Any], stale: dict[str, Card]) -> list[Card]:
+
+def _save_refreshed(
+    conn: sqlite3.Connection, raw: dict[str, Any], stale: dict[str, Card]
+) -> list[Card]:
     """Save Scryfall's answer to a refresh and return its cards. `stale`
     is the cached copy of every card that was asked for, by oracle_id.
     """
@@ -218,9 +242,12 @@ def _save_refreshed(conn: sqlite3.Connection, raw: dict[str, Any], stale: dict[s
         for item in raw.get("not_found", []):
             old = stale.get(item.get("oracle_id") or "")
             if old:
-                log.warning(f"Scryfall no longer has '{old.name}' - saved to card_lookup_failures")
+                log.warning(
+                    f"Scryfall no longer has '{old.name}' - saved to card_lookup_failures"
+                )
                 record_bad_name_attempt(conn, old.name)
     return cards
+
 
 def _to_card(raw: dict[str, Any]) -> Card | None:
     # A missing field is a KeyError. An entry of the wrong shape - `null`,
@@ -235,6 +262,7 @@ def _to_card(raw: dict[str, Any]) -> Card | None:
         log.warning(f"Skipping malformed card from Scryfall, wrong shape ({e})")
         return None
 
+
 def _answers_another_name(name: str, card: Card) -> bool:
     """Scryfall answered `name` with a card of a different name - a
     spelling Scryfall corrected, the front face of a double-faced card,
@@ -242,7 +270,10 @@ def _answers_another_name(name: str, card: Card) -> bool:
     """
     return normalize_name(card.name) != normalize_name(name)
 
-def _process_batch_request(conn: sqlite3.Connection, raw: dict[str, Any], asked: list[str]) -> list[Card]:
+
+def _process_batch_request(
+    conn: sqlite3.Connection, raw: dict[str, Any], asked: list[str]
+) -> list[Card]:
     """`asked` is the list of names that were sent to Scryfall for `raw`.
     The cards found are saved to the cache before they are returned.
     """
@@ -283,7 +314,9 @@ def _process_batch_request(conn: sqlite3.Connection, raw: dict[str, Any], asked:
         try:
             fetched = fetch_single(name)
         except RequestUnavailable as e:
-            log.warning(f"Could not verify '{name}', Scryfall was unreachable ({e}) - will retry next run")
+            log.warning(
+                f"Could not verify '{name}', Scryfall was unreachable ({e}) - will retry next run"
+            )
             continue
         card = _to_card(fetched) if fetched else None
         if card:

@@ -8,6 +8,7 @@ from meta_morphis.utils.http import RequestUnavailable, request_with_retries
 def fetch_batch(names: list[str]) -> dict[str, Any] | None:
     return _fetch_collection([{"name": n} for n in names])
 
+
 def fetch_by_oracle_ids(oracle_ids: list[str]) -> dict[str, Any] | None:
     """The cards with these oracle_ids, one printing of each. An
     oracle_id is a card's permanent identity: unlike a name, Scryfall
@@ -15,6 +16,7 @@ def fetch_by_oracle_ids(oracle_ids: list[str]) -> dict[str, Any] | None:
     the card is renamed.
     """
     return _fetch_collection([{"oracle_id": oracle_id} for oracle_id in oracle_ids])
+
 
 def _fetch_collection(identifiers: list[dict[str, str]]) -> dict[str, Any] | None:
     raw = _request(
@@ -26,6 +28,7 @@ def _fetch_collection(identifiers: list[dict[str, str]]) -> dict[str, Any] | Non
         return None
     return _parse_json(raw)
 
+
 def fetch_single(name: str) -> dict[str, Any] | None:
     raw = _request("GET", config.SCRYFALL_NAMED_URL, params={"exact": name})
     if raw is None:
@@ -33,6 +36,7 @@ def fetch_single(name: str) -> dict[str, Any] | None:
     if raw is None:
         return None
     return _parse_json(raw)
+
 
 def fetch_symbology() -> dict[str, Any] | None:
     # Every card symbol ({U}, {T}, hybrid, Phyrexian...) with its SVG
@@ -42,6 +46,7 @@ def fetch_symbology() -> dict[str, Any] | None:
         return None
     return _parse_json(raw)
 
+
 def fetch_catalog(name: str) -> list[str] | None:
     """One of Scryfall's lists of game words, such as "creature-types".
     None if there is no such list."""
@@ -50,6 +55,7 @@ def fetch_catalog(name: str) -> list[str] | None:
         return None
     words: list[str] = _parse_json(raw).get("data", [])
     return words
+
 
 def search_printings(oracle_ids: list[str]) -> list[dict[str, Any]]:
     """Every regular printing of these cards, in one search. Keep the
@@ -78,6 +84,7 @@ def search_printings(oracle_ids: list[str]) -> list[dict[str, Any]]:
         printings.extend(page.get("data", []))
     return printings
 
+
 def _request(
     method: str,
     url: str,
@@ -95,6 +102,7 @@ def _request(
         min_delay=config.SCRYFALL_MIN_DELAY,
         default_retry_after=config.SCRYFALL_RATE_LIMIT_COOLDOWN,
     )
+
 
 def _parse_json(raw: str) -> dict[str, Any]:
     # A 200 whose body isn't JSON (a proxy or antivirus block page, say)

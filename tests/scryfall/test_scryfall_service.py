@@ -24,7 +24,9 @@ from meta_morphis.scryfall.service import (
 from meta_morphis.utils.http import RequestUnavailable
 
 
-def _card(name: str, age: int = 0, card_id: str = "test", oracle_id: str | None = None) -> Card:
+def _card(
+    name: str, age: int = 0, card_id: str = "test", oracle_id: str | None = None
+) -> Card:
     raw = {"id": card_id, "name": name}
     if oracle_id:
         raw["oracle_id"] = oracle_id
@@ -32,31 +34,16 @@ def _card(name: str, age: int = 0, card_id: str = "test", oracle_id: str | None 
     card.age = age
     return card
 
+
 def test_classify_cards(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
-    fresh_meta = MetaEntry(
-        name="Duress",
-        rank=10,
-        percent=15,
-        avg_copies=2
-    )
-    outdated_meta = MetaEntry(
-        name="Counterspell",
-        rank=5,
-        percent=10,
-        avg_copies=3.2
-    )
-    missing_meta = MetaEntry(
-        name="Llanowar Elf",
-        rank=1,
-        percent=25,
-        avg_copies=3.9
-    )
+    fresh_meta = MetaEntry(name="Duress", rank=10, percent=15, avg_copies=2)
+    outdated_meta = MetaEntry(name="Counterspell", rank=5, percent=10, avg_copies=3.2)
+    missing_meta = MetaEntry(name="Llanowar Elf", rank=1, percent=25, avg_copies=3.9)
 
     meta = [fresh_meta, outdated_meta, missing_meta]
 
     monkeypatch.setattr(
-        "meta_morphis.scryfall.service.should_skip_lookup",
-        lambda conn, name: None
+        "meta_morphis.scryfall.service.should_skip_lookup", lambda conn, name: None
     )
 
     monkeypatch.setattr(
@@ -64,8 +51,10 @@ def test_classify_cards(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> N
         lambda conn, name: (
             _card(name, age=config.SCRYFALL_REFRESH_RATE + 1, oracle_id="o1")
             if name == "Counterspell"
-            else _card(name) if name != "Llanowar Elf" else None
-        )
+            else _card(name)
+            if name != "Llanowar Elf"
+            else None
+        ),
     )
 
     result = _classify_cards(conn, meta)
@@ -76,7 +65,10 @@ def test_classify_cards(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> N
     assert outdated_result[0].name == "Counterspell"
     assert missing_result == ["Llanowar Elf"]
 
-def test_classify_cards_skips_outdated_card_within_cooldown(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
+
+def test_classify_cards_skips_outdated_card_within_cooldown(
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch
+) -> None:
     # A refresh recently confirmed to fail for this name used to be
     # retried every single run regardless, since should_skip_lookup
     # was only ever consulted on the cache-miss branch - never for a
@@ -84,40 +76,48 @@ def test_classify_cards_skips_outdated_card_within_cooldown(conn: sqlite3.Connec
     # card, forever, for a name that's already known to fail.
 
     monkeypatch.setattr(
-        "meta_morphis.scryfall.service.should_skip_lookup",
-        lambda conn, name: True
+        "meta_morphis.scryfall.service.should_skip_lookup", lambda conn, name: True
     )
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.get_card_from_cache",
-        lambda conn, name: _card(name, age=config.SCRYFALL_REFRESH_RATE + 1)
+        lambda conn, name: _card(name, age=config.SCRYFALL_REFRESH_RATE + 1),
     )
 
-    fresh, outdated, missing = _classify_cards(conn, [MetaEntry(name="Sai, Master Thopterist", rank=1)])
+    fresh, outdated, missing = _classify_cards(
+        conn, [MetaEntry(name="Sai, Master Thopterist", rank=1)]
+    )
 
     assert [c.name for c in fresh] == ["Sai, Master Thopterist"]
     assert outdated == []
     assert missing == []
 
+
 # A negative age means the card was cached by a clock that ran ahead
-def test_classify_cards_treats_future_cached_card_as_outdated(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
+def test_classify_cards_treats_future_cached_card_as_outdated(
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch
+) -> None:
     monkeypatch.setattr(
-        "meta_morphis.scryfall.service.should_skip_lookup",
-        lambda conn, name: False
+        "meta_morphis.scryfall.service.should_skip_lookup", lambda conn, name: False
     )
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.get_card_from_cache",
-        lambda conn, name: _card(name, age=-3600, oracle_id="o1")
+        lambda conn, name: _card(name, age=-3600, oracle_id="o1"),
     )
 
-    fresh, outdated, missing = _classify_cards(conn, [MetaEntry(name="Counterspell", rank=1)])
+    fresh, outdated, missing = _classify_cards(
+        conn, [MetaEntry(name="Counterspell", rank=1)]
+    )
 
     assert fresh == []
     assert [c.name for c in outdated] == ["Counterspell"]
     assert missing == []
 
+
 # The refresh asks by oracle_id. A stale card cached without one is
 # fetched by name instead, like a card that isn't cached at all
-def test_classify_cards_fetches_a_stale_card_without_oracle_id_by_name(conn: sqlite3.Connection) -> None:
+def test_classify_cards_fetches_a_stale_card_without_oracle_id_by_name(
+    conn: sqlite3.Connection,
+) -> None:
     save_cards_to_cache(conn, [_card("Counterspell")])
     conn.execute("UPDATE cards SET updated_at = 0")
 
@@ -126,18 +126,26 @@ def test_classify_cards_fetches_a_stale_card_without_oracle_id_by_name(conn: sql
     assert fresh == [] and outdated == []
     assert missing == ["Counterspell"]
 
+
 # One card is refreshed, the other Scryfall no longer has: its stale copy
 # is kept, and the miss starts the cooldown
-def test_fetch_updates_for_outdated(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
-    outdated = [_card("Unknown", oracle_id="o-unknown"), _card("Cancel", oracle_id="o-cancel")]
+def test_fetch_updates_for_outdated(
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch
+) -> None:
+    outdated = [
+        _card("Unknown", oracle_id="o-unknown"),
+        _card("Cancel", oracle_id="o-cancel"),
+    ]
 
     asked: list[list[str]] = []
+
     def answer(oracle_ids: list[str]) -> dict[str, Any]:
         asked.append(oracle_ids)
         return {
             "data": [{"id": "2", "oracle_id": "o-cancel", "name": "Cancel"}],
             "not_found": [{"oracle_id": "o-unknown"}],
         }
+
     monkeypatch.setattr("meta_morphis.scryfall.service.fetch_by_oracle_ids", answer)
 
     updates, unrecognized = _fetch_updates_for_outdated(conn, outdated)
@@ -148,6 +156,7 @@ def test_fetch_updates_for_outdated(conn: sqlite3.Connection, monkeypatch: Monke
     assert should_skip_lookup(conn, "Unknown") is True
     assert should_skip_lookup(conn, "Cancel") is False
 
+
 # A batch that couldn't be reached must be reported, not silently dropped
 def test_fetch_updates_for_outdated_reports_unreachable_batch(
     conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: LogCaptureFixture
@@ -157,7 +166,9 @@ def test_fetch_updates_for_outdated_reports_unreachable_batch(
     def raise_unavailable(oracle_ids: list[str]) -> dict[str, Any] | None:
         raise RequestUnavailable("Scryfall is down")
 
-    monkeypatch.setattr("meta_morphis.scryfall.service.fetch_by_oracle_ids", raise_unavailable)
+    monkeypatch.setattr(
+        "meta_morphis.scryfall.service.fetch_by_oracle_ids", raise_unavailable
+    )
 
     updates, unrecognized = _fetch_updates_for_outdated(conn, outdated)
 
@@ -166,31 +177,14 @@ def test_fetch_updates_for_outdated_reports_unreachable_batch(
     assert "2 outdated card" in caplog.text
     assert "unreachable" in caplog.text
 
+
 def test_fetch_cards(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
-    fresh = MetaEntry(
-        name="Duress",
-        rank=10,
-        percent=15,
-        avg_copies=2
-    )
+    fresh = MetaEntry(name="Duress", rank=10, percent=15, avg_copies=2)
     outdated_refreshed = MetaEntry(
-        name="Counterspell",
-        rank=5,
-        percent=10,
-        avg_copies=3.2
+        name="Counterspell", rank=5, percent=10, avg_copies=3.2
     )
-    outdated_not_refreshed = MetaEntry(
-        name="Fling",
-        rank=20,
-        percent=4,
-        avg_copies=1.1
-    )
-    missing = MetaEntry(
-        name="Llanowar Elf",
-        rank=1,
-        percent=25,
-        avg_copies=3.9
-    )
+    outdated_not_refreshed = MetaEntry(name="Fling", rank=20, percent=4, avg_copies=1.1)
+    missing = MetaEntry(name="Llanowar Elf", rank=1, percent=25, avg_copies=3.9)
 
     meta = [fresh, outdated_refreshed, outdated_not_refreshed, missing]
     monkeypatch.setattr(
@@ -198,20 +192,23 @@ def test_fetch_cards(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None
         lambda conn, meta: (
             [_card(fresh.name)],
             [_card(outdated_refreshed.name), _card(outdated_not_refreshed.name)],
-            [missing.name]
-        )
+            [missing.name],
+        ),
     )
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.fetch_batch",
-        lambda names: {"data": [{"name": n} for n in names]}
+        lambda names: {"data": [{"name": n} for n in names]},
     )
     monkeypatch.setattr(
         "meta_morphis.scryfall.service._process_batch_request",
-        lambda conn, raw, asked: [_card(c["name"]) for c in raw["data"]]
+        lambda conn, raw, asked: [_card(c["name"]) for c in raw["data"]],
     )
     monkeypatch.setattr(
         "meta_morphis.scryfall.service._fetch_updates_for_outdated",
-        lambda conn, outdated: ([_card(outdated_refreshed.name)], [_card(outdated_not_refreshed.name)])
+        lambda conn, outdated: (
+            [_card(outdated_refreshed.name)],
+            [_card(outdated_not_refreshed.name)],
+        ),
     )
 
     result = fetch_cards(conn, meta)
@@ -223,9 +220,11 @@ def test_fetch_cards(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None
         _card(missing.name),
     ]
 
+
 def test_fetch_cards_raises(conn: sqlite3.Connection) -> None:
     with pytest.raises(RuntimeError):
         fetch_cards(conn, [])
+
 
 # Make sure that when more than 75 cards requested and any of the batch calls
 # fails, the caller will be notified
@@ -238,7 +237,7 @@ def test_fetch_cards_reports_unreachable_missing_batch(
 
     monkeypatch.setattr(
         "meta_morphis.scryfall.service._classify_cards",
-        lambda conn, meta: ([_card("Duress")], [], ["Counterspell"])
+        lambda conn, meta: ([_card("Duress")], [], ["Counterspell"]),
     )
 
     def raise_unavailable(names: list[str]) -> dict[str, Any] | None:
@@ -252,12 +251,14 @@ def test_fetch_cards_reports_unreachable_missing_batch(
     assert "1 missing card" in caplog.text
     assert "unreachable" in caplog.text
 
-def test_process_batch_request(conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: LogCaptureFixture) -> None:
+
+def test_process_batch_request(
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: LogCaptureFixture
+) -> None:
     raw: dict[str, Any] = {"object": []}
 
     monkeypatch.setattr(
-        "meta_morphis.scryfall.service.record_bad_name_attempt",
-        lambda conn, name: None
+        "meta_morphis.scryfall.service.record_bad_name_attempt", lambda conn, name: None
     )
 
     assert _process_batch_request(conn, raw, []) == []
@@ -270,16 +271,13 @@ def test_process_batch_request(conn: sqlite3.Connection, monkeypatch: MonkeyPatc
     assert "Scryfall error: no data received" in caplog.text
 
     raw = {
-        "data": [
-            {"id": "1", "name": "Counterspell"},
-            {"id": "2", "name": "Duress"}
-        ],
-        "not_found": [{"name": "Unknown"}, {"name": "Cancel"}]
+        "data": [{"id": "1", "name": "Counterspell"}, {"id": "2", "name": "Duress"}],
+        "not_found": [{"name": "Unknown"}, {"name": "Cancel"}],
     }
 
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.fetch_single",
-        lambda name: {"id": "3", "name": name} if name != "Unknown" else None
+        lambda name: {"id": "3", "name": name} if name != "Unknown" else None,
     )
 
     asked = ["Counterspell", "Unknown", "Duress", "Cancel"]
@@ -289,16 +287,19 @@ def test_process_batch_request(conn: sqlite3.Connection, monkeypatch: MonkeyPatc
         _card("Cancel", card_id="3"),
     ]
 
+
 def test_process_batch_request_accepts_fuzzy_match_with_different_name(
     conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: LogCaptureFixture
 ) -> None:
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.record_bad_name_attempt",
-        lambda conn, name: pytest.fail("a resolved fuzzy match must not be recorded as a bad name")
+        lambda conn, name: pytest.fail(
+            "a resolved fuzzy match must not be recorded as a bad name"
+        ),
     )
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.fetch_single",
-        lambda name: {"id": "1", "name": "Snapcaster Mage"}
+        lambda name: {"id": "1", "name": "Snapcaster Mage"},
     )
 
     raw: dict[str, Any] = {
@@ -317,6 +318,7 @@ def test_process_batch_request_accepts_fuzzy_match_with_different_name(
     assert found is not None
     assert found.name == "Snapcaster Mage"
 
+
 # If a bad response is not confirmed that it's a genuine "doesn't exist"
 # than it shouldn't go to the 7-day card_lookup_failures ban list
 def test_process_batch_request_does_not_record_failure_on_outage(
@@ -324,7 +326,9 @@ def test_process_batch_request_does_not_record_failure_on_outage(
 ) -> None:
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.record_bad_name_attempt",
-        lambda conn, name: pytest.fail("a transient outage must not be recorded as a bad name")
+        lambda conn, name: pytest.fail(
+            "a transient outage must not be recorded as a bad name"
+        ),
     )
 
     def raise_unavailable(name: str) -> dict[str, Any] | None:
@@ -343,17 +347,24 @@ def test_process_batch_request_does_not_record_failure_on_outage(
     assert "Bad name" not in caplog.text
     assert "Counterspell" in caplog.text
 
+
 # A split card is looked up by its full name, not by one face: Start // Fire
 # is cached and owns the face name "Fire", so looking up Fire // Ice by "Fire"
 # would hand back the wrong card
-def test_classify_cards_looks_up_a_split_card_by_its_full_name(conn: sqlite3.Connection) -> None:
-    start_fire = Card.from_raw({
-        "id": "sf", "name": "Start // Fire", "type_line": "Sorcery",
-        "card_faces": [
-            {"name": "Start", "mana_cost": "2W", "type_line": "Sorcery"},
-            {"name": "Fire", "mana_cost": "2R", "type_line": "Sorcery"},
-        ],
-    })
+def test_classify_cards_looks_up_a_split_card_by_its_full_name(
+    conn: sqlite3.Connection,
+) -> None:
+    start_fire = Card.from_raw(
+        {
+            "id": "sf",
+            "name": "Start // Fire",
+            "type_line": "Sorcery",
+            "card_faces": [
+                {"name": "Start", "mana_cost": "2W", "type_line": "Sorcery"},
+                {"name": "Fire", "mana_cost": "2R", "type_line": "Sorcery"},
+            ],
+        }
+    )
     save_cards_to_cache(conn, [start_fire])
 
     fresh, outdated, missing = _classify_cards(conn, [MetaEntry(name="Fire // Ice")])
@@ -361,39 +372,55 @@ def test_classify_cards_looks_up_a_split_card_by_its_full_name(conn: sqlite3.Con
     assert fresh == [] and outdated == []
     assert missing == ["Fire // Ice"]
 
+
 # MTGGoldfish lists a double-faced card by its front face, but a failed
 # refresh is recorded under the full name the refresh asked Scryfall for.
 # The cooldown has to find that record, or the card is retried every run.
-def test_classify_cards_skips_outdated_double_faced_card_within_cooldown(conn: sqlite3.Connection) -> None:
-    delver = Card.from_raw({
-        "id": "d", "name": "Delver of Secrets // Insectile Aberration",
-        "card_faces": [
-            {"name": "Delver of Secrets", "type_line": "Creature"},
-            {"name": "Insectile Aberration", "type_line": "Creature"},
-        ],
-    })
+def test_classify_cards_skips_outdated_double_faced_card_within_cooldown(
+    conn: sqlite3.Connection,
+) -> None:
+    delver = Card.from_raw(
+        {
+            "id": "d",
+            "name": "Delver of Secrets // Insectile Aberration",
+            "card_faces": [
+                {"name": "Delver of Secrets", "type_line": "Creature"},
+                {"name": "Insectile Aberration", "type_line": "Creature"},
+            ],
+        }
+    )
     save_cards_to_cache(conn, [delver])
     conn.execute("UPDATE cards SET updated_at = 0")
     record_bad_name_attempt(conn, delver.name)
 
-    fresh, outdated, missing = _classify_cards(conn, [MetaEntry(name="Delver of Secrets")])
+    fresh, outdated, missing = _classify_cards(
+        conn, [MetaEntry(name="Delver of Secrets")]
+    )
 
     assert [c.name for c in fresh] == [delver.name]
     assert outdated == [] and missing == []
+
 
 # Refreshed and newly fetched cards are each read back through a second
 # connection, which only sees committed data. They're tested separately on
 # purpose: in one run, committing the newly fetched cards also commits a
 # pending refresh, which would hide a missing commit on the refresh path.
-def test_fetch_cards_commits_refreshed_card(db_file: Path, monkeypatch: MonkeyPatch) -> None:
+def test_fetch_cards_commits_refreshed_card(
+    db_file: Path, monkeypatch: MonkeyPatch
+) -> None:
     writer = sqlite3.connect(db_file)
     with writer:
-        save_cards_to_cache(writer, [Card.from_raw({"id": "old", "oracle_id": "o1", "name": "Counterspell"})])
+        save_cards_to_cache(
+            writer,
+            [Card.from_raw({"id": "old", "oracle_id": "o1", "name": "Counterspell"})],
+        )
         writer.execute("UPDATE cards SET updated_at = 0")
 
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.fetch_by_oracle_ids",
-        lambda oracle_ids: {"data": [{"id": "new", "oracle_id": "o1", "name": "Counterspell"}]}
+        lambda oracle_ids: {
+            "data": [{"id": "new", "oracle_id": "o1", "name": "Counterspell"}]
+        },
     )
 
     fetch_cards(writer, [MetaEntry(name="Counterspell")])
@@ -407,10 +434,13 @@ def test_fetch_cards_commits_refreshed_card(db_file: Path, monkeypatch: MonkeyPa
     assert refreshed.id == "new"
     assert refreshed.age < 60
 
-def test_fetch_cards_commits_newly_fetched_card(db_file: Path, monkeypatch: MonkeyPatch) -> None:
+
+def test_fetch_cards_commits_newly_fetched_card(
+    db_file: Path, monkeypatch: MonkeyPatch
+) -> None:
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.fetch_batch",
-        lambda names: {"data": [{"id": "1", "name": "Shock"}]}
+        lambda names: {"data": [{"id": "1", "name": "Shock"}]},
     )
 
     writer = sqlite3.connect(db_file)
@@ -423,33 +453,46 @@ def test_fetch_cards_commits_newly_fetched_card(db_file: Path, monkeypatch: Monk
 
     assert fetched is not None
 
+
 # The counterpart to the outage test: a CONFIRMED miss (both exact and fuzzy
 # found nothing) must start the cooldown, or the name is re-queried every run
-def test_process_batch_request_records_confirmed_bad_name(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
+def test_process_batch_request_records_confirmed_bad_name(
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch
+) -> None:
     monkeypatch.setattr("meta_morphis.scryfall.service.fetch_single", lambda name: None)
 
-    _process_batch_request(conn, {"data": [], "not_found": [{"name": "Bogus Card"}]}, ["Bogus Card"])
+    _process_batch_request(
+        conn, {"data": [], "not_found": [{"name": "Bogus Card"}]}, ["Bogus Card"]
+    )
 
     assert should_skip_lookup(conn, "Bogus Card") is True
+
 
 # A card missing a required field is skipped with a message instead of
 # crashing the whole batch, and the rest of the batch still comes through
 def test_process_batch_request_skips_malformed_card(conn: sqlite3.Connection) -> None:
-    raw: dict[str, Any] = {"data": [{"name": "No Id Card"}, {"id": "1", "name": "Shock"}]}
+    raw: dict[str, Any] = {
+        "data": [{"name": "No Id Card"}, {"id": "1", "name": "Shock"}]
+    }
 
     cards = _process_batch_request(conn, raw, ["No Id Card", "Shock"])
 
     assert [c.name for c in cards] == ["Shock"]
 
+
 # An entry of the wrong shape - null, or card_faces: null - is skipped the
 # same way. It used to raise TypeError past _to_card and lose the batch's
 # good cards with it
-def test_process_batch_request_skips_card_of_wrong_shape(conn: sqlite3.Connection) -> None:
-    raw: dict[str, Any] = {"data": [
-        None,
-        {"id": "1", "name": "No Faces", "card_faces": None},
-        {"id": "2", "name": "Shock"},
-    ]}
+def test_process_batch_request_skips_card_of_wrong_shape(
+    conn: sqlite3.Connection,
+) -> None:
+    raw: dict[str, Any] = {
+        "data": [
+            None,
+            {"id": "1", "name": "No Faces", "card_faces": None},
+            {"id": "2", "name": "Shock"},
+        ]
+    }
 
     cards = _process_batch_request(conn, raw, ["Null Card", "No Faces", "Shock"])
 
@@ -457,10 +500,16 @@ def test_process_batch_request_skips_card_of_wrong_shape(conn: sqlite3.Connectio
     found = get_card_from_cache(conn, "Shock")
     assert found is not None
 
+
 # An outdated card whose refreshed entry can't be parsed used to vanish
 # from the output instead of falling back to its stale cached copy
-def test_fetch_updates_for_outdated_keeps_card_with_malformed_refresh(conn: sqlite3.Connection, monkeypatch: MonkeyPatch) -> None:
-    outdated = [_card("Sai, Master Thopterist", oracle_id="o1"), _card("Counterspell", oracle_id="o2")]
+def test_fetch_updates_for_outdated_keeps_card_with_malformed_refresh(
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch
+) -> None:
+    outdated = [
+        _card("Sai, Master Thopterist", oracle_id="o1"),
+        _card("Counterspell", oracle_id="o2"),
+    ]
 
     monkeypatch.setattr(
         "meta_morphis.scryfall.service.fetch_by_oracle_ids",
@@ -470,13 +519,14 @@ def test_fetch_updates_for_outdated_keeps_card_with_malformed_refresh(conn: sqli
                 {"id": "2", "oracle_id": "o2", "name": "Counterspell"},
             ],
             "not_found": [],
-        }
+        },
     )
 
     updates, unrecognized = _fetch_updates_for_outdated(conn, outdated)
 
     assert [c.name for c in updates] == ["Counterspell"]
     assert [c.name for c in unrecognized] == ["Sai, Master Thopterist"]
+
 
 # Scryfall can rename a card (an errata rename). The refresh asks by
 # oracle_id, so it gets the card under its new name. The old row must
@@ -486,26 +536,39 @@ def test_fetch_updates_for_outdated_keeps_card_with_malformed_refresh(conn: sqli
 def test_fetch_cards_moves_old_names_to_a_renamed_card(
     conn: sqlite3.Connection, monkeypatch: MonkeyPatch
 ) -> None:
-    save_cards_to_cache(conn, [Card.from_raw({
-        "id": "1", "oracle_id": "o1", "name": "Old Front // Old Back",
-        "card_faces": [
-            {"name": "Old Front", "type_line": "Creature"},
-            {"name": "Old Back", "type_line": "Creature"},
+    save_cards_to_cache(
+        conn,
+        [
+            Card.from_raw(
+                {
+                    "id": "1",
+                    "oracle_id": "o1",
+                    "name": "Old Front // Old Back",
+                    "card_faces": [
+                        {"name": "Old Front", "type_line": "Creature"},
+                        {"name": "Old Back", "type_line": "Creature"},
+                    ],
+                }
+            )
         ],
-    })])
+    )
     conn.execute("UPDATE cards SET updated_at = 0")
 
     renamed = {
-        "id": "1", "oracle_id": "o1", "name": "New Front // New Back",
+        "id": "1",
+        "oracle_id": "o1",
+        "name": "New Front // New Back",
         "card_faces": [
             {"name": "New Front", "type_line": "Creature"},
             {"name": "New Back", "type_line": "Creature"},
         ],
     }
     asked: list[list[str]] = []
+
     def answer(oracle_ids: list[str]) -> dict[str, Any]:
         asked.append(oracle_ids)
         return {"data": [renamed], "not_found": []}
+
     monkeypatch.setattr("meta_morphis.scryfall.service.fetch_by_oracle_ids", answer)
 
     first_run = fetch_cards(conn, [MetaEntry(name="Old Front")])
@@ -514,7 +577,10 @@ def test_fetch_cards_moves_old_names_to_a_renamed_card(
     assert [c.name for c in first_run] == ["New Front // New Back"]
     assert [c.name for c in second_run] == ["New Front // New Back"]
     assert asked == [["o1"]]
-    assert conn.execute("SELECT name FROM cards").fetchall() == [("new front // new back",)]
+    assert conn.execute("SELECT name FROM cards").fetchall() == [
+        ("new front // new back",)
+    ]
+
 
 # Each card in a batch answer is paired with the name it answers by
 # skipping the names Scryfall didn't find. If one went missing without a
@@ -533,6 +599,7 @@ def test_process_batch_request_pairs_nothing_when_the_counts_differ(
     assert found is not None and found.name == "Counterspell"
     assert "not pairing them with the names asked" in caplog.text
 
+
 # Two names on the list can point at one cached card (here an old
 # spelling and the new one). When it goes stale, Scryfall is asked about
 # it once: asking twice would fetch and save it twice.
@@ -545,9 +612,11 @@ def test_fetch_cards_asks_once_for_a_stale_card_two_names_share(
     conn.execute("UPDATE cards SET updated_at = 0")
 
     asked: list[list[str]] = []
+
     def answer(oracle_ids: list[str]) -> dict[str, Any]:
         asked.append(oracle_ids)
         return {"data": [card], "not_found": []}
+
     monkeypatch.setattr("meta_morphis.scryfall.service.fetch_by_oracle_ids", answer)
 
     result = fetch_cards(conn, [MetaEntry(name="Old"), MetaEntry(name="New")])
@@ -555,34 +624,50 @@ def test_fetch_cards_asks_once_for_a_stale_card_two_names_share(
     assert asked == [["o1"]]
     assert [c.name for c in result] == ["New"]
 
+
 # A fresh card two list names share comes back once, not once per name
-def test_classify_cards_keeps_one_copy_of_a_fresh_card_two_names_share(conn: sqlite3.Connection) -> None:
-    save_cards_to_cache(conn, [Card.from_raw({"id": "1", "oracle_id": "o1", "name": "New"})])
+def test_classify_cards_keeps_one_copy_of_a_fresh_card_two_names_share(
+    conn: sqlite3.Connection,
+) -> None:
+    save_cards_to_cache(
+        conn, [Card.from_raw({"id": "1", "oracle_id": "o1", "name": "New"})]
+    )
     add_alias(conn, "Old", "New")
 
-    fresh, outdated, missing = _classify_cards(conn, [MetaEntry(name="Old"), MetaEntry(name="New")])
+    fresh, outdated, missing = _classify_cards(
+        conn, [MetaEntry(name="Old"), MetaEntry(name="New")]
+    )
 
     assert [c.name for c in fresh] == ["New"]
     assert outdated == []
     assert missing == []
+
 
 # A stale card two names share that can't be refreshed is kept once and
 # counted once - it used to be in `unrecognized` twice
 def test_fetch_cards_keeps_one_copy_of_a_shared_stale_card_it_could_not_refresh(
     conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: LogCaptureFixture
 ) -> None:
-    save_cards_to_cache(conn, [Card.from_raw({"id": "1", "oracle_id": "o1", "name": "New"})])
+    save_cards_to_cache(
+        conn, [Card.from_raw({"id": "1", "oracle_id": "o1", "name": "New"})]
+    )
     add_alias(conn, "Old", "New")
     conn.execute("UPDATE cards SET updated_at = 0")
 
     def raise_unavailable(oracle_ids: list[str]) -> dict[str, Any] | None:
         raise RequestUnavailable("Scryfall is down")
-    monkeypatch.setattr("meta_morphis.scryfall.service.fetch_by_oracle_ids", raise_unavailable)
+
+    monkeypatch.setattr(
+        "meta_morphis.scryfall.service.fetch_by_oracle_ids", raise_unavailable
+    )
 
     result = fetch_cards(conn, [MetaEntry(name="Old"), MetaEntry(name="New")])
 
     assert [c.name for c in result] == ["New"]
-    assert "Could not refresh 1 outdated card(s) - using the cached copies" in caplog.text
+    assert (
+        "Could not refresh 1 outdated card(s) - using the cached copies" in caplog.text
+    )
+
 
 # add_alias turns down a name another card already claimed (first claim
 # wins). The card Scryfall answered with is still the right one, so it
@@ -590,11 +675,15 @@ def test_fetch_cards_keeps_one_copy_of_a_shared_stale_card_it_could_not_refresh(
 def test_process_batch_request_keeps_a_card_whose_alias_another_card_claimed(
     conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: LogCaptureFixture
 ) -> None:
-    save_cards_to_cache(conn, [Card.from_raw({"id": "2", "oracle_id": "o2", "name": "Owner"})])
+    save_cards_to_cache(
+        conn, [Card.from_raw({"id": "2", "oracle_id": "o2", "name": "Owner"})]
+    )
     add_alias(conn, "Shared", "Owner")
 
     answer = {"id": "1", "oracle_id": "o1", "name": "Answer"}
-    monkeypatch.setattr("meta_morphis.scryfall.service.fetch_single", lambda name: answer)
+    monkeypatch.setattr(
+        "meta_morphis.scryfall.service.fetch_single", lambda name: answer
+    )
 
     raw: dict[str, Any] = {"data": [], "not_found": [{"name": "Shared"}]}
     cards = _process_batch_request(conn, raw, ["Shared"])

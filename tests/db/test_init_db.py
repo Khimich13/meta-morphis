@@ -13,6 +13,7 @@ def test_init_db_stamps_a_fresh_database_with_the_current_version() -> None:
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     assert version == SCHEMA_VERSION
 
+
 def test_init_db_creates_all_expected_tables() -> None:
     conn = sqlite3.connect(":memory:")
     init_db(conn)
@@ -33,6 +34,7 @@ def test_init_db_creates_all_expected_tables() -> None:
         "chosen_printings",
     }
 
+
 # Uses a file - an in-memory database can't be put in WAL mode at all.
 # The mode is stored in the file itself, so a fresh connection sees it.
 def test_init_db_enables_wal(db_file: Path) -> None:
@@ -41,6 +43,7 @@ def test_init_db_enables_wal(db_file: Path) -> None:
     conn.close()
 
     assert mode == "wal"
+
 
 def test_init_db_is_idempotent() -> None:
     conn = sqlite3.connect(":memory:")
@@ -61,6 +64,7 @@ def test_init_db_is_idempotent() -> None:
     assert version == SCHEMA_VERSION
     assert conn.execute("SELECT name FROM cards").fetchall() == [("lightning bolt",)]
 
+
 def test_init_db_refuses_a_newer_schema_version() -> None:
     # Regression guard for the actual point of this mechanism: running
     # older code against a database a newer version already migrated
@@ -70,6 +74,7 @@ def test_init_db_refuses_a_newer_schema_version() -> None:
 
     with pytest.raises(RuntimeError):
         init_db(conn)
+
 
 def test_init_db_upgrades_a_version_1_database() -> None:
     # A database made before chosen_printings existed keeps its data
@@ -92,6 +97,7 @@ def test_init_db_upgrades_a_version_1_database() -> None:
     assert conn.execute("SELECT name FROM cards").fetchall() == [("lightning bolt",)]
     assert conn.execute("SELECT COUNT(*) FROM chosen_printings").fetchone()[0] == 0
 
+
 def test_init_db_upgrades_a_version_2_database() -> None:
     # A database whose meta table still has lookup_name keeps its rows
     # and loses the column
@@ -103,7 +109,9 @@ def test_init_db_upgrades_a_version_2_database() -> None:
             PRIMARY KEY (format, name)
         )
     """)
-    conn.execute("INSERT INTO meta VALUES ('Wear // Tear', 'modern', 1, 10.0, 1.5, 'Wear')")
+    conn.execute(
+        "INSERT INTO meta VALUES ('Wear // Tear', 'modern', 1, 10.0, 1.5, 'Wear')"
+    )
     conn.execute("PRAGMA user_version = 2")
 
     init_db(conn)

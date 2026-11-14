@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-import meta_morphis.utils.http as http
 from meta_morphis.db.init_db import init_db
+from meta_morphis.utils import http
 
 
 @pytest.fixture

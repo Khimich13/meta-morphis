@@ -24,11 +24,7 @@ _COLUMN_CLASSES = {
 
 def scrape_meta_cards(url: str) -> list[MetaEntry] | None:
     try:
-        raw = request_with_retries(
-            "GET",
-            url=url,
-            headers=config.GOLDFISH_HEADERS
-        )
+        raw = request_with_retries("GET", url=url, headers=config.GOLDFISH_HEADERS)
     except RequestUnavailable as e:
         log.warning(f"MTGGoldfish could not be reached ({e})")
         return None
@@ -52,11 +48,13 @@ def scrape_meta_cards(url: str) -> list[MetaEntry] | None:
 
     return meta
 
+
 def _parse_cell(cell: Tag, cast: Callable[[str], T]) -> T | None:
     try:
         return cast(cell.text.strip())
     except ValueError:
         return None
+
 
 def _locate_columns(table: Tag) -> dict[str, int] | None:
     # Map each field name to its column index using <thead>'s <th> classes.
@@ -77,17 +75,22 @@ def _locate_columns(table: Tag) -> dict[str, int] | None:
 
     return columns
 
+
 def _parse_meta_table(html: str) -> tuple[list[MetaEntry], int] | None:
     soup = BeautifulSoup(html, "html.parser")
     table = soup.select_one("table.table-staples")
 
     if not table:
-        log.warning("MTGGoldfish's page has no card table - its layout may have changed")
+        log.warning(
+            "MTGGoldfish's page has no card table - its layout may have changed"
+        )
         return None
 
     columns = _locate_columns(table)
     if columns is None:
-        log.warning("MTGGoldfish's card table is missing a column - its layout may have changed")
+        log.warning(
+            "MTGGoldfish's card table is missing a column - its layout may have changed"
+        )
         return None
 
     required_cols = max(columns.values()) + 1
@@ -112,18 +115,22 @@ def _parse_meta_table(html: str) -> tuple[list[MetaEntry], int] | None:
         anchor = name_cell.find("a")
         name = _parse_cell(anchor, str) if anchor else _parse_cell(name_cell, str)
 
-        percent = _parse_cell(cols[columns["percent"]], lambda s: float(s.replace("%", "")))
+        percent = _parse_cell(
+            cols[columns["percent"]], lambda s: float(s.replace("%", ""))
+        )
         avg_copies = _parse_cell(cols[columns["avg_copies"]], float)
 
         if not name or (rank is None and percent is None and avg_copies is None):
             skipped_count += 1
             continue
 
-        entries.append(MetaEntry(
-            name=name,
-            rank=rank,
-            percent=percent,
-            avg_copies=avg_copies,
-        ))
+        entries.append(
+            MetaEntry(
+                name=name,
+                rank=rank,
+                percent=percent,
+                avg_copies=avg_copies,
+            )
+        )
 
     return entries, skipped_count
