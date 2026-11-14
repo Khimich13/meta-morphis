@@ -1,4 +1,11 @@
-import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  type CSSProperties,
+  type RefObject,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { flushSync } from 'react-dom';
 
 import CardPicture from '../components/CardPicture';
@@ -59,6 +66,10 @@ export default function Lesson({
   // buttons stay on screen until the animation swaps them out, and a
   // second tap meanwhile must not answer again
   const answered = useRef(false);
+  // The box the full card shows in after an answer, and the card's width
+  // in it, so the feedback below can be just as wide
+  const pictureBox = useRef<HTMLDivElement>(null);
+  const cardWidth = useCardWidth(pictureBox, picked !== null);
 
   function pick(option: Card) {
     if (answered.current) return;
@@ -216,7 +227,10 @@ export default function Lesson({
         <>
           {/* After a picture question, the covered card turns into this
               one (see Lesson.css), uncovering the name */}
-          <div className={question.kind === 'picture' ? 'picture after-picture' : 'picture'}>
+          <div
+            ref={pictureBox}
+            className={question.kind === 'picture' ? 'picture after-picture' : 'picture'}
+          >
             {/* One side at a time, which a double-faced card can turn over.
                 The full card shows its own artist and copyright. */}
             <CardPicture key={card.oracle_id} card={card} speaker openOnTurn />
@@ -229,7 +243,14 @@ export default function Lesson({
               />
             )}
           </div>
-          <Feedback card={card} picked={picked} before={before} record={record} onContinue={next} />
+          <Feedback
+            card={card}
+            picked={picked}
+            before={before}
+            record={record}
+            cardWidth={cardWidth}
+            onContinue={next}
+          />
         </>
       )}
     </section>
@@ -541,36 +562,66 @@ interface FeedbackProps {
   before: Before | null;
   /** The card's saved record, with this answer counted */
   record: CardProgress | undefined;
+  /** The full card's width above, in pixels; null until measured */
+  cardWidth: number | null;
   onContinue: () => void;
 }
 
-function Feedback({ card, picked, before, record, onContinue }: FeedbackProps) {
+/**
+ * The width of the full card shown in this box after an answer, in pixels,
+ * kept up to date as the screen changes. Null until measured. The card's
+ * own CSS (.picture > .card-picture) sizes it from the box the same way:
+ * the full width, or less when the height runs out first.
+ */
+function useCardWidth(box: RefObject<HTMLDivElement | null>, shown: boolean): number | null {
+  const [width, setWidth] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const element = box.current;
+    if (!shown || element === null) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const room = entry.contentRect;
+      setWidth(Math.min(room.width, (room.height * 488) / 680));
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [box, shown]);
+  return width;
+}
+
+function Feedback({ card, picked, before, record, cardWidth, onContinue }: FeedbackProps) {
   const correct = picked.oracle_id === card.oracle_id;
   const change: PipChange | null = before === null ? null : pipChange(before, record, correct);
   // This answer made the card mastered: the moment to celebrate
   const justMastered = change === 'up' && cardStanding(record) === 'mastered';
   const toGo = MASTERED_LEVEL - shownLevel(record);
+  // Already answered today: practice, the pips stay as they were
+  const practice = before !== null && !before.counted && record !== undefined;
+  let line = '';
+  if (!correct) line = `You picked ${picked.name}`;
+  else if (justMastered) line = '⭐ Mastered!';
+  else if (change === 'up' && toGo > 0)
+    line = `${toGo} more ${toGo === 1 ? 'day' : 'days'} to Mastered`;
+  else if (practice) line = `Counts once a day: back ${backWhen(record.due, localDay())}`;
   return (
-    <div className={correct ? 'feedback correct' : 'feedback wrong'}>
+    <div
+      className={correct ? 'feedback correct' : 'feedback wrong'}
+      // As wide as the card above it (see .feedback in Lesson.css)
+      style={
+        cardWidth === null ? undefined : ({ '--card-width': `${cardWidth}px` } as CSSProperties)
+      }
+    >
       {/* role="status" makes screen readers announce the result */}
       <div role="status" className="feedback-body">
-        <p className="verdict">{correct ? 'Correct' : 'Not quite'}</p>
+        <p className="verdict">
+          {correct ? 'Correct' : 'Not quite'}
+          {practice && <span className="practice-tag"> · practice</span>}
+        </p>
         {/* The card's pips, big, animating how this answer changed them */}
         <StandingLabel record={record} change={change} />
         {/* The card is in full view above, with its name, so the words
-            only say what the pips can't */}
-        {correct && justMastered && <p className="feedback-line">⭐ Mastered!</p>}
-        {correct && change === 'up' && toGo > 0 && (
-          <p className="feedback-line">
-            {toGo} more {toGo === 1 ? 'day' : 'days'} to Mastered
-          </p>
-        )}
-        {!correct && <p className="feedback-line">You picked {picked.name}</p>}
-        {before !== null && !before.counted && record !== undefined && (
-          <p className="practice-note">
-            Counts once a day: back {backWhen(record.due, localDay())}
-          </p>
-        )}
+            only say what the pips can't. One line, always there, so the
+            box is the same size after every answer. */}
+        <p className="feedback-line">{line}</p>
       </div>
       <button className="primary" onClick={onContinue} autoFocus>
         Continue

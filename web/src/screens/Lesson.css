@@ -170,13 +170,6 @@
   flex: none;
 }
 
-/* An answer that didn't count: a quiet line under the label */
-.practice-note {
-  margin: 0;
-  font-size: 0.8rem;
-  opacity: 0.7;
-}
-
 /* The artwork and its credit, kept together at the top of the space
    left over. The artwork shrinks to fit, and the credit follows it
    directly; any spare space goes below the credit. */
@@ -325,6 +318,12 @@
    checked on 2026-11-03: the verdict at least 5:1 on its tint in both
    modes, white on the red Continue 5:1. */
 .feedback {
+  /* As wide as the card above it (--card-width, set in Lesson.tsx), which
+     is narrower than the screen when the height runs out first. Never so
+     narrow that Continue and the words don't fit. */
+  box-sizing: border-box;
+  width: min(100%, max(var(--card-width, 100%), 260px));
+  align-self: center;
   --tone: #2e9e5b;
   --tone-text: #1d6b3d;
   --tint: 12%;
@@ -356,6 +355,8 @@
 }
 
 .feedback-body {
+  /* The full width of the box, so a long line ends in "..." */
+  align-self: stretch;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -396,8 +397,25 @@
   font-weight: bold;
 }
 
+/* An answer that didn't count, already answered today: a quiet word
+   after the verdict */
+.practice-tag {
+  color: CanvasText;
+  font-size: 0.9rem;
+  font-weight: normal;
+  opacity: 0.7;
+}
+
+/* The line of words: always there, even empty, and never more than one
+   line, so the box keeps one size */
 .feedback-line {
   margin: 0;
+  max-width: 100%;
+  line-height: 1.5;
+  min-height: 1.5em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* A normal button, not a bar across the whole box - red after a wrong
