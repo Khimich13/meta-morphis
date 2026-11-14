@@ -149,16 +149,17 @@
   container-type: size;
 }
 
-/* The question over the card's top left corner, "Missed" or "New" over
-   its top right. On a short screen the card shrinks and sits in the
+/* The question centered over the card or artwork, "Missed" or "New" over
+   its top right. Equal side columns keep the question in the middle
+   whether or not a label shows. On a short screen the card shrinks and sits in the
    middle, and the line shrinks with it. The colors come from .label in
    App.css. */
 .question-line {
   flex: none;
   height: var(--line);
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr minmax(0, auto) 1fr;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   margin-inline: auto;
   width: 100%;
@@ -176,8 +177,9 @@
    screens, so its line spans the full width */
 
 .question {
+  grid-column: 2;
   /* Smaller than other headings: the card is what to look at */
-  font-size: 1rem;
+  font-size: 1.25rem;
   line-height: var(--line);
   /* Never pushes the label off the edge: a question too long for a very
      narrow card ends in "…" */
@@ -188,7 +190,8 @@
 }
 
 .question-line .label {
-  flex: none;
+  grid-column: 3;
+  justify-self: end;
 }
 
 /* The artwork and its credit, kept together at the top of the space
