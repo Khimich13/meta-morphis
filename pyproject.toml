@@ -12,7 +12,11 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest>=9.1.1", "mypy>=2.3.1"]
+dev = [
+    "pytest>=9.1.1",
+    "mypy>=2.3.1",
+    "ruff>=0.17.5",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -24,8 +28,13 @@ warn_unused_configs = true
 ignore_missing_imports = true
 explicit_package_bases = true
 
-[tool.isort]
-profile = "black"
+[tool.ruff]
+target-version = "py310"
+
+[tool.ruff.lint]
+# Ruff's default rules (pyflakes and the serious pycodestyle errors),
+# plus "I" to sort imports the way isort does
+extend-select = ["I"]
 
 [build-system]
 requires = ["hatchling"]

@@ -84,6 +84,8 @@ The offline features only work in a built copy: `npm run build`, then
 ```bash
 uv run pytest        # Python tests
 uv run mypy .        # Python type check
+uv run ruff check .  # Python lint
+uv run ruff format . # Python formatting
 cd web
 npm test             # app tests
 npm run check        # TypeScript type check
