@@ -34,12 +34,14 @@
 
 /* Top bar: leave button, progress bar, question number */
 /* The ✕ button, the progress bar and the card number. The two sides
-   have the same width, so the bar sits exactly in the middle. */
+   have the same width, so the bar sits exactly in the middle. Both hug
+   the bar - the ✕ at its side's right edge, the number at its side's
+   left edge, so a longer number like "10/10" grows away from the bar. */
 .lesson-bar {
   display: grid;
-  grid-template-columns: 44px 1fr 44px;
+  grid-template-columns: 34px 1fr 34px;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   /* Above the question line, so the ✕ button's tap area, which reaches
      past the bar (see .leave), gets the taps there */
   position: relative;
@@ -47,7 +49,11 @@
 }
 
 .lesson-bar .position {
-  text-align: right;
+  text-align: left;
+  font-size: 1.1rem;
+  /* Its box only as tall as the digits, so centering it in the bar
+     centers the digits themselves, on the same line as the ✕ */
+  text-box: trim-both cap alphabetic;
 }
 
 .lesson-bar .leave {
@@ -56,11 +62,26 @@
      the card more height; the button's 40px reach past it, above and
      below, so it is still easy to tap */
   margin-block: -8px;
-  /* The ✕ at the left edge, lined up with the screen's content; the
-     whole 44px stays tappable */
-  padding: 0;
-  text-align: left;
+  /* The ✕ near the right of its side, 1px in, next to the bar. The
+     button reaches 10px past the side into the screen's margin, so it is
+     44px wide and still easy to tap. */
+  margin-left: -10px;
+  padding: 0 1px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
   border: none;
+  font-size: 1.9rem;
+}
+
+/* The ✕, centered in the button, so on the same line as the number */
+.lesson-bar .leave svg {
+  width: 1em;
+  height: 1em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
 }
 
 /* One segment per card of the lesson - see LessonProgress in Lesson.tsx */

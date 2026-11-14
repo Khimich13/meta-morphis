@@ -175,7 +175,12 @@ export default function Lesson({
     <section className="lesson">
       <header className="lesson-bar">
         <button className="leave" onClick={onDone} aria-label="Leave the lesson">
-          ✕
+          {/* Drawn, not the ✕ character: the system font doesn't have it,
+              so it came from a fallback font that sat it higher or lower
+              than the card number, differently on each device */}
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 6 18 18M18 6 6 18" />
+          </svg>
         </button>
         <LessonProgress bar={bar} done={done} />
         {/* Which card is on screen - on a repeat, the missed card's own number */}
