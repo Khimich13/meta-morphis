@@ -25,6 +25,7 @@ from meta_morphis.name_in_text import (
     fetch_game_words,
     is_summon_printing,
     never_read,
+    normalize,
     short_name,
 )
 from meta_morphis.scryfall.service import fetch_cards, get_display_printings
@@ -202,7 +203,8 @@ def printed_as_oracle(card: Card) -> bool:
 
 def may_show_name_in_text(card: Card) -> bool:
     """True when the name may be printed in the text box: the name or a
-    legend's short name in its Oracle or flavor text, "this creature"
+    legend's short name in its Oracle or flavor text, a word of the name
+    in its flavor text, "this creature"
     and the like on an older printing, or a "Summon" type line. Which of
     these the printing really shows, only its picture can tell.
     """
@@ -211,6 +213,14 @@ def may_show_name_in_text(card: Card) -> bool:
     # In any case: "birds of paradise" in a flavor text
     text = (oracle_text + "\n" + (raw.get("flavor_text") or "")).lower()
     if card.name.lower() in text or short_name(card.name).lower() in text:
+        return True
+    # A word of the name by itself in the flavor text: "Lórien" in "the
+    # Naith of Lórien" on Lórien Revealed. A short one, like "of", is no
+    # sign of the name.
+    name_words = {normalize(part) for part in card.name.split()}
+    flavor_words = {normalize(part) for part in (raw.get("flavor_text") or "").split()}
+    if any(len(part) >= 4 and (part in flavor_words or part + "s" in flavor_words)
+           for part in name_words):
         return True
     rules = without_keyword_reminders(oracle_text, card.keywords)
     if SELF_REFERENCE.search(rules) and not printed_as_oracle(card):

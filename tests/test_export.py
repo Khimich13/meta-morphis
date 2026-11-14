@@ -224,6 +224,18 @@ def test_the_text_is_read_only_when_it_may_show_the_name() -> None:
     assert name_boxes(plain, read) == (TITLE, [])
     assert read.cards == []
 
+def test_the_text_is_read_for_a_word_of_the_name_in_the_flavor_text() -> None:
+    # "Lórien" alone, with its accent and in the possessive, or a plural
+    lorien = _english("Lórien Revealed", oracle_text="Draw three cards.",
+                      flavor_text="Lórien's trees hide the Naith.")
+    frog = _english("Psychic Frog", flavor_text="Frogs croak.")
+    # Only "of", too short to tell anything
+    relic = _english("Relic of Progenitus", flavor_text="Made of bone.")
+    read = _ReadAs([])
+    for card in (lorien, frog, relic):
+        name_boxes(card, read)
+    assert read.cards == ["Lórien Revealed", "Psychic Frog"]
+
 def test_the_text_is_read_for_an_old_printing_that_refers_to_itself() -> None:
     # Printed with its name where the Oracle text now says "this land"
     old = _english("Volatile Fjord", oracle_text="This land enters tapped.",

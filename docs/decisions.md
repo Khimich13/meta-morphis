@@ -38,7 +38,8 @@ what has been done is in the commit history.
   gets either, half the time each.
 - **The name in the text box is found by reading the picture** with
   Tesseract, once per printing, whenever it may be printed there: in the
-  Oracle or flavor text, as "this creature" and the like on a printing
+  Oracle or flavor text, a word of it alone in the flavor text ("Lórien"
+  on Lórien Revealed), as "this creature" and the like on a printing
   older than Foundations or a reprint (which may print the name instead),
   or as an old creature's "Summon" type line. A keyword's reminder text
   doesn't count: it says "this card" on every printing. A word of the
