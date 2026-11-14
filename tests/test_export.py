@@ -204,12 +204,15 @@ class _ReadAs:
         return self.boxes
 
 def test_the_name_in_the_text_is_covered_where_the_picture_shows_it() -> None:
-    # In the rules text, in the flavor text, or a legend's short name
+    # In the rules text, in the flavor text, in lower case, or a legend's
+    # short name
     in_text = _english("Lava Dart", oracle_text="Lava Dart deals 1 damage to any target.")
     in_flavor = _english("Annul", flavor_text="Annul it all.")
+    lower_case = _english("Birds of Paradise",
+                          flavor_text="Long ago, birds of paradise littered the skies.")
     legend = _english("Ragavan, Nimble Pilferer",
                       oracle_text="Whenever Ragavan deals combat damage, create a Treasure.")
-    for card in (in_text, in_flavor, legend):
+    for card in (in_text, in_flavor, lower_case, legend):
         assert name_boxes(card, _ReadAs(IN_TEXT)) == (title_name_box(card), IN_TEXT)
         # Not found everywhere for sure, or not read at all: not asked
         assert name_boxes(card, _ReadAs(None)) == (None, [])

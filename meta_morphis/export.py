@@ -208,8 +208,9 @@ def may_show_name_in_text(card: Card) -> bool:
     """
     raw = card.raw
     oracle_text = raw.get("oracle_text") or ""
-    text = oracle_text + "\n" + (raw.get("flavor_text") or "")
-    if card.name in text or short_name(card.name) in text:
+    # In any case: "birds of paradise" in a flavor text
+    text = (oracle_text + "\n" + (raw.get("flavor_text") or "")).lower()
+    if card.name.lower() in text or short_name(card.name).lower() in text:
         return True
     rules = without_keyword_reminders(oracle_text, card.keywords)
     if SELF_REFERENCE.search(rules) and not printed_as_oracle(card):
