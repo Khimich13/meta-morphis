@@ -177,13 +177,6 @@ div.zoom-content {
   display: block;
 }
 
-/* A double click zooms; it must not also select the card, which would
-   tint it in the selection color */
-.zoom-area {
-  -webkit-user-select: none;
-  user-select: none;
-}
-
 /* While zoomed in, the fingers only move and pinch the card */
 div.zoom-area.zoomed {
   touch-action: none;

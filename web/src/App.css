@@ -4,6 +4,10 @@ html {
   /* Fingers scroll, but never zoom the page, not even with a double tap:
      see lib/pinch.ts */
   touch-action: pan-x pan-y;
+  /* Holding a finger down never selects text, with the phone's magnifier
+     and highlighted boxes. The app has no text to type or copy. */
+  -webkit-user-select: none;
+  user-select: none;
   font-family: system-ui, sans-serif;
   /* The page: a neutral gray rather than pure white or black, so that
      white-bordered cards stand out in light mode and black-bordered ones
@@ -20,6 +24,15 @@ html {
 
 body {
   margin: 0;
+}
+
+/* Pictures ignore touches and clicks; the boxes around them get them
+   instead. Holding one would open the phone's menu for it, and on the
+   picture question that menu's preview shows the card without the
+   covers over its name. It also stops a right click from opening a
+   picture and iOS from dragging one out. */
+img {
+  pointer-events: none;
 }
 
 /* Phones let a page bounce when it is dragged past its edge, even when
