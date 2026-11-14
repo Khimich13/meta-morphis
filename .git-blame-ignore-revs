@@ -1,0 +1,4 @@
+# Commits git blame skips: they only reformat the code
+
+# Format the Python code with Ruff
+c7efed5f2e9ccbe6e52362aaa4242fc2bef0d3f6
