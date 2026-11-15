@@ -80,7 +80,7 @@ body {
   grid-template-columns: 44px 1fr 44px;
   align-items: center;
   gap: 8px;
-  padding: 8px calc(16px + env(safe-area-inset-right)) 8px calc(16px + env(safe-area-inset-left));
+  padding: 4px calc(16px + env(safe-area-inset-right)) 4px calc(16px + env(safe-area-inset-left));
   /* Rounded at the top only: the bottom edge runs straight across */
   border-radius: 20px 20px 0 0;
   /* Frosted glass: mostly the page's own color, with the cards behind
@@ -167,6 +167,10 @@ html:has(.enlarged[open]) .card-list-bar {
 
 .card-list-bar .back {
   min-height: 44px;
+  /* The bar only as tall as the name and the arrow, leaving more of the
+     screen to the cards; the button's 44px reach past it, above and
+     below, so it is still easy to tap (as in the lesson's bar) */
+  margin-block: -8px;
   /* The arrow at the left edge, lined up with the cards; the whole 44px
      stays tappable */
   padding: 0;
