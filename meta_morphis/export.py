@@ -26,6 +26,8 @@ from meta_morphis.name_in_text import (
     NameInText,
     ReadText,
     fetch_game_words,
+    has_long_text,
+    is_planeswalker,
     is_summon_printing,
     name_in_low_type_line,
     never_read,
@@ -113,8 +115,8 @@ ART_BOXES = {
     "2003": (0.088, 0.119, 0.826, 0.435),
     "2015": (0.079, 0.114, 0.840, 0.440),
 }
-# The modern frame's planeswalkers: four lines of abilities leave less
-# room for the art
+# The modern frame's planeswalkers: four lines of abilities or more
+# (name_in_text.has_long_text) leave less room for the art
 PLANESWALKER_ART_BOX = (0.072, 0.101, 0.850, 0.451)
 PLANESWALKER_LONG_TEXT_ART_BOX = (0.073, 0.101, 0.849, 0.382)
 # Sagas have tall art on the right half; classes and cases on the left
@@ -137,8 +139,8 @@ def art_box(card: Card) -> list[float] | None:
     elif "Planeswalker" in type_line:
         if card.frame != "2015":
             return None
-        lines = len(front.oracle_text.splitlines()) if front else 0
-        box = PLANESWALKER_LONG_TEXT_ART_BOX if lines >= 4 else PLANESWALKER_ART_BOX
+        long_text = has_long_text(front.oracle_text if front else "")
+        box = PLANESWALKER_LONG_TEXT_ART_BOX if long_text else PLANESWALKER_ART_BOX
     else:
         found = ART_BOXES.get(card.frame or "")
         if found is None:
@@ -167,6 +169,13 @@ NAME_AREAS = {
     "1997": NameArea(0.085, 0.048, 0.046, 0.918, 0.046),
     "2003": NameArea(0.080, 0.050, 0.054, 0.918, 0.047),
     "2015": NameArea(0.080, 0.052, 0.051, 0.928, 0.0515),
+}
+# A planeswalker's title bar has another shape, thinner and higher, with
+# its mana cost further in. Measured on 2026-11-15 on the five on the
+# lists then, all in the modern frame - the only one art_box knows a
+# planeswalker's artwork in.
+PLANESWALKER_NAME_AREAS = {
+    "2015": NameArea(0.072, 0.042, 0.040, 0.921, 0.0485),
 }
 # Layouts with one name, in a title bar like a normal card's. A saga,
 # class or case has its text beside its artwork, which
@@ -225,11 +234,13 @@ def may_show_name_in_text(card: Card) -> bool:
     legend's short name in its Oracle or flavor text, a word of the name
     in its flavor text, "this creature"
     and the like on an older printing, or a "Summon" type line - or
-    below it, in the type line of a saga, class or case. Which of
+    below it, in the type line of a saga, class or case. Always on a
+    planeswalker: its type line, read with its text, nearly always has
+    a word of its name. Which of
     these the printing really shows, only its picture can tell.
     """
     raw = card.raw
-    if name_in_low_type_line(card):
+    if name_in_low_type_line(card) or is_planeswalker(card):
         return True
     oracle_text = raw.get("oracle_text") or ""
     # In any case: "birds of paradise" in a flavor text
@@ -295,10 +306,8 @@ def title_name_box(card: Card, name_left: float | None = None) -> list[float] | 
     # too, and a split or adventure card has two on one side
     if card.layout not in ONE_NAME_LAYOUTS or raw.get("lang") != "en":
         return None
-    # A planeswalker's title bar has another shape, with the name higher
-    if "Planeswalker" in card.type_line:
-        return None
-    area = NAME_AREAS.get(card.frame or "")
+    areas = PLANESWALKER_NAME_AREAS if "Planeswalker" in card.type_line else NAME_AREAS
+    area = areas.get(card.frame or "")
     if area is None:
         return None
     left = max(

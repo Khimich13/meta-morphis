@@ -541,3 +541,93 @@ def test_every_area_is_read_and_must_be_trusted(monkeypatch: MonkeyPatch) -> Non
     # The type line read poorly, in color and in gray: left out
     sure["type line"] = 40.0
     assert name_in_text.name_in_text(urzas, b"png", GAME_WORDS) is None
+
+
+def _walker(**extra: Any) -> Card:
+    return _card(
+        **{
+            "name": "Ral, Crackling Wit",
+            "type_line": "Legendary Planeswalker — Ral",
+            "oracle_text": "Put a counter on Ral.",
+            **extra,
+        }
+    )
+
+
+def test_a_planeswalkers_type_line_is_read_with_its_text() -> None:
+    # Right below the artwork, which is shorter with four lines or more
+    assert name_in_text.areas_to_read(_walker()) == [(0.07, 0.552, 0.93, 0.94)]
+    long_text = _walker(oracle_text="+1: One.\n−1: Two.\n−3: Three.\n−8: Four.")
+    assert name_in_text.areas_to_read(long_text) == [(0.07, 0.483, 0.93, 0.94)]
+
+
+def test_planeswalker_type_is_its_type_when_a_word_of_its_name() -> None:
+    assert name_in_text.planeswalker_type(_walker()) == "ral"
+    nixilis = _walker(
+        name="Ob Nixilis, the Adversary", type_line="Legendary Planeswalker — Nixilis"
+    )
+    assert name_in_text.planeswalker_type(nixilis) == "nixilis"
+    onyx = _walker(name="Professor Onyx", type_line="Legendary Planeswalker — Liliana")
+    assert name_in_text.planeswalker_type(onyx) is None
+    assert name_in_text.planeswalker_type(_card()) is None
+
+
+def _two_lines(type_line: list[str], text: list[str]) -> Any:
+    """What read_words gives for a planeswalker: its type line, then its
+    text. The dash isn't a word: parse_tsv leaves it out."""
+    words = [
+        Word(
+            word,
+            100.0 * i,
+            100.0 * row,
+            100.0 * i + 90,
+            100.0 * row + 30,
+            ("1", "1", str(row)),
+        )
+        for row, line in enumerate((type_line, text))
+        for i, word in enumerate(line)
+    ]
+    return words, 90.0, (745, 1040)
+
+
+def test_a_planeswalkers_type_must_be_read_and_covered(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    reading = {"type": "Ral", "text": "Ral."}
+
+    def read_words(picture: bytes, area: Any, gray: bool = False) -> Any:
+        return _two_lines(
+            ["Legendary", "Planeswalker", reading["type"]],
+            ["Put", "a", "counter", "on", reading["text"]],
+        )
+
+    monkeypatch.setattr(name_in_text, "read_words", read_words)
+    boxes = name_in_text.name_in_text(_walker(), b"png", GAME_WORDS)
+    # In the type line and in the text
+    assert boxes is not None and len(boxes) == 2
+    # Too short for find_name to know "RaI" for the name read badly:
+    # left out, even with the name read right in the text
+    reading["type"] = "RaI"
+    assert name_in_text.name_in_text(_walker(), b"png", GAME_WORDS) is None
+
+
+def test_a_planeswalkers_type_is_covered_when_its_text_uses_it_too(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    # "Jace" in its text apart from its name is a rules word, which would
+    # be left in sight - but in the type line it tells which card it is
+    jace = _walker(
+        name="The Theorist, Jace Beleren",
+        type_line="Legendary Planeswalker — Jace",
+        oracle_text="Then Jace draws",
+    )
+    assert "jace" in rules_words(jace)
+    monkeypatch.setattr(
+        name_in_text,
+        "read_words",
+        lambda picture, area, gray=False: _two_lines(
+            ["Legendary", "Planeswalker", "Jace"], ["Then", "Jace", "draws"]
+        ),
+    )
+    boxes = name_in_text.name_in_text(jace, b"png", GAME_WORDS)
+    assert boxes is not None and len(boxes) == 2

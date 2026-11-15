@@ -33,14 +33,18 @@ what has been done is in the commit history.
 - **Two kinds of question:** a card's artwork alone, or its full picture with
   the name painted over by the title bar around it, the mana cost still
   showing, and painted over in the text box too. The second is asked only
-  about a card with one name on one side, in English, not a planeswalker
-  (its title bar has another shape). A saga, class or case counts: its
-  title bar is a normal card's, and its text is read beside its artwork,
-  with its type line when that has a word of the name (Urza's Saga). So
-  does a transform card, by its front: it shows only the front's name,
-  after an icon, and its text. A modal double-faced card doesn't: its
-  front names the back too. A card that can be asked both ways
-  gets either, half the time each.
+  about a card with one name on one side, in English. A saga, class or
+  case counts: its title bar is a normal card's, and its text is read
+  beside its artwork, with its type line when that has a word of the
+  name (Urza's Saga). So does a planeswalker in the modern frame: its
+  title bar, thinner and higher, has its own measures, and its type
+  line, which nearly always names it ("— Teferi"), is read with its
+  text, always. Its type must be found there and covered, or the card is
+  left out: a short one like "Ral" read badly would show. So does a
+  transform card, by its front: it shows only the front's name, after
+  an icon, and its text. A modal double-faced card doesn't: its front
+  names the back too. A card that can be asked both ways gets either,
+  half the time each.
 - **The name in the text box is found by reading the picture** with
   Tesseract, once per printing, whenever it may be printed there: in the
   Oracle or flavor text, a word of it alone in the flavor text ("Lórien"

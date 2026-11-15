@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 from pytest import MonkeyPatch
 
-from meta_morphis import config
+from meta_morphis import config, name_in_text
 from meta_morphis.export import (
     ExportCard,
     art_box,
@@ -327,6 +327,43 @@ def test_the_text_is_read_only_when_it_may_show_the_name() -> None:
     assert read.cards == []
 
 
+def test_a_planeswalkers_picture_is_always_read() -> None:
+    # Its text never names it, but its type line does: "— Teferi"
+    teferi = Card.from_raw(
+        _raw(
+            "Teferi, Time Raveler",
+            lang="en",
+            mana_cost="{1}{W}{U}",
+            type_line="Legendary Planeswalker — Teferi",
+            oracle_text="Each opponent can cast spells only as a sorcery.",
+        )
+    )
+    read = _ReadAs(IN_TEXT)
+    assert name_boxes(teferi, read) == (title_name_box(teferi), IN_TEXT)
+    assert read.cards == ["Teferi, Time Raveler"]
+    # Not read, or not for sure: not asked
+    assert name_boxes(teferi) == (None, [])
+
+
+def test_a_planeswalkers_text_is_read_from_its_artworks_bottom() -> None:
+    for lines, top in (
+        (3, name_in_text.PLANESWALKER_TEXT_TOP),
+        (4, name_in_text.PLANESWALKER_LONG_TEXT_TOP),
+    ):
+        walker = Card.from_raw(
+            _raw(
+                "Teferi, Time Raveler",
+                lang="en",
+                type_line="Legendary Planeswalker — Teferi",
+                oracle_text="\n".join(["Draw a card."] * lines),
+            )
+        )
+        box = art_box(walker)
+        assert box is not None
+        assert round(box[1] + box[3], 3) == top
+        assert name_in_text.areas_to_read(walker)[0][1] == top
+
+
 def test_the_text_is_read_for_a_word_of_the_name_in_the_flavor_text() -> None:
     # "Lórien" alone, with its accent and in the possessive, or a plural
     lorien = _english(
@@ -521,20 +558,33 @@ def test_a_transform_saga_is_read_as_a_saga() -> None:
     assert fable.name == "Fable of the Mirror-Breaker"
 
 
-def test_no_name_box_for_more_than_one_name_another_language_frame_or_a_planeswalker() -> (
-    None
-):
-    adventure = _english("Bonecrusher Giant // Stomp", layout="adventure")
-    french = Card.from_raw(_raw("Triskelion", lang="fr", type_line="Artifact Creature"))
-    future = _english("Future Card", frame="future")
+def test_a_planeswalkers_name_box_is_higher_and_thinner() -> None:
+    # Three symbols of 0.0485, and the gap of 0.02, before 0.921
     walker = Card.from_raw(
         _raw(
             "Teferi, Time Raveler",
             lang="en",
+            mana_cost="{1}{W}{U}",
             type_line="Legendary Planeswalker — Teferi",
         )
     )
-    assert title_name_box(walker) is None
+    assert title_name_box(walker) == [0.072, 0.042, 0.6835, 0.04]
+
+
+def test_no_name_box_for_more_than_one_name_another_language_or_frame() -> None:
+    adventure = _english("Bonecrusher Giant // Stomp", layout="adventure")
+    french = Card.from_raw(_raw("Triskelion", lang="fr", type_line="Artifact Creature"))
+    future = _english("Future Card", frame="future")
+    # Only the modern frame's planeswalkers are measured
+    old_walker = Card.from_raw(
+        _raw(
+            "Garruk Wildspeaker",
+            lang="en",
+            frame="2003",
+            type_line="Legendary Planeswalker — Garruk",
+        )
+    )
+    assert title_name_box(old_walker) is None
     assert title_name_box(adventure) is None
     assert title_name_box(french) is None
     assert title_name_box(future) is None

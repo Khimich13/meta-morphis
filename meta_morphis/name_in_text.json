@@ -700,6 +700,19 @@
       ]
     ]
   },
+  "1e155fa4-896a-4ba6-939e-03c7877ac47e": {
+    "name": "Teferi, Time Raveler",
+    "picture": "https://cards.scryfall.io/png/front/1/e/1e155fa4-896a-4ba6-939e-03c7877ac47e.png?1783910593",
+    "reader": 8,
+    "boxes": [
+      [
+        0.627,
+        0.572,
+        0.1182,
+        0.031
+      ]
+    ]
+  },
   "1f0d2e8e-c8f2-4b31-a6ba-6283fc8740d4": {
     "name": "Chalice of the Void",
     "picture": "https://cards.scryfall.io/png/front/1/f/1f0d2e8e-c8f2-4b31-a6ba-6283fc8740d4.png?1783935107",
@@ -716,6 +729,19 @@
         0.8403,
         0.1263,
         0.0281
+      ]
+    ]
+  },
+  "20bb8c55-4b0b-425f-8201-b54fa2fdde86": {
+    "name": "The Theorist, Jace Beleren",
+    "picture": "https://cards.scryfall.io/png/front/2/0/20bb8c55-4b0b-425f-8201-b54fa2fdde86.png?1788329228",
+    "reader": 8,
+    "boxes": [
+      [
+        0.627,
+        0.5066,
+        0.09,
+        0.0348
       ]
     ]
   },
@@ -1848,6 +1874,25 @@
     "reader": 8,
     "boxes": []
   },
+  "55a14f30-4ff9-4472-90a6-c3139f1c18e5": {
+    "name": "Kaito, Bane of Nightmares",
+    "picture": "https://cards.scryfall.io/png/front/5/5/55a14f30-4ff9-4472-90a6-c3139f1c18e5.png?1784963190",
+    "reader": 8,
+    "boxes": [
+      [
+        0.629,
+        0.5061,
+        0.1115,
+        0.0368
+      ],
+      [
+        0.5457,
+        0.6383,
+        0.0839,
+        0.0223
+      ]
+    ]
+  },
   "560debcd-feb4-4534-991e-a7aa1cca2409": {
     "name": "Devourer of Destiny",
     "picture": "https://cards.scryfall.io/png/front/5/6/560debcd-feb4-4534-991e-a7aa1cca2409.png?1783911309",
@@ -2481,6 +2526,19 @@
     "reader": 8,
     "boxes": []
   },
+  "6ff3b4d8-1271-4c5d-8834-7662244f173d": {
+    "name": "Professor Dellian Fel",
+    "picture": "https://cards.scryfall.io/png/front/6/f/6ff3b4d8-1271-4c5d-8834-7662244f173d.png?1783903636",
+    "reader": 8,
+    "boxes": [
+      [
+        0.6284,
+        0.5047,
+        0.1464,
+        0.0329
+      ]
+    ]
+  },
   "701256d5-1389-48b7-9581-d6037209bd06": {
     "name": "Subtlety",
     "picture": "https://cards.scryfall.io/png/front/7/0/701256d5-1389-48b7-9581-d6037209bd06.png?1783926869",
@@ -3040,6 +3098,19 @@
     "picture": "https://cards.scryfall.io/png/front/7/f/7f1af32a-dba2-4c2f-b0ee-9c83849fda53.png?1783915703",
     "reader": 8,
     "boxes": []
+  },
+  "80226520-6b0a-48ea-a868-a29eb3fbd403": {
+    "name": "Ob Nixilis, the Adversary",
+    "picture": "https://cards.scryfall.io/png/front/8/0/80226520-6b0a-48ea-a868-a29eb3fbd403.png?1783923077",
+    "reader": 8,
+    "boxes": [
+      [
+        0.6302,
+        0.5071,
+        0.1301,
+        0.031
+      ]
+    ]
   },
   "8076a8c3-7c6c-4636-b5d8-9b09ee95f92c": {
     "name": "Sacred Foundry",

@@ -60,6 +60,15 @@ TEXT_COLUMNS = {"saga": (0.07, 0.50), "class": (0.50, 0.93), "case": (0.50, 0.93
 COLUMN_TOP, COLUMN_BOTTOM = 0.11, 0.84
 # Their type line, as left, top, right and bottom
 LOW_TYPE_LINE = (0.07, 0.84, 0.93, 0.905)
+# A planeswalker's type line sits right below its artwork, higher than
+# other cards', and moves up with it when the abilities take this many
+# lines or more. Its type there is nearly always a word of its name:
+# "Legendary Planeswalker — Teferi". So the type line is read with the
+# text, from the artwork's bottom: as in export.PLANESWALKER_ART_BOX
+# and PLANESWALKER_LONG_TEXT_ART_BOX.
+PLANESWALKER_LONG_TEXT_LINES = 4
+PLANESWALKER_TEXT_TOP = 0.552
+PLANESWALKER_LONG_TEXT_TOP = 0.483
 # A part of the picture: its left, top, right and bottom
 Area = tuple[float, float, float, float]
 # Tesseract reads small print better enlarged
@@ -120,9 +129,34 @@ def name_in_low_type_line(card: Card) -> bool:
     )
 
 
+def is_planeswalker(card: Card) -> bool:
+    return "Planeswalker" in card.type_line
+
+
+def has_long_text(oracle_text: str) -> bool:
+    """A planeswalker's abilities take so many lines that its artwork is
+    shorter"""
+    return len(oracle_text.splitlines()) >= PLANESWALKER_LONG_TEXT_LINES
+
+
+def planeswalker_type(card: Card) -> str | None:
+    """A planeswalker's type, normalized, when it is a word of its name:
+    "teferi" on Teferi, Time Raveler, "nixilis" on Ob Nixilis, the
+    Adversary - not "liliana" on Professor Onyx"""
+    if not is_planeswalker(card) or "—" not in card.type_line:
+        return None
+    subtype = normalize(card.type_line.split("—")[-1])
+    name_words = {normalize(word) for word in card.name.split()}
+    return subtype if subtype in name_words else None
+
+
 def areas_to_read(card: Card) -> list[Area]:
     """Where the name may be printed outside the title bar: the text
     first, then a type line apart from it"""
+    if is_planeswalker(card):
+        long_text = has_long_text(card.raw.get("oracle_text") or "")
+        top = PLANESWALKER_LONG_TEXT_TOP if long_text else PLANESWALKER_TEXT_TOP
+        return [(TEXT_LEFT, top, TEXT_RIGHT, TEXT_BOTTOM)]
     column = TEXT_COLUMNS.get(card.layout)
     if column is None:
         top = TYPE_LINE_TOP if is_summon_printing(card) else TEXT_TOP
@@ -442,10 +476,20 @@ def name_in_reading(
                 f"of its text were read, of about {oracle_words}"
             )
             return None
-        found = find_name(
-            words, card.name, game_words | rules_words(card), words_of_text(card)
-        )
+        walker_type = planeswalker_type(card)
+        # The type in the type line tells which planeswalker it is, even
+        # when the card's own text names it apart from its name
+        plain = game_words | rules_words(card)
+        if walker_type:
+            plain -= {walker_type}
+        found = find_name(words, card.name, plain, words_of_text(card))
         if found is None:
+            return None
+        if walker_type and not type_covered(words, found, walker_type):
+            log.info(
+                f"Not covering the name of '{card.name}': its type line was "
+                "not read well enough to find its type there"
+            )
             return None
         boxes.extend(
             [
@@ -460,6 +504,30 @@ def name_in_reading(
             for left, top, right, bottom in found
         )
     return boxes
+
+
+def type_covered(words: list[Word], boxes: list[list[float]], walker_type: str) -> bool:
+    """The line read with "Planeswalker" on it - the type line - has the
+    planeswalker's type on it too, inside a box found to cover. Short
+    types, like "Ral", are too short for find_name to tell when read
+    badly, so this is the check that it was read right: when it wasn't,
+    the type would show."""
+    lines = {word.line for word in words if normalize(word.text) == "planeswalker"}
+    on_type_line = [
+        word
+        for word in words
+        if word.line in lines and matches(normalize(word.text), walker_type)
+    ]
+    return bool(on_type_line) and all(
+        any(
+            box[0] <= word.left
+            and word.right <= box[2]
+            and box[1] <= word.top
+            and word.bottom <= box[3]
+            for box in boxes
+        )
+        for word in on_type_line
+    )
 
 
 class NameInText:
