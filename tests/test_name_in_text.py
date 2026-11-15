@@ -18,6 +18,7 @@ from meta_morphis.name_in_text import (
     matches,
     normalize,
     parse_tsv,
+    rules_words,
 )
 
 GAME_WORDS = frozenset({"goblin", "frog", "desert", "giant", "phyrexian"})
@@ -199,6 +200,47 @@ def test_find_name_still_covers_a_word_of_the_name_in_the_oracle_text() -> None:
     words = _words("You may have Superior Spider-", "Man enter as a copy")
     text = frozenset({"you", "may", "have", "superior", "spider", "man", "enter"})
     assert find_name(words, "Superior Spider-Man", GAME_WORDS, text) is None
+
+
+def test_rules_words_are_words_of_the_name_its_rules_use_apart_from_it() -> None:
+    trespasser = Card.from_raw(
+        {
+            "id": "id",
+            "name": "Graveyard Trespasser",
+            "type_line": "Creature — Human Werewolf",
+            "oracle_text": "Whenever this creature enters or attacks, exile up to "
+            "one target card from a graveyard.",
+        }
+    )
+    assert rules_words(trespasser) == {"graveyard"}
+    # The name itself, or a legend's short name, is no rules word
+    ajani = Card.from_raw(
+        {
+            "id": "id",
+            "name": "Ajani, Nacatl Pariah",
+            "type_line": "Legendary Creature — Cat Warrior",
+            "oracle_text": "When Ajani, Nacatl Pariah enters, create a token.\n"
+            "You may exile Ajani.",
+        }
+    )
+    assert rules_words(ajani) == frozenset()
+    # Nor is a word of the name of an ability
+    wasp = Card.from_raw(
+        {
+            "id": "id",
+            "name": "The Wondrous Wasp",
+            "type_line": "Legendary Creature — Insect",
+            "oracle_text": "Wasp Sting — When this creature enters, tap a creature.",
+        }
+    )
+    assert rules_words(wasp) == frozenset()
+
+
+def test_find_name_leaves_a_rules_word_of_the_name_in_sight() -> None:
+    words = _words("exile up to one target card from a graveyard.")
+    name = "Graveyard Trespasser"
+    assert find_name(words, name, GAME_WORDS) == [[350.0, 0.0, 450.0, 15.0]]
+    assert find_name(words, name, GAME_WORDS | {"graveyard"}) == []
 
 
 def test_find_name_gives_up_when_too_many_words_are_like_the_name() -> None:

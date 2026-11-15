@@ -17,6 +17,7 @@ from meta_morphis.export import (
     build_export,
     export_all,
     export_format,
+    front_of,
     horizontal_sides,
     is_basic_land,
     name_boxes,
@@ -470,6 +471,54 @@ def test_the_type_line_of_a_saga_is_read_when_it_has_a_word_of_the_name() -> Non
     assert name_boxes(urzas, read) == (TITLE, IN_TEXT)
     assert name_boxes(other, read) == (TITLE, [])
     assert read.cards == ["Urza's Saga"]
+
+
+def _transform(front: dict[str, Any], **extra: Any) -> Card:
+    return Card.from_raw(
+        {
+            **_raw("Front // Back", lang="en", layout="transform", **extra),
+            "card_faces": [
+                {"type_line": "Creature — Human", **front},
+                {"name": "Back", "type_line": "Creature — Horror"},
+            ],
+        }
+    )
+
+
+def test_a_transform_card_is_asked_by_its_front() -> None:
+    # Its name starts after the icon, and ends before the front's mana cost
+    delver = _transform(
+        {
+            "name": "Delver of Secrets",
+            "mana_cost": "{U}",
+            "oracle_text": "Transform this creature.",
+        },
+        released_at="2025-01-24",
+        set_type="masters",
+    )
+    read = _ReadAs(IN_TEXT)
+    assert name_boxes(delver, read) == ([0.16, 0.052, 0.6965, 0.051], IN_TEXT)
+    # Read for the front's own name, on the front's picture
+    assert read.cards == ["Delver of Secrets"]
+
+
+def test_a_transform_card_is_read_for_its_front_text_only() -> None:
+    plain = _transform(
+        {"name": "Plain Front", "oracle_text": "Flying"}, released_at="2021-09-24"
+    )
+    read = _ReadAs(IN_TEXT)
+    assert name_boxes(plain, read) == ([0.16, 0.052, 0.748, 0.051], [])
+    assert read.cards == []
+
+
+def test_a_transform_saga_is_read_as_a_saga() -> None:
+    fable = front_of(
+        _transform(
+            {"name": "Fable of the Mirror-Breaker", "type_line": "Enchantment — Saga"}
+        )
+    )
+    assert fable.layout == "saga"
+    assert fable.name == "Fable of the Mirror-Breaker"
 
 
 def test_no_name_box_for_more_than_one_name_another_language_frame_or_a_planeswalker() -> (

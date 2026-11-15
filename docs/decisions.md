@@ -36,7 +36,10 @@ what has been done is in the commit history.
   about a card with one name on one side, in English, not a planeswalker
   (its title bar has another shape). A saga, class or case counts: its
   title bar is a normal card's, and its text is read beside its artwork,
-  with its type line when that has a word of the name (Urza's Saga). A card that can be asked both ways
+  with its type line when that has a word of the name (Urza's Saga). So
+  does a transform card, by its front: it shows only the front's name,
+  after an icon, and its text. A modal double-faced card doesn't: its
+  front names the back too. A card that can be asked both ways
   gets either, half the time each.
 - **The name in the text box is found by reading the picture** with
   Tesseract, once per printing, whenever it may be printed there: in the
@@ -46,8 +49,11 @@ what has been done is in the commit history.
   or as an old creature's "Summon" type line. A keyword's reminder text
   doesn't count: it says "this card" on every printing. A word of the
   name standing alone is left in sight when it is a subtype from
-  Scryfall's lists ("a Goblin card"), which tells nothing of which card it
-  is, and covered otherwise, up to three: a place or a person, like
+  Scryfall's lists ("a Goblin card"), or when the card's own Oracle text
+  uses it apart from the name ("a card from a graveyard" on Graveyard
+  Trespasser, though not in an ability's name like "Wasp's Sting"): a word
+  of the rules tells nothing of which card it is. Any other is covered,
+  up to three: a place or a person, like
   "Locthwain's" in a flavor text, gives the answer away. So is a word
   that only starts like one of the name's: "coastline" on Stormcarved
   Coast. A word of the card's own Oracle text that is no word or piece of

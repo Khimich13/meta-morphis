@@ -41,7 +41,7 @@ log = logging.getLogger(__name__)
 ReadText = Callable[[Card], list[list[float]] | None]
 
 # Raise it when the reading changes, so every printing is read again
-READER_VERSION = 7
+READER_VERSION = 8
 
 # Where to read on a card's picture, as shares of its width and height:
 # the text box, below the type line and above the artist's credit, the
@@ -181,6 +181,26 @@ def words_of_text(card: Card) -> frozenset[str]:
     return frozenset(word for word in words if word)
 
 
+# A named ability or an ability word at a line's start, before its dash:
+# "Wasp's Sting — When this creature enters"
+ABILITY_NAME = re.compile(r"^[^\n—]* — ", re.MULTILINE)
+
+
+def rules_words(card: Card) -> frozenset[str]:
+    """Words of the name its own Oracle text uses apart from the name,
+    normalized: "graveyard" in "exile a card from a graveyard" on
+    Graveyard Trespasser. Printed there, it is a word of the rules, which
+    tells no more of which card it is than a subtype. Not from the name of
+    an ability: "Wasp's Sting" gives The Wondrous Wasp away."""
+    text = ABILITY_NAME.sub(" ", card.raw.get("oracle_text") or "")
+    for one_name in (card.name, short_name(card.name)):
+        text = re.sub(re.escape(one_name), " ", text, flags=re.IGNORECASE)
+    used = {normalize(word) for word in re.split(r"[^\w'’]+", text)}
+    return frozenset(
+        part for part in (normalize(word) for word in card.name.split()) if part in used
+    )
+
+
 def find_name(
     words: list[Word],
     name: str,
@@ -197,8 +217,9 @@ def find_name(
     left out (None): "Superior" before "Spider-" and "Man", a name broken
     at a line's end, or "Jackal,Pup" run together, whose box may be too
     short. Standing alone, it is left as it is when it is a game word - a
-    subtype such as "Goblin" in "a Goblin card", among `game_words`,
-    normalized - which says nothing of which card it is. Any other is
+    subtype such as "Goblin" in "a Goblin card", or a word of the card's
+    own rules (see rules_words), among `game_words`, normalized - which
+    says nothing of which card it is. Any other is
     covered: a place or a person, such as "Locthwain's" or "coastline" in
     a flavor text, gives the answer away. So is a card left out with more
     than MAX_LIKE_NAME to cover.
@@ -421,7 +442,9 @@ def name_in_reading(
                 f"of its text were read, of about {oracle_words}"
             )
             return None
-        found = find_name(words, card.name, game_words, words_of_text(card))
+        found = find_name(
+            words, card.name, game_words | rules_words(card), words_of_text(card)
+        )
         if found is None:
             return None
         boxes.extend(

@@ -174,6 +174,10 @@ NAME_AREAS = {
 ONE_NAME_LAYOUTS = {"normal", *TEXT_COLUMNS}
 # Frame effects with an icon left of the name: where the name starts then
 NAME_AFTER_ICON = {"lesson": 0.165, "tombstone": 0.105}
+# A transform card's front shows its own name only, after an icon telling
+# which side is up: where the name starts then. Measured on Scryfall's
+# pictures on 2026-11-14.
+TRANSFORM_NAME_LEFT = 0.16
 # Room left between the name's area and the mana cost, or the title
 # bar's rounded end on a card without one
 NAME_GAP = 0.02
@@ -258,7 +262,10 @@ def name_boxes(
     name can't be covered everywhere it shows: then the question is
     never asked about this card.
     """
-    title = title_name_box(card)
+    name_left = None
+    if card.layout == "transform":
+        card, name_left = front_of(card), TRANSFORM_NAME_LEFT
+    title = title_name_box(card, name_left)
     if title is None or not may_show_name_in_text(card):
         return title, []
     in_text = read_text(card)
@@ -267,12 +274,25 @@ def name_boxes(
     return title, in_text
 
 
-def title_name_box(card: Card) -> list[float] | None:
+def front_of(card: Card) -> Card:
+    """A transform card's front side as a card by itself: its picture
+    shows only the front's name, text and type line - a normal card's
+    or, like Fable of the Mirror-Breaker's, a saga's. The back's name is
+    nowhere on it."""
+    raw = {key: value for key, value in card.raw.items() if key != "card_faces"}
+    face = card.raw["card_faces"][0]
+    layout = "saga" if "Saga" in face.get("type_line", "") else "normal"
+    return Card.from_raw({**raw, **face, "layout": layout})
+
+
+def title_name_box(card: Card, name_left: float | None = None) -> list[float] | None:
     """Where the name sits in the title bar, or None for a card whose
-    title bar isn't measured, or that prints more than one name"""
+    title bar isn't measured, or that prints more than one name.
+    `name_left` is where the name starts after an icon not among the
+    frame effects: a transform card's."""
     raw = card.raw
-    # One name on one side: a double-faced, split or adventure card
-    # prints more than one
+    # One name on one side: a modal double-faced card prints the back's
+    # too, and a split or adventure card has two on one side
     if card.layout not in ONE_NAME_LAYOUTS or raw.get("lang") != "en":
         return None
     # A planeswalker's title bar has another shape, with the name higher
@@ -283,6 +303,7 @@ def title_name_box(card: Card) -> list[float] | None:
         return None
     left = max(
         [area.left]
+        + ([name_left] if name_left is not None else [])
         + [
             NAME_AFTER_ICON[effect]
             for effect in raw.get("frame_effects") or []
