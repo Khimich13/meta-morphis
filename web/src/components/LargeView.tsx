@@ -57,7 +57,9 @@ export default function LargeView({
   const dialog = useRef<HTMLDialogElement>(null);
   const [zoomed, setZoomed] = useState(false);
   // When the view opened: a quick second tap right after the one that
-  // opened it (a double tap on the small card) must not close it again
+  // opened it (a double tap on the small card) must not close it again.
+  // Each render calls performance.now(), but the ref keeps only the first.
+  // eslint-disable-next-line react-hooks/purity -- only the first value is used
   const openedAt = useRef(performance.now());
 
   // A layout effect, which React runs before every plain effect, so the

@@ -371,6 +371,7 @@ function CardRow({
     element.scrollLeft = startAt * element.clientWidth;
     markShown(element, startAt);
     // Only the starting position: later changes come from scrolling
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on purpose
   }, []);
 
   // A new width - the phone turned, or the window was resized

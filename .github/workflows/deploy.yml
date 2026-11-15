@@ -106,6 +106,7 @@ jobs:
         run: |
           npm ci
           npm run check
+          npm run lint
           npm test
           npm run build
 

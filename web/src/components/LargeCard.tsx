@@ -182,10 +182,12 @@ function Zoomable({
                 // websites, and the library stops any animation on a mouse
                 // press: without this, the zoom-out stops at once
                 event.preventDefault();
-                resetTransform(250);
+                // Its promise only says when the animation ends: nothing
+                // waits for that
+                void resetTransform(250);
               },
               onDoubleClick: () => {
-                if (zoomedIn) resetTransform(250);
+                if (zoomedIn) void resetTransform(250);
               },
             }}
           >

@@ -30,7 +30,9 @@ export function useAppUpdate(canReload: boolean): void {
 
   useEffect(() => {
     if (updateWaiting && canReload) {
-      updateServiceWorker();
+      // Fails if the new version can't take over; the app keeps running
+      // the old one and tries again on the next update
+      updateServiceWorker().catch(() => {});
     }
   }, [updateWaiting, canReload, updateServiceWorker]);
 }

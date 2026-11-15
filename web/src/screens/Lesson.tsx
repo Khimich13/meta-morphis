@@ -374,6 +374,7 @@ function NameHidden({ card }: { card: Card }) {
   // this runs once per card.
   useEffect(() => {
     if (picture.current?.complete) paint();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on purpose
   }, []);
 
   return (
