@@ -41,12 +41,15 @@ what has been done is in the commit history.
   line, which nearly always names it ("— Teferi"), is read with its
   text, always. Its type must be found there and covered, or the card is
   left out: a short one like "Ral" read badly would show. So does a
-  transform card, by its front: it shows only the front's name, after
-  an icon, and its text. A modal double-faced card doesn't: its front
-  names the back too. A card that can be asked both ways gets either,
-  half the time each.
+  transform card, by either side: each shows only its own name and
+  text. The front's name starts after an icon; the back's after one
+  too, or, when the icon sits on the right where a mana cost would be,
+  where a normal card's starts. A modal double-faced card doesn't: each
+  side names the other too. A card that can be asked both ways gets
+  either, half the time each.
 - **A double-faced card is asked by either side,** half the time each:
-  by its back's artwork, as by its front's. The answers name one side
+  by its back's artwork, as by its front's, and a transform card's by
+  its back's full picture too. The answers name one side
   each: the side asked for the card itself, either side for a wrong
   answer, so a back's name never tells the right one apart. After the
   answer the card shows the side asked first; the other is a flip away.
@@ -66,9 +69,10 @@ what has been done is in the commit history.
   doesn't count: it says "this card" on every printing. A word of the
   name standing alone is left in sight when it is a subtype from
   Scryfall's lists ("a Goblin card"), or when the card's own Oracle text
-  uses it apart from the name ("a card from a graveyard" on Graveyard
-  Trespasser, though not in an ability's name like "Wasp's Sting"): a word
-  of the rules tells nothing of which card it is. Any other is covered,
+  uses it, or its plural, apart from the name ("a card from a graveyard"
+  on Graveyard Trespasser, "cards from graveyards" on Graveyard Glutton,
+  though not in an ability's name like "Wasp's Sting"): a word of the
+  rules tells nothing of which card it is. Any other is covered,
   up to three: a place or a person, like
   "Locthwain's" in a flavor text, gives the answer away. So is a word
   that only starts like one of the name's: "coastline" on Stormcarved

@@ -13,8 +13,8 @@ export const NEW_PER_LESSON = 3;
 /**
  * What a question shows:
  *   artwork - the card's artwork alone
- *   picture - the full card, with its title bar covered (see name_box
- *             in cards.ts)
+ *   picture - the full card, the side asked about, with its name covered
+ *             (see name_box in cards.ts)
  */
 export type QuestionKind = 'artwork' | 'picture';
 
@@ -33,7 +33,7 @@ export interface Question {
   /** The card being asked about */
   card: Card;
   kind: QuestionKind;
-  /** Asked about a double-faced card's back side, by its artwork */
+  /** Asked about a double-faced card's back side */
   back: boolean;
   /** The answers to choose from, in the order shown: the card itself and wrong ones */
   options: Option[];
@@ -67,11 +67,10 @@ export function makeQuestion(
   const wrong = shuffle(others, random).slice(0, OPTION_COUNT - 1);
   const cards = shuffle([card, ...wrong], random);
   // Either side, half the time each, for a card with a back to ask about.
-  // Either kind, half the time each, on a side whose name can be hidden:
-  // so far only the front's.
+  // Either kind, half the time each, on a side whose name can be hidden.
   const back = same?.back ?? (card.back ? random() < 0.5 : false);
-  const kind: QuestionKind =
-    same?.kind ?? (!back && card.name_box && random() < 0.5 ? 'picture' : 'artwork');
+  const nameBox = back ? card.back?.name_box : card.name_box;
+  const kind: QuestionKind = same?.kind ?? (nameBox && random() < 0.5 ? 'picture' : 'artwork');
   const options = cards.map((option) => ({
     card: option,
     name:

@@ -11,6 +11,7 @@ from pytest import MonkeyPatch
 
 from meta_morphis import config, name_in_text
 from meta_morphis.export import (
+    BackSide,
     ExportCard,
     art_box,
     back_side,
@@ -147,6 +148,8 @@ def test_build_card_double_faced_has_both_pictures() -> None:
         # Not a layout whose back is measured
         "art_box": None,
         "art_from": None,
+        "name_box": None,
+        "name_text_boxes": [],
     }
 
 
@@ -180,13 +183,20 @@ def _double_faced(layout: str, back: dict[str, Any], **extra: Any) -> Card:
 
 
 def test_the_back_side_has_its_own_artwork_artist_and_art_box() -> None:
-    back = back_side(_double_faced("transform", {}))
-    assert back == {
+    back = back_side(
+        _double_faced("transform", {}, lang="en", released_at="2021-09-24")
+    )
+    expected: BackSide = {
         "art": "art/back/id-Front // Back.webp",
         "artist": "Back Artist",
         "art_box": [0.079, 0.114, 0.840, 0.440],
         "art_from": None,
+        # Its icon on the right, as without a frame effect for one on the
+        # left
+        "name_box": [0.08, 0.052, 0.75, 0.051],
+        "name_text_boxes": [],
     }
+    assert back == expected
     # The back's own kind of card: a saga creature, like Summon: Esper
     # Maduin, or a planeswalker, like Ajani, Nacatl Avenger
     saga = back_side(
@@ -684,6 +694,53 @@ def test_a_transform_card_is_read_for_its_front_text_only() -> None:
     read = _ReadAs(IN_TEXT)
     assert name_boxes(plain, read) == ([0.16, 0.052, 0.748, 0.051], [])
     assert read.cards == []
+
+
+def test_a_transform_cards_back_is_asked_by_its_own_name() -> None:
+    # Delver of Secrets' back: its icon on the right, where a mana cost
+    # would be, and the name where a normal card's starts
+    delver = _transform(
+        {"name": "Delver of Secrets", "mana_cost": "{U}"},
+        released_at="2021-09-24",
+    )
+    read = _ReadAs(IN_TEXT)
+    assert name_boxes(delver, read, side=1) == ([0.08, 0.052, 0.75, 0.051], [])
+    # A sun and moon on the left, as on its front: the name starts after
+    # it, and runs to the title bar's end
+    glutton = _transform(
+        {"name": "Graveyard Trespasser"},
+        frame_effects=["sunmoondfc"],
+        released_at="2021-09-24",
+    )
+    assert name_boxes(glutton, read, side=1) == ([0.16, 0.052, 0.748, 0.051], [])
+    assert read.cards == []
+
+
+def test_a_transform_cards_back_is_read_for_its_own_text() -> None:
+    # Older than "this creature" printed as the Oracle text says it
+    card = Card.from_raw(
+        {
+            **_raw("Front // Back", lang="en", layout="transform"),
+            "released_at": "2021-09-24",
+            "card_faces": [
+                {"name": "Front", "type_line": "Creature — Human"},
+                {
+                    "name": "Back",
+                    "type_line": "Creature — Horror",
+                    "oracle_text": "Whenever this creature attacks, draw a card.",
+                },
+            ],
+        }
+    )
+    read = _ReadAs(IN_TEXT)
+    assert name_boxes(card, read, side=1) == ([0.08, 0.052, 0.75, 0.051], IN_TEXT)
+    assert read.cards == ["Back"]
+
+
+def test_a_modal_double_faced_cards_back_is_never_asked_by_its_picture() -> None:
+    # Each side names the other one too
+    modal = _double_faced("modal_dfc", {}, lang="en")
+    assert name_boxes(modal, side=1) == (None, [])
 
 
 def test_a_transform_saga_is_read_as_a_saga() -> None:

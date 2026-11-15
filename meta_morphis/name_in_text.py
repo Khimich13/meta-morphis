@@ -6,7 +6,8 @@ Scryfall's data says whether the name is printed in the text, but not
 where on the picture, and not always rightly for an old printing: its
 Oracle text says "this creature" where the printing may say the name, or
 something else. So the picture itself is read, once per printing, and
-the result is kept in config.NAME_IN_TEXT_PATH for the next runs.
+the result is kept in config.NAME_IN_TEXT_PATH for the next runs. A
+transform card's sides are each read as a card by itself.
 
 A reading leaves the card out when anything like a word of its name is
 left uncovered - a word read with a letter wrong, the name split up or
@@ -42,7 +43,7 @@ log = logging.getLogger(__name__)
 ReadText = Callable[[Card], list[list[float]] | None]
 
 # Raise it when the reading changes, so every printing is read again
-READER_VERSION = 8
+READER_VERSION = 9
 
 # Where to read on a card's picture, as shares of its width and height:
 # the text box, below the type line and above the artist's credit, the
@@ -230,7 +231,8 @@ ABILITY_NAME = re.compile(r"^[^\n—]* — ", re.MULTILINE)
 def rules_words(card: Card) -> frozenset[str]:
     """Words of the name its own Oracle text uses apart from the name,
     normalized: "graveyard" in "exile a card from a graveyard" on
-    Graveyard Trespasser. Printed there, it is a word of the rules, which
+    Graveyard Trespasser, or in the plural, "cards from graveyards" on
+    Graveyard Glutton. Printed there, it is a word of the rules, which
     tells no more of which card it is than a subtype. Not from the name of
     an ability: "Wasp's Sting" gives The Wondrous Wasp away."""
     text = ABILITY_NAME.sub(" ", card.raw.get("oracle_text") or "")
@@ -238,7 +240,9 @@ def rules_words(card: Card) -> frozenset[str]:
         text = re.sub(re.escape(one_name), " ", text, flags=re.IGNORECASE)
     used = {normalize(word) for word in re.split(r"[^\w'’]+", text)}
     return frozenset(
-        part for part in (normalize(word) for word in card.name.split()) if part in used
+        part
+        for part in (normalize(word) for word in card.name.split())
+        if part in used or part + "s" in used
     )
 
 
@@ -527,15 +531,24 @@ def type_covered(words: list[Word], boxes: list[list[float]], walker_type: str) 
     )
 
 
+def saved_key(card: Card) -> str:
+    """Where a side's reading is kept in the results: under its printing's
+    id, and a double-faced card's back under the id and "/back" - both
+    sides share the id. Scryfall's link to a back's picture has "/back/"
+    in it."""
+    picture_url = (card.raw.get("image_uris") or {}).get("png") or ""
+    return f"{card.id}/back" if "/back/" in picture_url else card.id
+
+
 class NameInText:
     """Reads each printing's picture once: the results are kept in
-    `results`, under the printing's id, for the next runs. A card left
+    `results`, under saved_key(), for the next runs. A card left
     out has its boxes None, and why under "left_out". A printing is
     read again when its picture changes (its link carries a version), its
     name changes, or READER_VERSION does.
 
-    Every card left out in this run is kept in `left_out`, by printing
-    id, with its name and why: those saved too, and those that could not
+    Every card left out in this run is kept in `left_out`, under
+    saved_key() too, with its name and why: those saved too, and those that could not
     be read this time, to be tried again on the next run. summary() lists
     them.
     """
@@ -565,23 +578,24 @@ class NameInText:
             )
 
     def __call__(self, card: Card) -> list[list[float]] | None:
+        key = saved_key(card)
         # A picture that failed to download in an earlier format may be
         # read now
-        self.not_read.pop(card.id, None)
-        boxes = self._read(card)
-        if boxes is None and card.id not in self.not_read:
-            reasons = self.results[card.id].get("left_out") or [
+        self.not_read.pop(key, None)
+        boxes = self._read(card, key)
+        if boxes is None and key not in self.not_read:
+            reasons = self.results[key].get("left_out") or [
                 "read before the reasons were saved"
             ]
-            self.left_out[card.id] = (card.name, reasons)
+            self.left_out[key] = (card.name, reasons)
         return boxes
 
-    def _read(self, card: Card) -> list[list[float]] | None:
+    def _read(self, card: Card, key: str) -> list[list[float]] | None:
         picture_url = (card.raw.get("image_uris") or {}).get("png")
         if not picture_url:
-            self.not_read[card.id] = (card.name, "it has no picture")
+            self.not_read[key] = (card.name, "it has no picture")
             return None
-        saved = self.results.get(card.id)
+        saved = self.results.get(key)
         if (
             saved
             and saved.get("name") == card.name
@@ -591,11 +605,11 @@ class NameInText:
             boxes: list[list[float]] | None = saved["boxes"]
             return boxes
         if not self._can_read:
-            self.not_read[card.id] = (card.name, self._why_not_read)
+            self.not_read[key] = (card.name, self._why_not_read)
             return None
         picture = _download(picture_url)
         if picture is None:
-            self.not_read[card.id] = (card.name, "its picture could not be downloaded")
+            self.not_read[key] = (card.name, "its picture could not be downloaded")
             return None
         result: dict[str, Any] = {
             "name": card.name,
@@ -611,9 +625,9 @@ class NameInText:
         except (OSError, subprocess.SubprocessError) as e:
             # Not saved: tried again on the next run
             log.warning(f"Could not read the picture of '{card.name}': {e}")
-            self.not_read[card.id] = (card.name, f"its picture could not be read: {e}")
+            self.not_read[key] = (card.name, f"its picture could not be read: {e}")
             return None
-        self.results[card.id] = result
+        self.results[key] = result
         self.changed = True
         return boxes
 

@@ -217,6 +217,18 @@ def test_rules_words_are_words_of_the_name_its_rules_use_apart_from_it() -> None
         }
     )
     assert rules_words(trespasser) == {"graveyard"}
+    # Also when the rules use it in the plural: "cards from graveyards"
+    # on Graveyard Glutton
+    glutton = Card.from_raw(
+        {
+            "id": "id",
+            "name": "Graveyard Glutton",
+            "type_line": "Creature — Werewolf",
+            "oracle_text": "Whenever this creature enters or attacks, exile up to "
+            "two target cards from graveyards.",
+        }
+    )
+    assert rules_words(glutton) == {"graveyard"}
     # The name itself, or a legend's short name, is no rules word
     ajani = Card.from_raw(
         {
@@ -323,6 +335,34 @@ def test_a_printing_is_read_once(monkeypatch: MonkeyPatch) -> None:
             "boxes": [[0.1, 0.7, 0.2, 0.03]],
         }
     }
+
+
+def test_a_back_side_is_kept_apart_from_its_front(monkeypatch: MonkeyPatch) -> None:
+    # Both sides of a transform card share the printing's id: each kept
+    # under its own key, neither is read again on the next run
+    monkeypatch.setattr(
+        "meta_morphis.name_in_text.shutil.which", lambda name: "/usr/bin/tesseract"
+    )
+    downloads: list[str] = []
+
+    def download(url: str) -> bytes:
+        downloads.append(url)
+        return b"png"
+
+    monkeypatch.setattr(name_in_text, "_download", download)
+    monkeypatch.setattr(
+        name_in_text, "name_in_text", lambda card, picture, game_words: []
+    )
+    front = _card(image_uris={"png": "png/front/printing.png?1"})
+    back = _card(name="Back", image_uris={"png": "png/back/printing.png?1"})
+
+    read = NameInText({}, GAME_WORDS)
+    for _ in range(2):
+        assert read(front) == []
+        assert read(back) == []
+    assert downloads == ["png/front/printing.png?1", "png/back/printing.png?1"]
+    assert read.results["printing"]["name"] == "Masticore"
+    assert read.results["printing/back"]["name"] == "Back"
 
 
 def test_a_card_left_out_is_saved_with_why(monkeypatch: MonkeyPatch) -> None:

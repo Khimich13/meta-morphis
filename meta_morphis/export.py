@@ -57,6 +57,11 @@ class BackSide(TypedDict):
     art_box: list[float] | None
     # As ExportCard's art_from
     art_from: ArtFrom | None
+    # Where the name sits on the back's picture, as ExportCard's
+    # name_box and name_text_boxes: only a transform card's back, which
+    # shows only its own name
+    name_box: list[float] | None
+    name_text_boxes: list[list[float]]
 
 
 class ExportCard(TypedDict):
@@ -94,8 +99,9 @@ class ExportCard(TypedDict):
     # to be read with the card turned a quarter clockwise. The app turns
     # it the right way up when there is room, in landscape.
     horizontal: list[bool]
-    # A double-faced card's back side, which a question about its artwork
-    # may show instead of the front. None for a card with one side, or
+    # A double-faced card's back side, which a question may show instead
+    # of the front: by its artwork, or a transform card's by its full
+    # picture too. None for a card with one side, or
     # whose back lacks its artwork or artist.
     back: BackSide | None
 
@@ -219,6 +225,23 @@ NAME_AFTER_ICON = {"lesson": 0.165, "tombstone": 0.105}
 # which side is up: where the name starts then. Measured on Scryfall's
 # pictures on 2026-11-14.
 TRANSFORM_NAME_LEFT = 0.16
+# Frame effects whose transform back has its icon left of the name too,
+# as the front: a sun and moon, Fable of the Mirror-Breaker's fan, and
+# the like. Without one, the back's icon (a triangle pointing down) is
+# on the right, where a mana cost would be, and the name starts where a
+# normal card's does: so on four of the seven backs on the lists on
+# 2026-11-15, Delver of Secrets' and Ajani, Nacatl Pariah's among them.
+LEFT_ICON_BACKS = {
+    "sunmoondfc",
+    "compasslanddfc",
+    "originpwdfc",
+    "mooneldrazidfc",
+    "waxingandwaningmoondfc",
+    "fandfc",
+}
+# Where that icon on the right starts. Measured on Scryfall's pictures
+# on 2026-11-15, the same on a planeswalker's back.
+BACK_ICON_RIGHT_LEFT = 0.85
 # Room left between the name's area and the mana cost, or the title
 # bar's rounded end on a card without one
 NAME_GAP = 0.02
@@ -296,19 +319,29 @@ def may_show_name_in_text(card: Card) -> bool:
 
 
 def name_boxes(
-    card: Card, read_text: ReadText = never_read
+    card: Card, read_text: ReadText = never_read, side: int = 0
 ) -> tuple[list[float] | None, list[list[float]]]:
-    """Where the name sits on the front picture, for the question
-    "which card is this?" asked with the full card: in the title bar,
-    [left, top, width, height] up to just before the mana cost, and
-    wherever `read_text` finds it in the text box. (None, []) when the
-    name can't be covered everywhere it shows: then the question is
-    never asked about this card.
+    """Where the name sits on a side's picture, 0 for the front and 1 for
+    a transform card's back, for the question "which card is this?"
+    asked with the full card: in the title bar, [left, top, width,
+    height] up to just before the mana cost, and wherever `read_text`
+    finds it in the text box. (None, []) when the name can't be covered
+    everywhere it shows: then the question is never asked about this
+    side.
     """
-    name_left = None
+    name_left = name_right = None
     if card.layout == "transform":
-        card, name_left = face_of(card, 0), TRANSFORM_NAME_LEFT
-    title = title_name_box(card, name_left)
+        effects = set(card.raw.get("frame_effects") or [])
+        if side == 0 or effects & LEFT_ICON_BACKS:
+            name_left = TRANSFORM_NAME_LEFT
+        else:
+            name_right = BACK_ICON_RIGHT_LEFT
+        card = face_of(card, side)
+    elif side:
+        # Another double-faced card's front names its back too, and the
+        # other way round
+        return None, []
+    title = title_name_box(card, name_left, name_right)
     if title is None or not may_show_name_in_text(card):
         return title, []
     in_text = read_text(card)
@@ -329,11 +362,14 @@ def face_of(card: Card, side: int) -> Card:
     return Card.from_raw({**raw, **face, "layout": layout})
 
 
-def title_name_box(card: Card, name_left: float | None = None) -> list[float] | None:
+def title_name_box(
+    card: Card, name_left: float | None = None, name_right: float | None = None
+) -> list[float] | None:
     """Where the name sits in the title bar, or None for a card whose
     title bar isn't measured, or that prints more than one name.
     `name_left` is where the name starts after an icon not among the
-    frame effects: a transform card's."""
+    frame effects, and `name_right` where an icon in the mana cost's
+    place starts: a transform card's."""
     raw = card.raw
     # One name on one side: a modal double-faced card prints the back's
     # too, and a split or adventure card has two on one side
@@ -353,7 +389,8 @@ def title_name_box(card: Card, name_left: float | None = None) -> list[float] | 
         ]
     )
     symbols = len(re.findall(r"\{[^}]*\}", card.mana_cost or ""))
-    right = area.cost_right - symbols * area.symbol - NAME_GAP
+    cost_left = area.cost_right - symbols * area.symbol
+    right = (cost_left if name_right is None else name_right) - NAME_GAP
     return [round(value, 4) for value in (left, area.top, right - left, area.height)]
 
 
@@ -408,10 +445,11 @@ def shown_name(name: str) -> str:
 BACK_ART_LAYOUTS = {"transform", "modal_dfc"}
 
 
-def back_side(card: Card) -> BackSide | None:
-    """A double-faced card's back, for questions about its artwork; None
-    for a card with one side, or a back without artwork or artist, or
-    whose artwork is of another printing."""
+def back_side(card: Card, read_text: ReadText = never_read) -> BackSide | None:
+    """A double-faced card's back, for questions about its artwork, and
+    a transform card's about its full picture too; None for a card with
+    one side, or a back without artwork or artist, or whose artwork is
+    of another printing."""
     sides = card.image_sides()
     if len(sides) < 2:
         return None
@@ -421,11 +459,14 @@ def back_side(card: Card) -> BackSide | None:
         return None
     face = face_of(card, 1)
     box = art_box(face) if card.layout in BACK_ART_LAYOUTS else None
+    title, in_text = name_boxes(card, read_text, side=1)
     return {
         "art": art,
         "artist": back.artist,
         "art_box": box,
         "art_from": art_from(back, face.name, box),
+        "name_box": title,
+        "name_text_boxes": in_text,
     }
 
 
@@ -463,7 +504,7 @@ def build_card(card: Card, read_text: ReadText = never_read) -> ExportCard | Non
         "artist": front.artist,
         "art_from": art_from(front, front_name, front_box),
         "horizontal": horizontal_sides(card),
-        "back": back_side(card),
+        "back": back_side(card, read_text),
     }
 
 

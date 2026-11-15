@@ -107,12 +107,24 @@ test('a double-faced card is asked by either side, named by the side asked', () 
   for (const question of asked) {
     const right = question.options.find((option) => option.card === card);
     expect(right?.name).toBe(question.back ? 'Back 0' : 'Front 0');
-    // The back's name isn't hidden on its picture yet: only its artwork
+    // This back's name can't be hidden on its picture: only its artwork
     if (question.back) expect(question.kind).toBe('artwork');
   }
   // The front is still asked both ways
   const front = asked.filter((question) => !question.back).map((question) => question.kind);
   expect(new Set(front)).toEqual(new Set(['artwork', 'picture']));
+});
+
+test("a transform card's back is asked both ways too, when its name can be hidden", () => {
+  const front = doubleFaced(0);
+  const card: Card = {
+    ...front,
+    back: { ...front.back!, name_box: [0.08, 0.052, 0.75, 0.051] },
+  };
+  const backs = SEEDS.map((seed) => makeQuestion(card, CARDS, seeded(seed))).filter(
+    (question) => question.back,
+  );
+  expect(new Set(backs.map((question) => question.kind))).toEqual(new Set(['artwork', 'picture']));
 });
 
 test('a double-faced card without a back to ask about is asked by its front', () => {

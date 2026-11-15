@@ -205,7 +205,11 @@ export default function Lesson({
               <QuestionLabel repeat={repeat} standing={cardStanding(record)} />
             </div>
             {question.kind === 'picture' ? (
-              <NameHidden key={card.oracle_id} card={card} />
+              <NameHidden
+                key={`${card.oracle_id}-${question.back}`}
+                card={card}
+                back={question.back}
+              />
             ) : (
               /* A figure ties the credit to the artwork, for screen readers too */
               <figure className="artwork">
@@ -403,9 +407,11 @@ const TEXT_COVER_TRIM = 1;
  * name. The paint is a layer over the picture, which stays as it is, and
  * never covers the artist or copyright. Until it is painted - or if the
  * picture's pixels can't be read - a plain bar covers the title too.
+ * `back` shows a transform card's back, with its own name hidden.
  */
-function NameHidden({ card }: { card: Card }) {
-  const boxes = [card.name_box ?? [0, 0, 0, 0], ...(card.name_text_boxes ?? [])];
+function NameHidden({ card, back }: { card: Card; back: boolean }) {
+  const side = back && card.back ? card.back : card;
+  const boxes = [side.name_box ?? [0, 0, 0, 0], ...(side.name_text_boxes ?? [])];
   const picture = useRef<HTMLImageElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   // Where each cover sits, as shares of the card: the name's box, then,
@@ -471,7 +477,7 @@ function NameHidden({ card }: { card: Card }) {
         <img
           ref={picture}
           className="card-side"
-          src={card.images[0]}
+          src={card.images[back ? 1 : 0]}
           alt="Card with its name hidden"
           crossOrigin="anonymous"
           onLoad={paint}

@@ -12,7 +12,10 @@ export interface ArtFrom {
   box: [number, number, number, number];
 }
 
-/** A double-faced card's back, for questions about its artwork */
+/**
+ * A double-faced card's back, for questions about its artwork, and a
+ * transform card's about its full picture too
+ */
 export interface BackSide {
   /** The back side's artwork alone */
   art: string;
@@ -22,6 +25,14 @@ export interface BackSide {
   art_box: [number, number, number, number] | null;
   /** As Card's art_from */
   art_from?: ArtFrom | null;
+  /**
+   * Where the name sits on the back's picture, like Card's name_box and
+   * name_text_boxes. Null for every back but a transform card's, which
+   * shows only its own name; missing in files written before it was
+   * added.
+   */
+  name_box?: [number, number, number, number] | null;
+  name_text_boxes?: [number, number, number, number][];
 }
 
 export interface Card {
@@ -73,8 +84,9 @@ export interface Card {
    */
   horizontal?: boolean[];
   /**
-   * A double-faced card's back side, which a question about its artwork
-   * may show instead of the front. Null for a card with one side, or
+   * A double-faced card's back side, which a question may show instead
+   * of the front: by its artwork, or a transform card's by its full
+   * picture too. Null for a card with one side, or
    * whose back lacks its artwork; missing in files written before it was
    * added.
    */
