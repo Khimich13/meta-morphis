@@ -34,7 +34,9 @@ what has been done is in the commit history.
   the name painted over by the title bar around it, the mana cost still
   showing, and painted over in the text box too. The second is asked only
   about a card with one name on one side, in English, not a planeswalker
-  (its title bar has another shape). A card that can be asked both ways
+  (its title bar has another shape). A saga, class or case counts: its
+  title bar is a normal card's, and its text is read beside its artwork,
+  with its type line when that has a word of the name (Urza's Saga). A card that can be asked both ways
   gets either, half the time each.
 - **The name in the text box is found by reading the picture** with
   Tesseract, once per printing, whenever it may be printed there: in the
@@ -46,11 +48,18 @@ what has been done is in the commit history.
   name standing alone is left in sight when it is a subtype from
   Scryfall's lists ("a Goblin card"), which tells nothing of which card it
   is, and covered otherwise, up to three: a place or a person, like
-  "Locthwain's" in a flavor text, gives the answer away. A reading that
-  leaves anything else like a word of the name - run together, broken at
-  a line's end, or with a piece of the name next to it - or reads the
-  text poorly, leaves the card to its artwork: a missed name gives the
-  answer away. What was read is kept in git, as the first reading of many cards
+  "Locthwain's" in a flavor text, gives the answer away. So is a word
+  that only starts like one of the name's: "coastline" on Stormcarved
+  Coast. A word of the card's own Oracle text that is no word or piece of
+  the name is plain text, never the name read badly: "can't" on Orim's
+  Chant. A reading that leaves anything else like a word of the name -
+  run together, broken at a line's end, or with a piece of the name next
+  to it - or reads the text poorly, leaves the card to its artwork: a
+  missed name gives the answer away. A picture is read enlarged and in color first; when that
+  leaves the card out, it is read again in grayscale at its own size,
+  which reads the textured text box of an old frame far better and a few
+  other cards worse - so it only gets the cards the first reading gave up
+  on. What was read is kept in git, as the first reading of many cards
   takes hours. The app paints over the name there from the paper just
   above and below it, which leaves out the print and the box's border.
 - **Each card is shown in its most familiar printing:** the artwork that

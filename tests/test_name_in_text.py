@@ -161,6 +161,46 @@ def test_find_name_gives_up_when_the_name_may_be_read_badly(
     assert find_name(_words(*lines), name, GAME_WORDS) is None
 
 
+def test_find_name_covers_a_word_that_starts_like_a_word_of_the_name() -> None:
+    # In a flavor text: a hint at the name
+    words = _words("storms shape the Nephalia coastline, sculpting cliffs")
+    assert find_name(words, "Stormcarved Coast", GAME_WORDS) == [
+        [260.0, 0.0, 360.0, 15.0]
+    ]
+    # The keyword a card is named after, read together with the next word
+    words = _words("gains flashback-until end of turn")
+    assert find_name(words, "Flashback", GAME_WORDS) == [[60.0, 0.0, 210.0, 15.0]]
+
+
+def test_find_name_takes_a_word_of_the_oracle_text_for_plain_text() -> None:
+    # "can't" is like "Chant" with a letter missing, next to "cast"
+    words = _words("Target player can't cast spells this turn.")
+    text = frozenset({"target", "player", "cant", "cast", "spells", "this", "turn"})
+    assert find_name(words, "Orim's Chant", GAME_WORDS) is None
+    assert find_name(words, "Orim's Chant", GAME_WORDS, text) == []
+    # A keyword that starts like a word of the name
+    words = _words("Flashback—® Remove X cards. You can't remove Flash of Insight")
+    text = frozenset({"flashback", "remove", "cards", "you", "cant", "this", "card"})
+    assert find_name(words, "Flash of Insight", GAME_WORDS, text) == [
+        [450.0, 0.0, 610.0, 15.0]
+    ]
+
+
+def test_find_name_still_covers_a_word_of_the_name_in_the_oracle_text() -> None:
+    # The name of an ability, "Wasp's Sting", gives the answer away
+    words = _words("Wasp's Sting — When The Wondrous Wasp enters")
+    text = frozenset({"wasps", "sting", "when", "the", "wondrous", "wasp", "enters"})
+    assert find_name(words, "The Wondrous Wasp", GAME_WORDS, text) == [
+        [200.0, 0.0, 370.0, 15.0],
+        [0.0, 0.0, 60.0, 15.0],
+    ]
+    # A piece of the name is no plain text either: "Spider" is in the
+    # Oracle text, as a creature type and in the name
+    words = _words("You may have Superior Spider-", "Man enter as a copy")
+    text = frozenset({"you", "may", "have", "superior", "spider", "man", "enter"})
+    assert find_name(words, "Superior Spider-Man", GAME_WORDS, text) is None
+
+
 def test_find_name_gives_up_when_too_many_words_are_like_the_name() -> None:
     words = _words("Goblin Goblin Goblin Goblin and Goblin Matron")
     assert find_name(words, "Goblin Matron") is None
@@ -184,6 +224,9 @@ def test_parse_tsv_places_words_back_on_the_whole_picture() -> None:
     assert words[0] == Word("Masticore", 105.0, 610.0, 125.0, 625.0, ("1", "1", "1"))
     assert [word.text for word in words] == ["Masticore", "deals"]
     assert confidence == 80
+    # Not enlarged: as it is
+    words, _ = parse_tsv(tsv, left=100, top=600, scale=1)
+    assert words[0] == Word("Masticore", 110.0, 620.0, 150.0, 650.0, ("1", "1", "1"))
 
 
 def _card(**extra: Any) -> Card:
@@ -327,3 +370,132 @@ def test_name_in_text_reads_a_picture() -> None:
     left, top, width, height = boxes[0]
     assert 0.09 < left < 0.11 and 0.61 < top < 0.64
     assert 0.15 < width < 0.3 and 0.02 < height < 0.05
+
+
+def _reading(*texts: str, confidence: float = 90) -> Any:
+    """What read_words gives for a text box with these words in a line"""
+    words = [
+        Word(text, 100.0 * i, 700.0, 100.0 * i + 90, 730.0, ("1", "1", "1"))
+        for i, text in enumerate(texts)
+    ]
+    return words, confidence, (745, 1040)
+
+
+def test_a_picture_is_read_again_in_gray_when_the_first_reading_gives_up(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    asked: list[bool] = []
+
+    def read_words(picture: bytes, area: Any, gray: bool = False) -> Any:
+        asked.append(gray)
+        # In color, words seen in the box's texture leave it unsure
+        return _reading("Masticore", "deals", confidence=90 if gray else 40)
+
+    monkeypatch.setattr(name_in_text, "read_words", read_words)
+    boxes = name_in_text.name_in_text(_card(oracle_text="Masticore deals"), b"png")
+    assert asked == [False, True]
+    assert boxes is not None and len(boxes) == 1
+
+
+def test_a_picture_is_read_once_when_the_first_reading_is_trusted(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    asked: list[bool] = []
+
+    def read_words(picture: bytes, area: Any, gray: bool = False) -> Any:
+        asked.append(gray)
+        return _reading("Masticore", "deals")
+
+    monkeypatch.setattr(name_in_text, "read_words", read_words)
+    boxes = name_in_text.name_in_text(_card(oracle_text="Masticore deals"), b"png")
+    assert asked == [False]
+    assert boxes is not None and len(boxes) == 1
+
+
+def test_a_card_is_left_out_when_both_readings_give_up(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        name_in_text,
+        "read_words",
+        lambda picture, area, gray=False: _reading("Masticore", confidence=40),
+    )
+    assert name_in_text.name_in_text(_card(oracle_text="Masticore"), b"png") is None
+
+
+@pytest.mark.skipif(
+    shutil.which("tesseract") is None, reason="Tesseract is not installed"
+)
+def test_read_words_in_gray_places_words_as_the_first_reading_does() -> None:
+    picture = _picture("Masticore deals 1 damage to", "target creature.")
+    area = name_in_text.areas_to_read(_card())[0]
+    color, _, size = name_in_text.read_words(picture, area)
+    gray, _, gray_size = name_in_text.read_words(picture, area, gray=True)
+    assert size == gray_size == (745, 1040)
+    assert color[0].text == gray[0].text == "Masticore"
+    for side in ("left", "top", "right", "bottom"):
+        assert abs(getattr(color[0], side) - getattr(gray[0], side)) < 4
+
+
+def test_reminder_text_is_not_counted_among_the_words_to_read(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        name_in_text,
+        "read_words",
+        lambda picture, area, gray=False: _reading("Masticore", "deals"),
+    )
+    # A printing without the reminder text has far fewer words
+    reminder = "(If you discard this card, discard it into exile and so on.)"
+    card = _card(oracle_text=f"Masticore deals. Madness {reminder}")
+    assert name_in_text.name_in_text(card, b"png") is not None
+    # As many words outside the brackets: too few were read
+    card = _card(oracle_text=f"Masticore deals. Madness {reminder[1:-1]}")
+    assert name_in_text.name_in_text(card, b"png") is None
+
+
+def test_areas_to_read_follow_the_layout() -> None:
+    assert name_in_text.areas_to_read(_card()) == [(0.07, 0.60, 0.93, 0.94)]
+    # A "Summon" type line is read with the text
+    old = _card(type_line="Creature — Masticore", released_at="1998-01-01")
+    assert name_in_text.areas_to_read(old) == [(0.07, 0.55, 0.93, 0.94)]
+    # Text left of the artwork, or right of it
+    saga = _card(
+        name="The Misty Mountains Cold", layout="saga", type_line="Enchantment — Saga"
+    )
+    talent = _card(
+        name="Stormchaser's Talent", layout="class", type_line="Enchantment — Class"
+    )
+    assert name_in_text.areas_to_read(saga) == [(0.07, 0.11, 0.50, 0.84)]
+    assert name_in_text.areas_to_read(talent) == [(0.50, 0.11, 0.93, 0.84)]
+    # The type line too, when it has a word of the name
+    urzas = _card(
+        name="Urza's Saga", layout="saga", type_line="Enchantment Land — Urza's Saga"
+    )
+    assert name_in_text.areas_to_read(urzas) == [
+        (0.07, 0.11, 0.50, 0.84),
+        (0.07, 0.84, 0.93, 0.905),
+    ]
+
+
+def test_every_area_is_read_and_must_be_trusted(monkeypatch: MonkeyPatch) -> None:
+    urzas = _card(
+        name="Urza's Saga",
+        layout="saga",
+        type_line="Enchantment Land — Urza's Saga",
+        oracle_text="Urza's Saga gains",
+    )
+    sure = {"text": 90.0, "type line": 90.0}
+
+    def read_words(picture: bytes, area: Any, gray: bool = False) -> Any:
+        if area == name_in_text.LOW_TYPE_LINE:
+            return _reading("Land", "Urza's", "Saga", confidence=sure["type line"])
+        return _reading("Urza's", "Saga", "gains", confidence=sure["text"])
+
+    monkeypatch.setattr(name_in_text, "read_words", read_words)
+    boxes = name_in_text.name_in_text(urzas, b"png", GAME_WORDS)
+    # One in the text, one in the type line
+    assert boxes is not None and len(boxes) == 2
+    # The type line read poorly, in color and in gray: left out
+    sure["type line"] = 40.0
+    assert name_in_text.name_in_text(urzas, b"png", GAME_WORDS) is None

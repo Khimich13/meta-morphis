@@ -21,10 +21,13 @@ from meta_morphis.meta.repo import get_meta_timestamp
 from meta_morphis.meta.service import get_meta_cards
 from meta_morphis.models.card import Card
 from meta_morphis.name_in_text import (
+    REMINDER,
+    TEXT_COLUMNS,
     NameInText,
     ReadText,
     fetch_game_words,
     is_summon_printing,
+    name_in_low_type_line,
     never_read,
     normalize,
     short_name,
@@ -165,6 +168,10 @@ NAME_AREAS = {
     "2003": NameArea(0.080, 0.050, 0.054, 0.918, 0.047),
     "2015": NameArea(0.080, 0.052, 0.051, 0.928, 0.0515),
 }
+# Layouts with one name, in a title bar like a normal card's. A saga,
+# class or case has its text beside its artwork, which
+# name_in_text.TEXT_COLUMNS knows.
+ONE_NAME_LAYOUTS = {"normal", *TEXT_COLUMNS}
 # Frame effects with an icon left of the name: where the name starts then
 NAME_AFTER_ICON = {"lesson": 0.165, "tombstone": 0.105}
 # Room left between the name's area and the mana cost, or the title
@@ -176,7 +183,7 @@ NAME_GAP = 0.02
 # card printed "Volatile Fjord enters the battlefield tapped"
 SELF_REFERENCE = re.compile(
     r"\bthis (creature|artifact|enchantment|land|permanent|planeswalker|battle"
-    r"|aura|equipment|vehicle|spell|card|saga|token)\b",
+    r"|aura|equipment|vehicle|spell|card|saga|class|case|token)\b",
     re.IGNORECASE,
 )
 # Printings from this date on print "this creature" and the like, as the
@@ -184,8 +191,6 @@ SELF_REFERENCE = re.compile(
 # for new sets - a reprint (The List, a Commander deck) can keep the old text.
 SELF_REFERENCE_PRINTED_FROM = "2024-11-15"
 NEW_CARD_SET_TYPES = {"expansion", "core"}
-# Reminder text, in brackets
-REMINDER = re.compile(r"\([^)]*\)")
 
 
 def without_keyword_reminders(oracle_text: str, keywords: list[str]) -> str:
@@ -215,10 +220,13 @@ def may_show_name_in_text(card: Card) -> bool:
     """True when the name may be printed in the text box: the name or a
     legend's short name in its Oracle or flavor text, a word of the name
     in its flavor text, "this creature"
-    and the like on an older printing, or a "Summon" type line. Which of
+    and the like on an older printing, or a "Summon" type line - or
+    below it, in the type line of a saga, class or case. Which of
     these the printing really shows, only its picture can tell.
     """
     raw = card.raw
+    if name_in_low_type_line(card):
+        return True
     oracle_text = raw.get("oracle_text") or ""
     # In any case: "birds of paradise" in a flavor text
     text = (oracle_text + "\n" + (raw.get("flavor_text") or "")).lower()
@@ -265,7 +273,7 @@ def title_name_box(card: Card) -> list[float] | None:
     raw = card.raw
     # One name on one side: a double-faced, split or adventure card
     # prints more than one
-    if card.layout != "normal" or raw.get("lang") != "en":
+    if card.layout not in ONE_NAME_LAYOUTS or raw.get("lang") != "en":
         return None
     # A planeswalker's title bar has another shape, with the name higher
     if "Planeswalker" in card.type_line:

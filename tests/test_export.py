@@ -419,6 +419,59 @@ def test_a_keyword_reminder_that_refers_to_itself_needs_no_reading() -> None:
     assert name_boxes(arbor) == (None, [])
 
 
+def test_a_saga_class_or_case_has_a_name_box_like_a_normal_card() -> None:
+    for layout in ("saga", "class", "case"):
+        assert title_name_box(_english("Some Card", layout=layout)) == TITLE
+
+
+def test_the_text_is_read_for_a_class_or_case_that_refers_to_itself() -> None:
+    # Printed "When Stormchaser's Talent enters" before Foundations
+    talent = _english(
+        "Stormchaser's Talent",
+        layout="class",
+        oracle_text="When this Class enters, create a token.",
+        released_at="2024-08-02",
+        set_type="expansion",
+    )
+    case = _english(
+        "Case of the Uneaten Feast",
+        layout="case",
+        oracle_text="Solved — Sacrifice this Case: Return a creature card.",
+        released_at="2024-02-09",
+        set_type="expansion",
+    )
+    read = _ReadAs(IN_TEXT)
+    for card in (talent, case):
+        assert name_boxes(card, read) == (TITLE, IN_TEXT)
+    assert read.cards == ["Stormchaser's Talent", "Case of the Uneaten Feast"]
+
+
+def test_the_type_line_of_a_saga_is_read_when_it_has_a_word_of_the_name() -> None:
+    # However new the printing: the name is in its type line
+    urzas = Card.from_raw(
+        _raw(
+            "Urza's Saga",
+            lang="en",
+            layout="saga",
+            type_line="Enchantment Land — Urza's Saga",
+            oracle_text="I — This Saga gains an ability.",
+            released_at="2030-01-01",
+            set_type="expansion",
+        )
+    )
+    other = _english(
+        "The Misty Mountains Cold",
+        layout="saga",
+        oracle_text="I — Sacrifice this Saga.",
+        released_at="2030-01-01",
+        set_type="expansion",
+    )
+    read = _ReadAs(IN_TEXT)
+    assert name_boxes(urzas, read) == (TITLE, IN_TEXT)
+    assert name_boxes(other, read) == (TITLE, [])
+    assert read.cards == ["Urza's Saga"]
+
+
 def test_no_name_box_for_more_than_one_name_another_language_frame_or_a_planeswalker() -> (
     None
 ):

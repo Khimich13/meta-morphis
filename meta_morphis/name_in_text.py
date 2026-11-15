@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import requests
-from PIL import Image
+from PIL import Image, ImageOps
 
 from meta_morphis import config
 from meta_morphis.models.card import Card
@@ -41,11 +41,11 @@ log = logging.getLogger(__name__)
 ReadText = Callable[[Card], list[list[float]] | None]
 
 # Raise it when the reading changes, so every printing is read again
-READER_VERSION = 5
+READER_VERSION = 7
 
 # Where to read on a card's picture, as shares of its width and height:
 # the text box, below the type line and above the artist's credit, the
-# same on every frame. Measured on Scryfall's pictures on 2026-11-12.
+# same on every frame but those of TEXT_COLUMNS. Measured on Scryfall's pictures on 2026-11-12.
 TEXT_LEFT, TEXT_RIGHT = 0.07, 0.93
 TEXT_TOP, TEXT_BOTTOM = 0.60, 0.94
 # Before Sixth Edition, a creature's type line read "Summon" and its
@@ -53,8 +53,23 @@ TEXT_TOP, TEXT_BOTTOM = 0.60, 0.94
 # Such a printing has its type line read too.
 SUMMON_UNTIL = "1999-04-21"
 TYPE_LINE_TOP = 0.55
+# A saga has its text in a column left of its artwork, a class and a case
+# right of it: the column's left and right. The type line is below both.
+# Measured on Scryfall's pictures on 2026-11-14.
+TEXT_COLUMNS = {"saga": (0.07, 0.50), "class": (0.50, 0.93), "case": (0.50, 0.93)}
+COLUMN_TOP, COLUMN_BOTTOM = 0.11, 0.84
+# Their type line, as left, top, right and bottom
+LOW_TYPE_LINE = (0.07, 0.84, 0.93, 0.905)
+# A part of the picture: its left, top, right and bottom
+Area = tuple[float, float, float, float]
 # Tesseract reads small print better enlarged
 SCALE = 2
+# A picture is read up to twice: enlarged and in color first, and when
+# that leaves the card out, in grayscale at its own size. The second way
+# reads the textured text box of an old frame far better - there the
+# first sees words in the texture - and a few other cards worse, so it
+# only gets the cards the first gave up on.
+READINGS = (False, True)
 # Room added around each name found, as shares of the card's width and
 # height: Tesseract's boxes can end a letter short. Less on the left,
 # where a name starting a line is next to the text box's border.
@@ -67,8 +82,11 @@ MAX_LIKE_NAME = 3
 # words it read (0 to 100), may have missed the name
 MIN_CONFIDENCE = 60
 # A reading with fewer words than this share of the Oracle text's words
-# may have missed part of the text, and the name with it
+# may have missed part of the text, and the name with it. Counted without
+# reminder text, which not every printing prints.
 MIN_WORDS_READ = 0.5
+# Reminder text, in brackets
+REMINDER = re.compile(r"\([^)]*\)")
 
 
 @dataclass(frozen=True)
@@ -88,6 +106,31 @@ def is_summon_printing(card: Card) -> bool:
     """A creature printed with a "Summon" type line"""
     released = card.raw.get("released_at") or ""
     return "Creature" in card.type_line and released < SUMMON_UNTIL
+
+
+def name_in_low_type_line(card: Card) -> bool:
+    """A saga, class or case with a word of its name in its type line:
+    Urza's Saga, whose type line ends "Urza's Saga" too"""
+    if card.layout not in TEXT_COLUMNS:
+        return False
+    type_words = {normalize(word) for word in card.type_line.split()}
+    return any(
+        len(part) >= 4 and part in type_words
+        for part in (normalize(word) for word in card.name.split())
+    )
+
+
+def areas_to_read(card: Card) -> list[Area]:
+    """Where the name may be printed outside the title bar: the text
+    first, then a type line apart from it"""
+    column = TEXT_COLUMNS.get(card.layout)
+    if column is None:
+        top = TYPE_LINE_TOP if is_summon_printing(card) else TEXT_TOP
+        return [(TEXT_LEFT, top, TEXT_RIGHT, TEXT_BOTTOM)]
+    areas: list[Area] = [(column[0], COLUMN_TOP, column[1], COLUMN_BOTTOM)]
+    if name_in_low_type_line(card):
+        areas.append(LOW_TYPE_LINE)
+    return areas
 
 
 def short_name(name: str) -> str:
@@ -131,23 +174,39 @@ def edits(a: str, b: str) -> int:
     return row[-1]
 
 
+def words_of_text(card: Card) -> frozenset[str]:
+    """The words of the card's Oracle text, normalized: "cant" for "can't\""""
+    oracle_text = card.raw.get("oracle_text") or ""
+    words = (normalize(word) for word in re.split(r"[^\w'’]+", oracle_text))
+    return frozenset(word for word in words if word)
+
+
 def find_name(
-    words: list[Word], name: str, game_words: frozenset[str] = frozenset()
+    words: list[Word],
+    name: str,
+    game_words: frozenset[str] = frozenset(),
+    text_words: frozenset[str] = frozenset(),
 ) -> list[list[float]] | None:
     """Boxes in pixels, [left, top, right, bottom], around each time the
     name is printed among the words: one box per line it runs over. The
     full name is looked for first, then a legend's short name.
 
-    A word left over that is like one of the name's may be the name read
-    badly. When it has a piece of the name next to it, or only starts like
-    a word of the name, it may well be, and the card is left out (None):
-    "Superior" before "Spider-" and "Man", a name broken at a line's end,
-    or "Jackal,Pup" run together, whose box may be too short. Standing
-    alone, it is left as it is when it is a game word - a subtype such as
-    "Goblin" in "a Goblin card", among `game_words`, normalized - which
-    says nothing of which card it is. Any other is covered: a place or a
-    person, such as "Locthwain's" in a flavor text, gives the answer away.
-    So is a card left out with more than MAX_LIKE_NAME to cover.
+    A word left over that is like one of the name's, or starts like one,
+    may be the name read badly. When it has a piece of the name next to
+    it, or is a piece of the name itself, it may well be, and the card is
+    left out (None): "Superior" before "Spider-" and "Man", a name broken
+    at a line's end, or "Jackal,Pup" run together, whose box may be too
+    short. Standing alone, it is left as it is when it is a game word - a
+    subtype such as "Goblin" in "a Goblin card", among `game_words`,
+    normalized - which says nothing of which card it is. Any other is
+    covered: a place or a person, such as "Locthwain's" or "coastline" in
+    a flavor text, gives the answer away. So is a card left out with more
+    than MAX_LIKE_NAME to cover.
+
+    A word of the card's own Oracle text, among `text_words`, normalized,
+    is never the name read badly, unless it is a word or a piece of the
+    name: "can't" and "cast" on Orim's Chant, "Flashback" on Flash of
+    Insight.
     """
     read = [normalize(word.text) for word in words]
     used: set[int] = set()
@@ -179,8 +238,8 @@ def find_name(
                 ]
             boxes.extend(lines.values())
 
-    name_words = {normalize(part) for part in name.split()}
-    name_words = {part for part in name_words if len(part) >= 4}
+    every_name_word = {normalize(part) for part in name.split()}
+    name_words = {part for part in every_name_word if len(part) >= 4}
     # A name of short words only, like "Fog", can't be told from other
     # short words read with a letter wrong
     if not name_words:
@@ -200,6 +259,14 @@ def find_name(
     if len(name.split()) == 1:
         plain = set()
 
+    def of_the_text(text: str) -> bool:
+        """A word of the Oracle text that isn't a word or a piece of the
+        name, nor a word of it with an "s": "Wasp's Sting" on The
+        Wondrous Wasp"""
+        if text not in text_words or text in whole:
+            return False
+        return not (text.endswith("s") and text[:-1] in every_name_word)
+
     def next_word(i: int, step: int) -> int:
         """The word before or after i (step -1 or 1), passing over up to
         two of 1 or 2 letters: bits of the border or of a symbol, read as
@@ -212,7 +279,7 @@ def find_name(
 
     def near_name(i: int) -> bool:
         """The word at i may be a piece or a word of the name, read badly"""
-        if not 0 <= i < len(read) or len(read[i]) < 3:
+        if not 0 <= i < len(read) or len(read[i]) < 3 or of_the_text(read[i]):
             return False
         return read[i] in whole or any(
             edits(read[i], part) <= 2 for part in name_words if len(part) >= 5
@@ -220,18 +287,25 @@ def find_name(
 
     like_name: list[Word] = []
     for i, text in enumerate(read):
-        if i in used:
+        if i in used or of_the_text(text):
             continue
         like = [part for part in name_words if matches(text, part)]
         if not like and not any(text.startswith(part) for part in name_words):
             continue
-        if not like or near_name(next_word(i, -1)) or near_name(next_word(i, 1)):
+        # Only starts like a word of the name: a piece of the name run
+        # together when it is all in the name ("jackalpup"), another word
+        # to cover when it isn't ("coastline")
+        if (
+            (not like and text in whole)
+            or near_name(next_word(i, -1))
+            or near_name(next_word(i, 1))
+        ):
             log.info(
                 f"Not covering the name of '{name}': '{words[i].text}' is left in "
                 "its text, and may be part of the name read badly"
             )
             return None
-        if all(part in plain for part in like):
+        if like and all(part in plain for part in like):
             continue
         like_name.append(words[i])
     if len(like_name) > MAX_LIKE_NAME:
@@ -245,9 +319,11 @@ def find_name(
     ]
 
 
-def parse_tsv(tsv: str, left: float, top: float) -> tuple[list[Word], float]:
+def parse_tsv(
+    tsv: str, left: float, top: float, scale: int = SCALE
+) -> tuple[list[Word], float]:
     """The words of Tesseract's TSV output, placed back on the whole
-    picture from a part of it at (left, top) enlarged SCALE times, and
+    picture from a part of it at (left, top) enlarged `scale` times, and
     how sure Tesseract was of them on average"""
     rows = tsv.splitlines()
     if not rows:
@@ -265,10 +341,10 @@ def parse_tsv(tsv: str, left: float, top: float) -> tuple[list[Word], float]:
         words.append(
             Word(
                 text=text,
-                left=left + x / SCALE,
-                top=top + y / SCALE,
-                right=left + (x + width) / SCALE,
-                bottom=top + (y + height) / SCALE,
+                left=left + x / scale,
+                top=top + y / scale,
+                right=left + (x + width) / scale,
+                bottom=top + (y + height) / scale,
                 line=(cells["block_num"], cells["par_num"], cells["line_num"]),
             )
         )
@@ -277,16 +353,23 @@ def parse_tsv(tsv: str, left: float, top: float) -> tuple[list[Word], float]:
 
 
 def read_words(
-    picture: bytes, from_top: float
+    picture: bytes, area: Area, gray: bool = False
 ) -> tuple[list[Word], float, tuple[int, int]]:
-    """Reads the text box of a card's picture: the words, how sure
-    Tesseract was of them, and the picture's size"""
+    """Reads an area of a card's picture: the words, how sure Tesseract
+    was of them, and the picture's size. Enlarged and in color, or with
+    `gray`, in grayscale at its own size (see READINGS)."""
     image = Image.open(io.BytesIO(picture)).convert("RGB")
     width, height = image.size
-    left, top = round(width * TEXT_LEFT), round(height * from_top)
-    right, bottom = round(width * TEXT_RIGHT), round(height * TEXT_BOTTOM)
+    left, top = round(width * area[0]), round(height * area[1])
+    right, bottom = round(width * area[2]), round(height * area[3])
     part = image.crop((left, top, right, bottom))
-    part = part.resize(((right - left) * SCALE, (bottom - top) * SCALE))
+    if gray:
+        # Stretched to run from black to white
+        part = ImageOps.autocontrast(part.convert("L"))
+        scale = 1
+    else:
+        part = part.resize(((right - left) * SCALE, (bottom - top) * SCALE))
+        scale = SCALE
     png = io.BytesIO()
     part.save(png, format="PNG")
     # --psm 6: the text is one block of lines
@@ -297,7 +380,7 @@ def read_words(
         check=True,
         timeout=60,
     )
-    words, confidence = parse_tsv(result.stdout.decode("utf-8"), left, top)
+    words, confidence = parse_tsv(result.stdout.decode("utf-8"), left, top, scale)
     return words, confidence, (width, height)
 
 
@@ -306,39 +389,54 @@ def name_in_text(
 ) -> list[list[float]] | None:
     """Where the name is printed on the card outside its title bar, as
     [left, top, width, height] shares of the picture: an empty list when
-    it isn't. None when the reading can't be trusted to have found every
-    place it is.
+    it isn't. None when neither reading (see READINGS) can be trusted to
+    have found every place it is.
     """
-    from_top = TYPE_LINE_TOP if is_summon_printing(card) else TEXT_TOP
-    words, confidence, (width, height) = read_words(picture, from_top)
-    if confidence < MIN_CONFIDENCE:
-        log.info(
-            f"Not covering the name of '{card.name}': its text was read "
-            f"only {confidence:.0f}% sure"
-        )
-        return None
-    oracle_words = len((card.raw.get("oracle_text") or "").split())
-    if len(words) < oracle_words * MIN_WORDS_READ:
-        log.info(
-            f"Not covering the name of '{card.name}': only {len(words)} words "
-            f"of its text were read, of about {oracle_words}"
-        )
-        return None
-    found = find_name(words, card.name, game_words)
-    if found is None:
-        return None
-    return [
-        [
-            round(value, 4)
-            for value in (
-                left / width - PAD_LEFT,
-                top / height - PAD_Y,
-                (right - left) / width + PAD_LEFT + PAD_RIGHT,
-                (bottom - top) / height + 2 * PAD_Y,
+    for gray in READINGS:
+        boxes = name_in_reading(card, picture, game_words, gray)
+        if boxes is not None:
+            return boxes
+    return None
+
+
+def name_in_reading(
+    card: Card, picture: bytes, game_words: frozenset[str], gray: bool
+) -> list[list[float]] | None:
+    """One reading of the picture for name_in_text"""
+    boxes: list[list[float]] = []
+    for number, area in enumerate(areas_to_read(card)):
+        words, confidence, (width, height) = read_words(picture, area, gray)
+        if confidence < MIN_CONFIDENCE:
+            log.info(
+                f"Not covering the name of '{card.name}': its text was read "
+                f"only {confidence:.0f}% sure"
             )
-        ]
-        for left, top, right, bottom in found
-    ]
+            return None
+        oracle_text = REMINDER.sub("", card.raw.get("oracle_text") or "")
+        oracle_words = len(oracle_text.split())
+        # Only for the text itself, the first area
+        if number == 0 and len(words) < oracle_words * MIN_WORDS_READ:
+            log.info(
+                f"Not covering the name of '{card.name}': only {len(words)} words "
+                f"of its text were read, of about {oracle_words}"
+            )
+            return None
+        found = find_name(words, card.name, game_words, words_of_text(card))
+        if found is None:
+            return None
+        boxes.extend(
+            [
+                round(value, 4)
+                for value in (
+                    left / width - PAD_LEFT,
+                    top / height - PAD_Y,
+                    (right - left) / width + PAD_LEFT + PAD_RIGHT,
+                    (bottom - top) / height + 2 * PAD_Y,
+                )
+            ]
+            for left, top, right, bottom in found
+        )
+    return boxes
 
 
 class NameInText:
