@@ -6,6 +6,7 @@ Run with: uv run python -m meta_morphis.export
 import json
 import logging
 import math
+import os
 import re
 import sqlite3
 import time
@@ -565,6 +566,19 @@ def write_formats(out_dir: Path, formats: list[str], kinds: list[str]) -> Path:
     return path
 
 
+def report_left_out(summary: list[str]) -> None:
+    """Logs the cards whose name in the text box couldn't be covered
+    (NameInText.summary), and on GitHub Actions also puts them on the
+    run's page, as its job summary"""
+    for line in summary:
+        log.info(line)
+    step_summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary and step_summary:
+        with open(step_summary, "a", encoding="utf-8") as file:
+            file.write("\n".join(["### Cards asked only by their artwork", *summary]))
+            file.write("\n")
+
+
 def main() -> int:
     """Exit code 1 if any format failed. The files that could be written
     are still there, so the daily run can publish them and then report
@@ -591,6 +605,7 @@ def main() -> int:
             write_json(
                 config.NAME_IN_TEXT_PATH, dict(sorted(read_text.results.items()))
             )
+        report_left_out(read_text.summary())
 
     if failed:
         log.error(f"Failed to export: {', '.join(failed)}")

@@ -21,6 +21,7 @@ from meta_morphis.export import (
     horizontal_sides,
     is_basic_land,
     name_boxes,
+    report_left_out,
     title_name_box,
     write_json,
 )
@@ -1013,3 +1014,21 @@ def test_list_names_and_addresses() -> None:
         "https://www.mtggoldfish.com/format-staples/modern/full/creatures"
     )
     assert len(config.GOLDFISH_LIST_URLS) == 20
+
+
+def test_report_left_out_adds_to_the_github_job_summary(
+    monkeypatch: MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO)
+    page = tmp_path / "summary.md"
+    page.write_text("Earlier step\n", encoding="utf-8")
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(page))
+    report_left_out(["Left out on 1 card:", "- Masticore: unsure"])
+    assert "- Masticore: unsure" in caplog.text
+    assert page.read_text(encoding="utf-8") == (
+        "Earlier step\n### Cards asked only by their artwork\n"
+        "Left out on 1 card:\n- Masticore: unsure\n"
+    )
+    # Nothing left out: nothing added
+    report_left_out([])
+    assert page.read_text(encoding="utf-8").endswith("- Masticore: unsure\n")

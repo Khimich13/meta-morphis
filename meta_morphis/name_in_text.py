@@ -33,6 +33,7 @@ from meta_morphis import config
 from meta_morphis.models.card import Card
 from meta_morphis.scryfall.client import fetch_catalog
 from meta_morphis.utils.http import RequestUnavailable
+from meta_morphis.utils.text import card_count
 
 log = logging.getLogger(__name__)
 
@@ -96,6 +97,12 @@ MIN_CONFIDENCE = 60
 MIN_WORDS_READ = 0.5
 # Reminder text, in brackets
 REMINDER = re.compile(r"\([^)]*\)")
+
+
+class LeftOut(Exception):
+    """The name can't be covered everywhere it shows, so the card is left
+    out: asked only by its artwork. Each argument says why, one per
+    reading tried (see READINGS)."""
 
 
 @dataclass(frozen=True)
@@ -240,7 +247,7 @@ def find_name(
     name: str,
     game_words: frozenset[str] = frozenset(),
     text_words: frozenset[str] = frozenset(),
-) -> list[list[float]] | None:
+) -> list[list[float]]:
     """Boxes in pixels, [left, top, right, bottom], around each time the
     name is printed among the words: one box per line it runs over. The
     full name is looked for first, then a legend's short name.
@@ -248,7 +255,7 @@ def find_name(
     A word left over that is like one of the name's, or starts like one,
     may be the name read badly. When it has a piece of the name next to
     it, or is a piece of the name itself, it may well be, and the card is
-    left out (None): "Superior" before "Spider-" and "Man", a name broken
+    left out (LeftOut): "Superior" before "Spider-" and "Man", a name broken
     at a line's end, or "Jackal,Pup" run together, whose box may be too
     short. Standing alone, it is left as it is when it is a game word - a
     subtype such as "Goblin" in "a Goblin card", or a word of the card's
@@ -298,8 +305,7 @@ def find_name(
     # A name of short words only, like "Fog", can't be told from other
     # short words read with a letter wrong
     if not name_words:
-        log.info(f"Not covering the name of '{name}': its words are too short to check")
-        return None
+        raise LeftOut("its words are too short to check")
     # The name in one piece, to find pieces of it: "spider" and "man" in
     # "superiorspiderman"
     whole = "".join(normalize(part) for part in name.split())
@@ -355,20 +361,16 @@ def find_name(
             or near_name(next_word(i, -1))
             or near_name(next_word(i, 1))
         ):
-            log.info(
-                f"Not covering the name of '{name}': '{words[i].text}' is left in "
-                "its text, and may be part of the name read badly"
+            raise LeftOut(
+                f"'{words[i].text}' is left in its text, and may be part of "
+                "the name read badly"
             )
-            return None
         if like and all(part in plain for part in like):
             continue
         like_name.append(words[i])
     if len(like_name) > MAX_LIKE_NAME:
         listed = ", ".join(f"'{word.text}'" for word in like_name)
-        log.info(
-            f"Not covering the name of '{name}': too many words like it are left: {listed}"
-        )
-        return None
+        raise LeftOut(f"too many words like it are left: {listed}")
     return boxes + [
         [word.left, word.top, word.right, word.bottom] for word in like_name
     ]
@@ -441,41 +443,40 @@ def read_words(
 
 def name_in_text(
     card: Card, picture: bytes, game_words: frozenset[str] = frozenset()
-) -> list[list[float]] | None:
+) -> list[list[float]]:
     """Where the name is printed on the card outside its title bar, as
     [left, top, width, height] shares of the picture: an empty list when
-    it isn't. None when neither reading (see READINGS) can be trusted to
-    have found every place it is.
+    it isn't. LeftOut, with each reading's reason, when neither reading
+    (see READINGS) can be trusted to have found every place it is.
     """
+    reasons = []
     for gray in READINGS:
-        boxes = name_in_reading(card, picture, game_words, gray)
-        if boxes is not None:
-            return boxes
-    return None
+        try:
+            return name_in_reading(card, picture, game_words, gray)
+        except LeftOut as e:
+            reason = f"{'gray' if gray else 'color'}: {e}"
+            log.info(f"Not covering the name of '{card.name}' - {reason}")
+            reasons.append(reason)
+    raise LeftOut(*reasons)
 
 
 def name_in_reading(
     card: Card, picture: bytes, game_words: frozenset[str], gray: bool
-) -> list[list[float]] | None:
+) -> list[list[float]]:
     """One reading of the picture for name_in_text"""
     boxes: list[list[float]] = []
     for number, area in enumerate(areas_to_read(card)):
         words, confidence, (width, height) = read_words(picture, area, gray)
         if confidence < MIN_CONFIDENCE:
-            log.info(
-                f"Not covering the name of '{card.name}': its text was read "
-                f"only {confidence:.0f}% sure"
-            )
-            return None
+            raise LeftOut(f"its text was read only {confidence:.0f}% sure")
         oracle_text = REMINDER.sub("", card.raw.get("oracle_text") or "")
         oracle_words = len(oracle_text.split())
         # Only for the text itself, the first area
         if number == 0 and len(words) < oracle_words * MIN_WORDS_READ:
-            log.info(
-                f"Not covering the name of '{card.name}': only {len(words)} words "
-                f"of its text were read, of about {oracle_words}"
+            raise LeftOut(
+                f"only {len(words)} words of its text were read, "
+                f"of about {oracle_words}"
             )
-            return None
         walker_type = planeswalker_type(card)
         # The type in the type line tells which planeswalker it is, even
         # when the card's own text names it apart from its name
@@ -483,14 +484,10 @@ def name_in_reading(
         if walker_type:
             plain -= {walker_type}
         found = find_name(words, card.name, plain, words_of_text(card))
-        if found is None:
-            return None
         if walker_type and not type_covered(words, found, walker_type):
-            log.info(
-                f"Not covering the name of '{card.name}': its type line was "
-                "not read well enough to find its type there"
+            raise LeftOut(
+                "its type line was not read well enough to find its type there"
             )
-            return None
         boxes.extend(
             [
                 round(value, 4)
@@ -532,17 +529,27 @@ def type_covered(words: list[Word], boxes: list[list[float]], walker_type: str) 
 
 class NameInText:
     """Reads each printing's picture once: the results are kept in
-    `results`, under the printing's id, for the next runs. A printing is
+    `results`, under the printing's id, for the next runs. A card left
+    out has its boxes None, and why under "left_out". A printing is
     read again when its picture changes (its link carries a version), its
     name changes, or READER_VERSION does.
+
+    Every card left out in this run is kept in `left_out`, by printing
+    id, with its name and why: those saved too, and those that could not
+    be read this time, to be tried again on the next run. summary() lists
+    them.
     """
 
     def __init__(self, results: dict[str, Any], game_words: frozenset[str]) -> None:
         self.results = results
         self.changed = False
         self.game_words = game_words
+        self.left_out: dict[str, tuple[str, list[str]]] = {}
+        self.not_read: dict[str, tuple[str, str]] = {}
+        self._why_not_read = ""
         self._can_read = shutil.which("tesseract") is not None and bool(game_words)
         if shutil.which("tesseract") is None:
+            self._why_not_read = "Tesseract is not installed"
             log.warning(
                 "Tesseract is not installed: cards with their name in "
                 "their text box not read before are asked only by their artwork"
@@ -550,6 +557,7 @@ class NameInText:
         elif not game_words:
             # Read without them, "a Goblin card" would be covered, and
             # saved that way
+            self._why_not_read = "Scryfall's lists of subtypes could not be fetched"
             log.warning(
                 "Scryfall's lists of subtypes could not be fetched: cards with "
                 "their name in their text box not read before are asked only "
@@ -557,8 +565,21 @@ class NameInText:
             )
 
     def __call__(self, card: Card) -> list[list[float]] | None:
+        # A picture that failed to download in an earlier format may be
+        # read now
+        self.not_read.pop(card.id, None)
+        boxes = self._read(card)
+        if boxes is None and card.id not in self.not_read:
+            reasons = self.results[card.id].get("left_out") or [
+                "read before the reasons were saved"
+            ]
+            self.left_out[card.id] = (card.name, reasons)
+        return boxes
+
+    def _read(self, card: Card) -> list[list[float]] | None:
         picture_url = (card.raw.get("image_uris") or {}).get("png")
         if not picture_url:
+            self.not_read[card.id] = (card.name, "it has no picture")
             return None
         saved = self.results.get(card.id)
         if (
@@ -570,24 +591,55 @@ class NameInText:
             boxes: list[list[float]] | None = saved["boxes"]
             return boxes
         if not self._can_read:
+            self.not_read[card.id] = (card.name, self._why_not_read)
             return None
         picture = _download(picture_url)
         if picture is None:
+            self.not_read[card.id] = (card.name, "its picture could not be downloaded")
             return None
-        try:
-            boxes = name_in_text(card, picture, self.game_words)
-        except (OSError, subprocess.SubprocessError) as e:
-            # Not saved: tried again on the next run
-            log.warning(f"Could not read the picture of '{card.name}': {e}")
-            return None
-        self.results[card.id] = {
+        result: dict[str, Any] = {
             "name": card.name,
             "picture": picture_url,
             "reader": READER_VERSION,
-            "boxes": boxes,
         }
+        try:
+            boxes = name_in_text(card, picture, self.game_words)
+            result["boxes"] = boxes
+        except LeftOut as e:
+            boxes = None
+            result |= {"boxes": None, "left_out": list(e.args)}
+        except (OSError, subprocess.SubprocessError) as e:
+            # Not saved: tried again on the next run
+            log.warning(f"Could not read the picture of '{card.name}': {e}")
+            self.not_read[card.id] = (card.name, f"its picture could not be read: {e}")
+            return None
+        self.results[card.id] = result
         self.changed = True
         return boxes
+
+    def summary(self) -> list[str]:
+        """Lines on the cards left out in this run, asked only by their
+        artwork, and why: one line per card under a heading, as Markdown.
+        Empty when there are none."""
+        lines = []
+        if self.left_out:
+            lines.append(
+                f"Name in the text box not covered on {card_count(len(self.left_out))}, "
+                "asked only by the artwork:"
+            )
+            lines.extend(
+                f"- {name}: {'; '.join(reasons)}"
+                for name, reasons in sorted(self.left_out.values())
+            )
+        if self.not_read:
+            lines.append(
+                f"Picture not read on {card_count(len(self.not_read))}, "
+                "asked only by the artwork and tried again on the next run:"
+            )
+            lines.extend(
+                f"- {name}: {why}" for name, why in sorted(self.not_read.values())
+            )
+        return lines
 
 
 def fetch_game_words() -> frozenset[str]:

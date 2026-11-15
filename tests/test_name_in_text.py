@@ -10,6 +10,7 @@ from meta_morphis import name_in_text
 from meta_morphis.models.card import Card
 from meta_morphis.name_in_text import (
     READER_VERSION,
+    LeftOut,
     NameInText,
     Word,
     edits,
@@ -159,7 +160,8 @@ def test_find_name_covers_any_other_word_of_the_name_standing_alone() -> None:
 def test_find_name_gives_up_when_the_name_may_be_read_badly(
     lines: list[str], name: str
 ) -> None:
-    assert find_name(_words(*lines), name, GAME_WORDS) is None
+    with pytest.raises(LeftOut):
+        find_name(_words(*lines), name, GAME_WORDS)
 
 
 def test_find_name_covers_a_word_that_starts_like_a_word_of_the_name() -> None:
@@ -177,7 +179,8 @@ def test_find_name_takes_a_word_of_the_oracle_text_for_plain_text() -> None:
     # "can't" is like "Chant" with a letter missing, next to "cast"
     words = _words("Target player can't cast spells this turn.")
     text = frozenset({"target", "player", "cant", "cast", "spells", "this", "turn"})
-    assert find_name(words, "Orim's Chant", GAME_WORDS) is None
+    with pytest.raises(LeftOut):
+        find_name(words, "Orim's Chant", GAME_WORDS)
     assert find_name(words, "Orim's Chant", GAME_WORDS, text) == []
     # A keyword that starts like a word of the name
     words = _words("Flashback—® Remove X cards. You can't remove Flash of Insight")
@@ -199,7 +202,8 @@ def test_find_name_still_covers_a_word_of_the_name_in_the_oracle_text() -> None:
     # Oracle text, as a creature type and in the name
     words = _words("You may have Superior Spider-", "Man enter as a copy")
     text = frozenset({"you", "may", "have", "superior", "spider", "man", "enter"})
-    assert find_name(words, "Superior Spider-Man", GAME_WORDS, text) is None
+    with pytest.raises(LeftOut):
+        find_name(words, "Superior Spider-Man", GAME_WORDS, text)
 
 
 def test_rules_words_are_words_of_the_name_its_rules_use_apart_from_it() -> None:
@@ -245,11 +249,13 @@ def test_find_name_leaves_a_rules_word_of_the_name_in_sight() -> None:
 
 def test_find_name_gives_up_when_too_many_words_are_like_the_name() -> None:
     words = _words("Goblin Goblin Goblin Goblin and Goblin Matron")
-    assert find_name(words, "Goblin Matron") is None
+    with pytest.raises(LeftOut):
+        find_name(words, "Goblin Matron")
 
 
 def test_find_name_gives_up_on_a_name_of_short_words_only() -> None:
-    assert find_name(_words("Prevent all combat damage."), "Fog") is None
+    with pytest.raises(LeftOut):
+        find_name(_words("Prevent all combat damage."), "Fog")
 
 
 def test_parse_tsv_places_words_back_on_the_whole_picture() -> None:
@@ -317,6 +323,71 @@ def test_a_printing_is_read_once(monkeypatch: MonkeyPatch) -> None:
             "boxes": [[0.1, 0.7, 0.2, 0.03]],
         }
     }
+
+
+def test_a_card_left_out_is_saved_with_why(monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "meta_morphis.name_in_text.shutil.which", lambda name: "/usr/bin/tesseract"
+    )
+    monkeypatch.setattr(name_in_text, "_download", lambda url: b"png")
+
+    def give_up(card: Card, picture: bytes, game_words: frozenset[str]) -> Any:
+        raise LeftOut("color: unsure", "gray: unsure too")
+
+    monkeypatch.setattr(name_in_text, "name_in_text", give_up)
+    read = NameInText({}, GAME_WORDS)
+    assert read(_card()) is None
+    assert read.results["printing"]["boxes"] is None
+    assert read.results["printing"]["left_out"] == ["color: unsure", "gray: unsure too"]
+
+
+def test_summary_lists_the_cards_left_out_in_this_run(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "meta_morphis.name_in_text.shutil.which", lambda name: "/usr/bin/tesseract"
+    )
+    monkeypatch.setattr(name_in_text, "_download", lambda url: None)
+    saved = {
+        "name": "Masticore",
+        "picture": "png/printing.png?1",
+        "reader": READER_VERSION,
+        "boxes": None,
+        "left_out": ["color: unsure", "gray: unsure too"],
+    }
+    read = NameInText({"printing": saved}, GAME_WORDS)
+    assert read.summary() == []
+    # Read on an earlier run, and asked about in two formats: listed once
+    read(_card())
+    read(_card())
+    # Not read: its picture could not be downloaded
+    read(_card(id="other", name="Ball Lightning"))
+    assert read.summary() == [
+        "Name in the text box not covered on 1 card, asked only by the artwork:",
+        "- Masticore: color: unsure; gray: unsure too",
+        (
+            "Picture not read on 1 card, asked only by the artwork and tried "
+            "again on the next run:"
+        ),
+        "- Ball Lightning: its picture could not be downloaded",
+    ]
+
+
+def test_summary_leaves_out_a_picture_read_after_failing_once(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "meta_morphis.name_in_text.shutil.which", lambda name: "/usr/bin/tesseract"
+    )
+    pictures: list[bytes | None] = [None, b"png"]
+    monkeypatch.setattr(name_in_text, "_download", lambda url: pictures.pop(0))
+    monkeypatch.setattr(
+        name_in_text, "name_in_text", lambda card, picture, game_words: []
+    )
+    read = NameInText({}, GAME_WORDS)
+    assert read(_card()) is None
+    assert read(_card()) == []
+    assert read.summary() == []
 
 
 @pytest.mark.parametrize(
@@ -462,7 +533,13 @@ def test_a_card_is_left_out_when_both_readings_give_up(
         "read_words",
         lambda picture, area, gray=False: _reading("Masticore", confidence=40),
     )
-    assert name_in_text.name_in_text(_card(oracle_text="Masticore"), b"png") is None
+    with pytest.raises(LeftOut) as left_out:
+        name_in_text.name_in_text(_card(oracle_text="Masticore"), b"png")
+    # Why, for each reading
+    assert left_out.value.args == (
+        "color: its text was read only 40% sure",
+        "gray: its text was read only 40% sure",
+    )
 
 
 @pytest.mark.skipif(
@@ -493,7 +570,8 @@ def test_reminder_text_is_not_counted_among_the_words_to_read(
     assert name_in_text.name_in_text(card, b"png") is not None
     # As many words outside the brackets: too few were read
     card = _card(oracle_text=f"Masticore deals. Madness {reminder[1:-1]}")
-    assert name_in_text.name_in_text(card, b"png") is None
+    with pytest.raises(LeftOut):
+        name_in_text.name_in_text(card, b"png")
 
 
 def test_areas_to_read_follow_the_layout() -> None:
@@ -540,7 +618,8 @@ def test_every_area_is_read_and_must_be_trusted(monkeypatch: MonkeyPatch) -> Non
     assert boxes is not None and len(boxes) == 2
     # The type line read poorly, in color and in gray: left out
     sure["type line"] = 40.0
-    assert name_in_text.name_in_text(urzas, b"png", GAME_WORDS) is None
+    with pytest.raises(LeftOut):
+        name_in_text.name_in_text(urzas, b"png", GAME_WORDS)
 
 
 def _walker(**extra: Any) -> Card:
@@ -608,7 +687,8 @@ def test_a_planeswalkers_type_must_be_read_and_covered(
     # Too short for find_name to know "RaI" for the name read badly:
     # left out, even with the name read right in the text
     reading["type"] = "RaI"
-    assert name_in_text.name_in_text(_walker(), b"png", GAME_WORDS) is None
+    with pytest.raises(LeftOut):
+        name_in_text.name_in_text(_walker(), b"png", GAME_WORDS)
 
 
 def test_a_planeswalkers_type_is_covered_when_its_text_uses_it_too(

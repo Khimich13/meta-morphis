@@ -341,7 +341,11 @@
     "name": "Anger of the Gods",
     "picture": "https://cards.scryfall.io/png/front/0/d/0dba296b-6d21-4a2f-9882-747a81c80a01.png?1783932149",
     "reader": 8,
-    "boxes": null
+    "boxes": null,
+    "left_out": [
+      "color: 'gods.' is left in its text, and may be part of the name read badly",
+      "gray: 'gods.' is left in its text, and may be part of the name read badly"
+    ]
   },
   "0dee69f8-cceb-41b9-a0ee-6b2ac9f4bad9": {
     "name": "Tsabo's Web",
@@ -717,7 +721,11 @@
     "name": "Chalice of the Void",
     "picture": "https://cards.scryfall.io/png/front/1/f/1f0d2e8e-c8f2-4b31-a6ba-6283fc8740d4.png?1783935107",
     "reader": 8,
-    "boxes": null
+    "boxes": null,
+    "left_out": [
+      "color: 'Chalice.of' is left in its text, and may be part of the name read badly",
+      "gray: 'Chalice.of' is left in its text, and may be part of the name read badly"
+    ]
   },
   "209204c7-aae5-4768-91b8-89c8c4d4a97f": {
     "name": "Lórien Revealed",
@@ -1339,7 +1347,11 @@
     "name": "Ball Lightning",
     "picture": "https://cards.scryfall.io/png/front/3/e/3ede7920-e219-4e9d-bfa5-e0f562460914.png?1783946917",
     "reader": 8,
-    "boxes": null
+    "boxes": null,
+    "left_out": [
+      "color: its text was read only 50% sure",
+      "gray: its text was read only 57% sure"
+    ]
   },
   "3ee3945e-5089-4751-b7b3-5961c39d2a33": {
     "name": "Nethergoyf",
@@ -1371,7 +1383,11 @@
     "name": "Fire Magic",
     "picture": "https://cards.scryfall.io/png/front/4/1/415ff6a5-61ef-4b37-ae08-e44476300d4a.png?1783906604",
     "reader": 8,
-    "boxes": null
+    "boxes": null,
+    "left_out": [
+      "color: 'Fire' is left in its text, and may be part of the name read badly",
+      "gray: 'Fire' is left in its text, and may be part of the name read badly"
+    ]
   },
   "420bf1e9-f2ec-4dff-b540-e64de71e58be": {
     "name": "Engineered Explosives",
@@ -1866,7 +1882,11 @@
     "name": "Goblin Tinkerer",
     "picture": "https://cards.scryfall.io/png/front/5/4/54eef0db-dd7b-4ba9-bcb9-4cabdf6a1431.png?1783946280",
     "reader": 8,
-    "boxes": null
+    "boxes": null,
+    "left_out": [
+      "color: its text was read only 46% sure",
+      "gray: 'GoblinTinkerer.' is left in its text, and may be part of the name read badly"
+    ]
   },
   "553fb946-2706-475b-89f9-e4355ec9ea2b": {
     "name": "March of Otherworldly Light",
@@ -4160,7 +4180,11 @@
     "name": "Superior Spider-Man",
     "picture": "https://cards.scryfall.io/png/front/a/d/ad4adc3e-ec41-4406-8ff2-59ba8067cf4e.png?1783905308",
     "reader": 8,
-    "boxes": null
+    "boxes": null,
+    "left_out": [
+      "color: 'Superior' is left in its text, and may be part of the name read badly",
+      "gray: 'Superior' is left in its text, and may be part of the name read badly"
+    ]
   },
   "aec5d380-d354-4750-931a-6c91853e2edc": {
     "name": "Burst Lightning",
