@@ -56,10 +56,12 @@ test('a question has four different options and exactly one is correct', () => {
     const question = makeQuestion(CARDS[seed % CARDS.length], CARDS, seeded(seed));
 
     expect(question.options).toHaveLength(OPTION_COUNT);
-    const ids = question.options.map((option) => option.oracle_id);
+    const ids = question.options.map((option) => option.card.oracle_id);
     expect(new Set(ids).size).toBe(OPTION_COUNT);
-    const correct = question.options.filter((option) => isCorrect(question, option));
-    expect(correct).toEqual([question.card]);
+    const correct = question.options.filter((option) => isCorrect(question, option.card));
+    expect(correct.map((option) => option.card)).toEqual([question.card]);
+    // A card with one side is named in full
+    for (const option of question.options) expect(option.name).toBe(option.card.name);
   }
 });
 
@@ -67,7 +69,7 @@ test('the correct option is not always in the same place', () => {
   const places = new Set(
     SEEDS.map((seed) => {
       const question = makeQuestion(CARDS[0], CARDS, seeded(seed));
-      return question.options.indexOf(question.card);
+      return question.options.findIndex((option) => option.card === question.card);
     }),
   );
   expect(places.size).toBe(OPTION_COUNT);
@@ -86,6 +88,51 @@ test('a card whose name can be hidden is asked both ways', () => {
 test('a card whose name can not be hidden is asked by its artwork only', () => {
   const kinds = new Set(SEEDS.map((seed) => makeQuestion(CARDS[0], CARDS, seeded(seed)).kind));
   expect(kinds).toEqual(new Set(['artwork']));
+});
+
+function doubleFaced(n: number): Card {
+  return {
+    ...card(n),
+    name: `Front ${n} // Back ${n}`,
+    images: [`${n}.webp`, `${n}-back.webp`],
+    name_box: [0.16, 0.052, 0.7, 0.051],
+    back: { art: `${n}-back-art.webp`, artist: 'Some Artist', art_box: null },
+  };
+}
+
+test('a double-faced card is asked by either side, named by the side asked', () => {
+  const card = doubleFaced(0);
+  const asked = SEEDS.map((seed) => makeQuestion(card, CARDS, seeded(seed)));
+  expect(new Set(asked.map((question) => question.back))).toEqual(new Set([false, true]));
+  for (const question of asked) {
+    const right = question.options.find((option) => option.card === card);
+    expect(right?.name).toBe(question.back ? 'Back 0' : 'Front 0');
+    // The back's name isn't hidden on its picture yet: only its artwork
+    if (question.back) expect(question.kind).toBe('artwork');
+  }
+  // The front is still asked both ways
+  const front = asked.filter((question) => !question.back).map((question) => question.kind);
+  expect(new Set(front)).toEqual(new Set(['artwork', 'picture']));
+});
+
+test('a double-faced card without a back to ask about is asked by its front', () => {
+  const card: Card = { ...doubleFaced(0), back: null };
+  for (const seed of SEEDS) expect(makeQuestion(card, CARDS, seeded(seed)).back).toBe(false);
+});
+
+test('a double-faced wrong answer is named by either side', () => {
+  // So a back's name on a button never tells the right answer apart
+  const others = [CARDS[0], doubleFaced(1), doubleFaced(2), doubleFaced(3)];
+  const names = new Set(
+    SEEDS.flatMap((seed) =>
+      makeQuestion(CARDS[0], others, seeded(seed)).options.map((option) => option.name),
+    ),
+  );
+  for (const n of [1, 2, 3]) {
+    expect(names).toContain(`Front ${n}`);
+    expect(names).toContain(`Back ${n}`);
+  }
+  expect([...names].some((name) => name.includes(' // '))).toBe(false);
 });
 
 const TODAY = '2026-10-15';
@@ -213,7 +260,7 @@ test('a missed card comes back at the end as a new question', () => {
   const repeat = after.queue[after.queue.length - 1];
   expect(repeat.card).toEqual(missed);
   expect(repeat.options).toHaveLength(OPTION_COUNT);
-  expect(repeat.options).toContainEqual(missed);
+  expect(repeat.options.map((option) => option.card)).toContainEqual(missed);
   expect(after.done).toBe(0);
   expect(after.missed).toEqual([missed.oracle_id]);
   expect(isFirstTry(after, missed)).toBe(false);
@@ -228,6 +275,21 @@ test('a missed card comes back as the same kind of question', () => {
     for (let round = 0; round < 3; round++) {
       lesson = afterAnswer(lesson, false, pictured, seeded(seed + round));
       expect(lesson.queue[lesson.queue.length - 1].kind).toBe(kind);
+      for (let i = 0; i < LESSON_LENGTH - 1; i++) {
+        lesson = { ...lesson, queue: [...lesson.queue.slice(1), lesson.queue[0]] };
+      }
+    }
+  }
+});
+
+test('a missed card comes back on the same side', () => {
+  const sided = CARDS.map((_, n) => doubleFaced(n));
+  for (const seed of SEEDS) {
+    let lesson = startLesson(sided, EMPTY_PROGRESS, TODAY, seeded(seed));
+    const back = lesson.queue[0].back;
+    for (let round = 0; round < 3; round++) {
+      lesson = afterAnswer(lesson, false, sided, seeded(seed + round));
+      expect(lesson.queue[lesson.queue.length - 1].back).toBe(back);
       for (let i = 0; i < LESSON_LENGTH - 1; i++) {
         lesson = { ...lesson, queue: [...lesson.queue.slice(1), lesson.queue[0]] };
       }

@@ -45,6 +45,18 @@ what has been done is in the commit history.
   an icon, and its text. A modal double-faced card doesn't: its front
   names the back too. A card that can be asked both ways gets either,
   half the time each.
+- **A double-faced card is asked by either side,** half the time each:
+  by its back's artwork, as by its front's. The answers name one side
+  each: the side asked for the card itself, either side for a wrong
+  answer, so a back's name never tells the right one apart. After the
+  answer the card shows the side asked first; the other is a flip away.
+- **The artwork comes from Scryfall,** cut out by them, except where
+  their cut catches text around it: then the app cuts it from the card's
+  large picture itself, at the measured art box. Only Summon: Esper
+  Maduin, as of 2026-11-15, when every card's cut was compared with its
+  art box; it is named in the code, not found by its kind. Its name is
+  shown without "Summon:" too, which read oddly and was the only one on
+  the lists: the word alone told it apart.
 - **The name in the text box is found by reading the picture** with
   Tesseract, once per printing, whenever it may be printed there: in the
   Oracle or flavor text, a word of it alone in the flavor text ("Lórien"

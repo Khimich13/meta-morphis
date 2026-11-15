@@ -44,6 +44,8 @@ interface CardPictureProps {
    * sideways, to read it the right way up: a lesson's answer card
    */
   openOnTurn?: boolean;
+  /** Shows the back side first: a lesson's answer card, asked by its back */
+  startOnBack?: boolean;
 }
 
 /**
@@ -57,8 +59,9 @@ export default function CardPicture({
   lazy = false,
   speaker = false,
   openOnTurn = false,
+  startOnBack = false,
 }: CardPictureProps) {
-  const [showingBack, setShowingBack] = useState(false);
+  const [showingBack, setShowingBack] = useState(startOnBack);
   const flip = () => setShowingBack(!showingBack);
   const large = useLargeView();
   const LargeCard = loadedLargeCard ?? LazyLargeCard;

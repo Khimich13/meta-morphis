@@ -10,7 +10,7 @@ import { flushSync } from 'react-dom';
 
 import CardPicture from '../components/CardPicture';
 import StandingLabel, { type PipChange } from '../components/StandingLabel';
-import { type Card, isHorizontal, SIDEWAYS_ART_BOX } from '../lib/cards';
+import { type ArtFrom, type Card, isHorizontal, SIDEWAYS_ART_BOX } from '../lib/cards';
 import {
   backWhen,
   type CardProgress,
@@ -26,6 +26,7 @@ import {
   isCorrect,
   isFinished,
   isFirstTry,
+  type Option,
   type Segment,
   segments,
   startLesson,
@@ -59,7 +60,7 @@ export default function Lesson({
   // The rules for what comes next are in quiz.ts
   const [lesson, setLesson] = useState(() => startLesson(cards, progress, localDay()));
   // The answer chosen for the question on screen, or null while choosing
-  const [picked, setPicked] = useState<Card | null>(null);
+  const [picked, setPicked] = useState<Option | null>(null);
   // The card's record before this answer, to show how the answer changed it
   const [before, setBefore] = useState<Before | null>(null);
   // Set at the first tap on an answer, before the screen changes: the
@@ -71,7 +72,7 @@ export default function Lesson({
   const pictureBox = useRef<HTMLDivElement>(null);
   const cardWidth = useCardWidth(pictureBox, picked !== null);
 
-  function pick(option: Card) {
+  function pick(option: Option) {
     if (answered.current) return;
     answered.current = true;
     const question = lesson.queue[0];
@@ -84,10 +85,10 @@ export default function Lesson({
       // Saved progress counts the first answer to each card only: a right
       // answer on a repeat comes straight after seeing the answer
       if (isFirstTry(lesson, question.card)) {
-        onAnswer(question.card, isCorrect(question, option));
+        onAnswer(question.card, isCorrect(question, option.card));
       }
     };
-    const correct = isCorrect(question, option);
+    const correct = isCorrect(question, option.card);
     // At once, before any animation: the sound answers the tap itself
     if (soundsOn) playAnswerSound(correct);
     if (prefersLessMotion()) {
@@ -125,7 +126,7 @@ export default function Lesson({
   function next() {
     // Continue only appears after an answer, so this is just a safeguard
     if (picked === null) return;
-    const after = afterAnswer(lesson, isCorrect(lesson.queue[0], picked), cards);
+    const after = afterAnswer(lesson, isCorrect(lesson.queue[0], picked.card), cards);
     if (isFinished(after)) {
       onLessonFinished();
     }
@@ -166,7 +167,9 @@ export default function Lesson({
   // Read from the saved progress, so after an answer it includes it
   const record = progress.cards[card.oracle_id];
   // Whether the question on screen was answered right; null while choosing
-  const answer = picked === null ? null : isCorrect(question, picked);
+  const answer = picked === null ? null : isCorrect(question, picked.card);
+  // The side asked about: its artwork, and where on its picture it lands
+  const back = question.back && card.back ? card.back : null;
   // Cards answered right, including this one as soon as it is
   const done = lesson.done + (answer === true ? 1 : 0);
   const bar = segments(lesson, answer);
@@ -206,23 +209,22 @@ export default function Lesson({
             ) : (
               /* A figure ties the credit to the artwork, for screen readers too */
               <figure className="artwork">
-                {/* The alt text must not give the answer away */}
-                <img
-                  src={card.art}
-                  alt="Card artwork"
-                  crossOrigin="anonymous"
-                  style={{ viewTransitionName: artTransition(card) }}
+                <Artwork
+                  // Its own for each question, so a cut never shows on another
+                  key={`${card.oracle_id}-${question.back}`}
+                  side={back ?? card}
+                  transition={artTransition(card, question.back)}
                 />
                 {/* Scryfall asks for this whenever the artwork is shown by itself */}
                 <figcaption className="credit">
-                  Illustrated by {card.artist} · © Wizards of the Coast
+                  Illustrated by {(back ?? card).artist} · © Wizards of the Coast
                 </figcaption>
               </figure>
             )}
           </div>
           <ul className="options">
             {question.options.map((option) => (
-              <li key={option.oracle_id}>
+              <li key={option.card.oracle_id}>
                 <OptionButton name={option.name} onPick={() => pick(option)} />
               </li>
             ))}
@@ -236,15 +238,22 @@ export default function Lesson({
             ref={pictureBox}
             className={question.kind === 'picture' ? 'picture after-picture' : 'picture'}
           >
-            {/* One side at a time, which a double-faced card can turn over.
-                The full card shows its own artist and copyright. */}
-            <CardPicture key={card.oracle_id} card={card} speaker openOnTurn />
-            {/* Where the artwork lands after an answer: the card's art box */}
+            {/* One side at a time, which a double-faced card can turn over:
+                first the side asked about. The full card shows its own
+                artist and copyright. */}
+            <CardPicture
+              key={card.oracle_id}
+              card={card}
+              speaker
+              openOnTurn
+              startOnBack={question.back}
+            />
+            {/* Where the artwork lands after an answer: the side's art box */}
             {question.kind === 'artwork' && (
               <div
-                className={isHorizontal(card, false) ? 'art-target sideways' : 'art-target'}
+                className={isHorizontal(card, question.back) ? 'art-target sideways' : 'art-target'}
                 aria-hidden="true"
-                style={artTarget(card)}
+                style={artTarget(card, question.back)}
               />
             )}
           </div>
@@ -300,6 +309,83 @@ function OptionButton({ name, onPick }: { name: string; onPick: () => void }) {
     <button ref={button} onClick={onPick}>
       <span ref={text}>{name}</span>
     </button>
+  );
+}
+
+/**
+ * The artwork asked about: Scryfall's, or for a side whose artwork from
+ * Scryfall catches text around it, its art box cut from the side's large
+ * picture (see art_from in cards.ts). Nothing shows until the cut is
+ * made; if the picture's pixels can't be read, Scryfall's shows instead.
+ */
+function Artwork({
+  side,
+  transition,
+}: {
+  side: { art: string; art_from?: ArtFrom | null };
+  transition: string;
+}) {
+  const from = side.art_from ?? null;
+  const [src, setSrc] = useState<string | null>(from ? null : side.art);
+
+  useEffect(() => {
+    if (!from) return;
+    let cancelled = false;
+    let cut: string | null = null;
+    const fallBack = () => {
+      if (!cancelled) setSrc(side.art);
+    };
+    const picture = new Image();
+    // Lets its pixels be read, and the copy saved on the device be used
+    picture.crossOrigin = 'anonymous';
+    picture.onerror = fallBack;
+    picture.onload = () => {
+      const [left, top, width, height] = from.box;
+      const across = picture.naturalWidth;
+      const down = picture.naturalHeight;
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(width * across);
+      canvas.height = Math.round(height * down);
+      const context = canvas.getContext('2d');
+      if (!context) return fallBack();
+      context.drawImage(
+        picture,
+        Math.round(left * across),
+        Math.round(top * down),
+        canvas.width,
+        canvas.height,
+        0,
+        0,
+        canvas.width,
+        canvas.height,
+      );
+      try {
+        canvas.toBlob((blob) => {
+          if (cancelled || !blob) return fallBack();
+          cut = URL.createObjectURL(blob);
+          setSrc(cut);
+        });
+      } catch {
+        // The browser won't share the picture's pixels
+        fallBack();
+      }
+    };
+    picture.src = from.picture;
+    return () => {
+      cancelled = true;
+      if (cut) URL.revokeObjectURL(cut);
+    };
+  }, [from, side.art]);
+
+  if (src === null) return null;
+  return (
+    /* The alt text must not give the answer away */
+    <img
+      src={src}
+      alt="Card artwork"
+      crossOrigin="anonymous"
+      style={{ viewTransitionName: transition }}
+    />
   );
 }
 
@@ -411,11 +497,13 @@ function NameHidden({ card }: { card: Card }) {
 }
 
 /**
- * Where the artwork lands on the card: its art box, or for a card printed
- * sideways, its art area turned. Null for a card without either.
+ * Where the artwork lands on the side asked about: its art box, or for a
+ * side printed sideways, its art area turned. Null for a side without
+ * either.
  */
-function landingBox(card: Card): number[] | null {
-  return isHorizontal(card, false) ? SIDEWAYS_ART_BOX : (card.art_box ?? null);
+function landingBox(card: Card, back: boolean): number[] | null {
+  if (isHorizontal(card, back)) return SIDEWAYS_ART_BOX;
+  return (back ? card.back?.art_box : card.art_box) ?? null;
 }
 
 /**
@@ -423,15 +511,15 @@ function landingBox(card: Card): number[] | null {
  * Lesson.css): flying into the card's art, or, for a card without a known
  * place for it, shrinking towards the card's middle and fading
  */
-function artTransition(card: Card): string {
-  return landingBox(card) ? 'card-art' : 'card-art-soft';
+function artTransition(card: Card, back: boolean): string {
+  return landingBox(card, back) ? 'card-art' : 'card-art-soft';
 }
 
 /** Where on the card the artwork lands: its art, or the card's middle */
-function artTarget(card: Card): CSSProperties {
-  const [left, top, width, height] = landingBox(card) ?? [0.3, 0.3, 0.4, 0.4];
+function artTarget(card: Card, back: boolean): CSSProperties {
+  const [left, top, width, height] = landingBox(card, back) ?? [0.3, 0.3, 0.4, 0.4];
   return {
-    viewTransitionName: artTransition(card),
+    viewTransitionName: artTransition(card, back),
     '--box-left': left,
     '--box-top': top,
     '--box-width': width,
@@ -563,7 +651,7 @@ function pipChange(before: Before, after: CardProgress | undefined, correct: boo
 
 interface FeedbackProps {
   card: Card;
-  picked: Card;
+  picked: Option;
   /** The card's record before this answer */
   before: Before | null;
   /** The card's saved record, with this answer counted */
@@ -595,7 +683,7 @@ function useCardWidth(box: RefObject<HTMLDivElement | null>, shown: boolean): nu
 }
 
 function Feedback({ card, picked, before, record, cardWidth, onContinue }: FeedbackProps) {
-  const correct = picked.oracle_id === card.oracle_id;
+  const correct = picked.card.oracle_id === card.oracle_id;
   const change: PipChange | null = before === null ? null : pipChange(before, record, correct);
   // This answer made the card mastered: the moment to celebrate
   const justMastered = change === 'up' && cardStanding(record) === 'mastered';

@@ -5,7 +5,7 @@
 // The service worker (set up in vite.config.ts) serves pictures from
 // this same cache.
 
-import { type Card, loadCards } from './cards';
+import { type ArtFrom, type Card, loadCards } from './cards';
 import { listFile, listsOf, loadFormats } from './formats';
 
 /** Must match the cacheName for card pictures in vite.config.ts */
@@ -13,8 +13,17 @@ export const PICTURE_CACHE = 'card-pictures';
 
 /** Every picture the app can show for these cards, each listed once */
 export function pictureUrls(cards: readonly Card[]): string[] {
-  const urls = cards.flatMap((card) => [...card.images, card.art]);
+  const urls = cards.flatMap((card) => [
+    ...card.images,
+    ...artworkUrls(card),
+    ...(card.back ? artworkUrls(card.back) : []),
+  ]);
   return [...new Set(urls)];
+}
+
+/** A side's artwork, and the picture the app cuts it from, if any */
+function artworkUrls(side: { art: string; art_from?: ArtFrom | null }): string[] {
+  return side.art_from ? [side.art, side.art_from.picture] : [side.art];
 }
 
 /**

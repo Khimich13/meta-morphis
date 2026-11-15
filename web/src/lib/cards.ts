@@ -2,6 +2,28 @@
 // Mirrors ExportCard and ExportFile in meta_morphis/export.py -
 // change the two together.
 
+/**
+ * Where the app cuts a side's artwork from, when the artwork from
+ * Scryfall catches text around it: the side's large picture, and the
+ * artwork's place on it as [left, top, width, height] shares
+ */
+export interface ArtFrom {
+  picture: string;
+  box: [number, number, number, number];
+}
+
+/** A double-faced card's back, for questions about its artwork */
+export interface BackSide {
+  /** The back side's artwork alone */
+  art: string;
+  /** Who painted it */
+  artist: string;
+  /** Where the artwork sits on the back's picture, like Card's art_box */
+  art_box: [number, number, number, number] | null;
+  /** As Card's art_from */
+  art_from?: ArtFrom | null;
+}
+
 export interface Card {
   oracle_id: string;
   name: string;
@@ -39,11 +61,24 @@ export interface Card {
   /** Who painted it - shown wherever the artwork appears by itself */
   artist: string;
   /**
+   * Where the app cuts the front's artwork from instead of showing `art`,
+   * which then catches text around it. Null for nearly every card,
+   * missing in files written before it was added.
+   */
+  art_from?: ArtFrom | null;
+  /**
    * For each picture in `images`: whether that side is printed sideways
    * (a split card, a battle's front), to be read turned a quarter
    * clockwise. Missing in files written before it was added.
    */
   horizontal?: boolean[];
+  /**
+   * A double-faced card's back side, which a question about its artwork
+   * may show instead of the front. Null for a card with one side, or
+   * whose back lacks its artwork; missing in files written before it was
+   * added.
+   */
+  back?: BackSide | null;
 }
 
 export interface CardFile {

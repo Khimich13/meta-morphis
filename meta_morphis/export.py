@@ -20,7 +20,7 @@ from meta_morphis.db.connection import get_connection
 from meta_morphis.db.init_db import init_db
 from meta_morphis.meta.repo import get_meta_timestamp
 from meta_morphis.meta.service import get_meta_cards
-from meta_morphis.models.card import Card
+from meta_morphis.models.card import Card, ImageSide
 from meta_morphis.name_in_text import (
     REMINDER,
     TEXT_COLUMNS,
@@ -39,6 +39,24 @@ from meta_morphis.scryfall.service import fetch_cards, get_display_printings
 from meta_morphis.utils.text import card_count
 
 log = logging.getLogger(__name__)
+
+
+class ArtFrom(TypedDict):
+    # A side's large picture, and where its artwork sits on it, as
+    # [left, top, width, height]: the app cuts the artwork from it
+    picture: str
+    box: list[float]
+
+
+class BackSide(TypedDict):
+    # The back side's artwork alone, and who painted it
+    art: str
+    artist: str
+    # Where the artwork sits on the back's picture, as art_box on the
+    # front's. None when not measured for its kind of card.
+    art_box: list[float] | None
+    # As ExportCard's art_from
+    art_from: ArtFrom | None
 
 
 class ExportCard(TypedDict):
@@ -68,10 +86,18 @@ class ExportCard(TypedDict):
     # for the artist to be named wherever the artwork is shown by itself.
     art: str
     artist: str
+    # Where the app cuts the front's artwork from instead, for a side
+    # whose `art` catches text around it (see OWN_CROPS). The app shows
+    # `art` when it can't. None for every other card.
+    art_from: ArtFrom | None
     # For each picture in `images`: whether that side is printed sideways,
     # to be read with the card turned a quarter clockwise. The app turns
     # it the right way up when there is room, in landscape.
     horizontal: list[bool]
+    # A double-faced card's back side, which a question about its artwork
+    # may show instead of the front. None for a card with one side, or
+    # whose back lacks its artwork or artist.
+    back: BackSide | None
 
 
 class FormatsFile(TypedDict):
@@ -123,6 +149,11 @@ PLANESWALKER_LONG_TEXT_ART_BOX = (0.073, 0.101, 0.849, 0.382)
 # Sagas have tall art on the right half; classes and cases on the left
 SAGA_ART_BOX = (0.502, 0.113, 0.418, 0.724)
 CLASS_ART_BOX = (0.076, 0.113, 0.418, 0.724)
+# A saga that is a creature too, as Final Fantasy's summons: its
+# reminder text runs across the whole card above the chapters and the
+# artwork, which starts lower. Measured on 2026-11-15 on Summon: Esper
+# Maduin, the back of Esper Origins, the only one on the lists then.
+SAGA_CREATURE_ART_BOX = (0.502, 0.208, 0.419, 0.548)
 # Layouts whose front has its frame's usual art box
 USUAL_ART_LAYOUTS = {"normal", "transform", "modal_dfc", "adventure", "prepare"}
 
@@ -134,7 +165,7 @@ def art_box(card: Card) -> list[float] | None:
     if card.frame == "2015" and card.layout in ("class", "case"):
         box = CLASS_ART_BOX
     elif card.frame == "2015" and "Saga" in type_line:
-        box = SAGA_ART_BOX
+        box = SAGA_CREATURE_ART_BOX if "Creature" in type_line else SAGA_ART_BOX
     elif card.layout not in USUAL_ART_LAYOUTS:
         return None
     elif "Planeswalker" in type_line:
@@ -276,7 +307,7 @@ def name_boxes(
     """
     name_left = None
     if card.layout == "transform":
-        card, name_left = front_of(card), TRANSFORM_NAME_LEFT
+        card, name_left = face_of(card, 0), TRANSFORM_NAME_LEFT
     title = title_name_box(card, name_left)
     if title is None or not may_show_name_in_text(card):
         return title, []
@@ -286,13 +317,14 @@ def name_boxes(
     return title, in_text
 
 
-def front_of(card: Card) -> Card:
-    """A transform card's front side as a card by itself: its picture
-    shows only the front's name, text and type line - a normal card's
-    or, like Fable of the Mirror-Breaker's, a saga's. The back's name is
+def face_of(card: Card, side: int) -> Card:
+    """One side of a double-faced card as a card by itself, 0 for the
+    front and 1 for the back. A transform card's picture shows only that
+    side's name, text and type line - a normal card's or, like Fable of
+    the Mirror-Breaker's front, a saga's. The other side's name is
     nowhere on it."""
     raw = {key: value for key, value in card.raw.items() if key != "card_faces"}
-    face = card.raw["card_faces"][0]
+    face = card.raw["card_faces"][side]
     layout = "saga" if "Saga" in face.get("type_line", "") else "normal"
     return Card.from_raw({**raw, **face, "layout": layout})
 
@@ -338,6 +370,65 @@ def horizontal_sides(card: Card) -> list[bool]:
     return [False] * sides
 
 
+# Sides whose artwork from Scryfall catches text around it, cut by the
+# app from the side's large picture instead, at the side's art box.
+# Found on 2026-11-15 by comparing the shape of every card's artwork from
+# Scryfall with its art box: only Summon: Esper Maduin's, whose frame
+# has the artwork lower than a saga's (see SAGA_CREATURE_ART_BOX), was
+# off - Scryfall cuts it as a saga's, with text above and below.
+OWN_CROPS = {"Summon: Esper Maduin"}
+
+
+def art_from(
+    side: ImageSide, face_name: str, box: list[float] | None
+) -> ArtFrom | None:
+    """Where the app cuts this side's artwork from, for one in OWN_CROPS"""
+    picture = side.image_uris.get("large")
+    if face_name not in OWN_CROPS or box is None or picture is None:
+        return None
+    return {"picture": picture, "box": box}
+
+
+# Names that read oddly on an answer button, shown shorter in the app:
+# for each side's name, the name the app gets. Final Fantasy's summons
+# print "Summon:" before the name - and only Summon: Esper Maduin was on
+# the lists on 2026-11-15, where the word alone told it apart.
+SHOWN_NAMES = {"Summon: Esper Maduin": "Esper Maduin"}
+
+
+def shown_name(name: str) -> str:
+    """The card's name for the app: each side's, joined by " // " as
+    Scryfall does, with the names in SHOWN_NAMES shortened"""
+    return " // ".join(SHOWN_NAMES.get(side, side) for side in name.split(" // "))
+
+
+# Double-faced layouts whose back has its frame's usual art box, or a
+# saga's or a planeswalker's, as art_box knows them. A battle's back
+# isn't measured.
+BACK_ART_LAYOUTS = {"transform", "modal_dfc"}
+
+
+def back_side(card: Card) -> BackSide | None:
+    """A double-faced card's back, for questions about its artwork; None
+    for a card with one side, or a back without artwork or artist, or
+    whose artwork is of another printing."""
+    sides = card.image_sides()
+    if len(sides) < 2:
+        return None
+    back = sides[1]
+    art = back.image_uris.get("art") or back.image_uris.get("art_crop")
+    if not art or not back.artist or card.id not in art:
+        return None
+    face = face_of(card, 1)
+    box = art_box(face) if card.layout in BACK_ART_LAYOUTS else None
+    return {
+        "art": art,
+        "artist": back.artist,
+        "art_box": box,
+        "art_from": art_from(back, face.name, box),
+    }
+
+
 def build_card(card: Card, read_text: ReadText = never_read) -> ExportCard | None:
     # Without an id the app can't tell cards apart, and without its
     # pictures and artist it can't show or ask about the card - leave
@@ -357,17 +448,22 @@ def build_card(card: Card, read_text: ReadText = never_read) -> ExportCard | Non
     if card.id not in art or not all(card.id in image for image in images):
         return None
     title, in_text = name_boxes(card, read_text)
+    front_box = art_box(card)
+    faces = card.gameplay_faces()
+    front_name = faces[0].name if len(sides) > 1 and faces else card.name
     return {
         "oracle_id": card.oracle_id,
-        "name": card.name,
+        "name": shown_name(card.name),
         "images": images,
         "large_images": large_image_urls(card),
-        "art_box": art_box(card),
+        "art_box": front_box,
         "name_box": title,
         "name_text_boxes": in_text,
         "art": art,
         "artist": front.artist,
+        "art_from": art_from(front, front_name, front_box),
         "horizontal": horizontal_sides(card),
+        "back": back_side(card),
     }
 
 

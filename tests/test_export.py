@@ -13,15 +13,17 @@ from meta_morphis import config, name_in_text
 from meta_morphis.export import (
     ExportCard,
     art_box,
+    back_side,
     build_card,
     build_export,
     export_all,
     export_format,
-    front_of,
+    face_of,
     horizontal_sides,
     is_basic_land,
     name_boxes,
     report_left_out,
+    shown_name,
     title_name_box,
     write_json,
 )
@@ -75,7 +77,9 @@ def test_build_card_single_faced() -> None:
         "name_text_boxes": [],
         "art": "art/id-Hydroblast.webp",
         "artist": "Some Artist",
+        "art_from": None,
         "horizontal": [False],
+        "back": None,
     }
     assert build_card(card) == expected
 
@@ -134,9 +138,142 @@ def test_build_card_double_faced_has_both_pictures() -> None:
         "large/front/24c0d87b.jpg",
         "large/back/24c0d87b.jpg",
     ]
-    # The artwork asked about is the front side's
+    # The artwork asked about is the front side's, or the back's
     assert built["art"] == "art/front/24c0d87b.webp"
     assert built["artist"] == "Joseph Meehan"
+    assert built["back"] == {
+        "art": "art/back/24c0d87b.webp",
+        "artist": "Joseph Meehan",
+        # Not a layout whose back is measured
+        "art_box": None,
+        "art_from": None,
+    }
+
+
+def _double_faced(layout: str, back: dict[str, Any], **extra: Any) -> Card:
+    return Card.from_raw(
+        {
+            **_raw("Front // Back", layout=layout, **extra),
+            "card_faces": [
+                {
+                    "name": "Front",
+                    "type_line": "Creature — Human",
+                    "artist": "Front Artist",
+                    "image_uris": {
+                        "grid": "front/id-Front // Back.webp",
+                        "art": "art/front/id-Front // Back.webp",
+                    },
+                },
+                {
+                    "name": "Back",
+                    "type_line": "Creature — Horror",
+                    "artist": "Back Artist",
+                    "image_uris": {
+                        "grid": "back/id-Front // Back.webp",
+                        "art": "art/back/id-Front // Back.webp",
+                    },
+                    **back,
+                },
+            ],
+        }
+    )
+
+
+def test_the_back_side_has_its_own_artwork_artist_and_art_box() -> None:
+    back = back_side(_double_faced("transform", {}))
+    assert back == {
+        "art": "art/back/id-Front // Back.webp",
+        "artist": "Back Artist",
+        "art_box": [0.079, 0.114, 0.840, 0.440],
+        "art_from": None,
+    }
+    # The back's own kind of card: a saga creature, like Summon: Esper
+    # Maduin, or a planeswalker, like Ajani, Nacatl Avenger
+    saga = back_side(
+        _double_faced(
+            "transform", {"type_line": "Enchantment Creature — Saga Elemental"}
+        )
+    )
+    walker = back_side(
+        _double_faced(
+            "transform",
+            {"type_line": "Legendary Planeswalker — Ajani", "oracle_text": "+1: X"},
+        )
+    )
+    assert saga and saga["art_box"] == [0.502, 0.208, 0.419, 0.548]
+    assert walker and walker["art_box"] == [0.072, 0.101, 0.850, 0.451]
+    # A modal double-faced card's back has the usual art box too
+    modal = back_side(_double_faced("modal_dfc", {"type_line": "Land"}))
+    assert modal and modal["art_box"] == [0.079, 0.114, 0.840, 0.440]
+
+
+def test_summon_esper_maduin_is_cut_from_its_large_picture() -> None:
+    # Scryfall's artwork of it has text above and below
+    esper = _double_faced(
+        "transform",
+        {
+            "name": "Summon: Esper Maduin",
+            "type_line": "Enchantment Creature — Saga Elemental",
+            "image_uris": {
+                "grid": "back/id-Front // Back.webp",
+                "large": "large/back/id-Front // Back.jpg",
+                "art": "art/back/id-Front // Back.webp",
+            },
+        },
+    )
+    back = back_side(esper)
+    assert back and back["art_from"] == {
+        "picture": "large/back/id-Front // Back.jpg",
+        "box": [0.502, 0.208, 0.419, 0.548],
+    }
+    # Scryfall's artwork stays, for when the app can't cut its own
+    assert back["art"] == "art/back/id-Front // Back.webp"
+    # Another saga creature keeps Scryfall's artwork alone
+    other = back_side(
+        _double_faced(
+            "transform",
+            {
+                "type_line": "Enchantment Creature — Saga Elemental",
+                "image_uris": {
+                    "grid": "back/id-Front // Back.webp",
+                    "large": "large/back/id-Front // Back.jpg",
+                    "art": "art/back/id-Front // Back.webp",
+                },
+            },
+        )
+    )
+    assert other and other["art_from"] is None
+
+
+def test_summon_esper_maduin_is_named_without_summon() -> None:
+    assert shown_name("Esper Origins // Summon: Esper Maduin") == (
+        "Esper Origins // Esper Maduin"
+    )
+    # Every other name stays as it is
+    assert shown_name("Fable of the Mirror-Breaker // Reflection of Kiki-Jiki") == (
+        "Fable of the Mirror-Breaker // Reflection of Kiki-Jiki"
+    )
+    assert shown_name("Summon: Bahamut") == "Summon: Bahamut"
+
+
+def test_no_art_box_on_a_battles_back() -> None:
+    back = back_side(_double_faced("battle", {}))
+    assert back and back["art_box"] is None
+
+
+def test_no_back_side_without_its_artwork_or_artist_or_of_another_printing() -> None:
+    no_art = _double_faced(
+        "transform", {"image_uris": {"grid": "back/id-Front // Back.webp"}}
+    )
+    # A face without an artist takes the card's, so neither has one
+    no_artist = _double_faced("transform", {"artist": None}, artist=None)
+    other = _double_faced("transform", {"image_uris": {"art": "art/back/other.webp"}})
+    assert back_side(no_art) is None
+    assert back_side(no_artist) is None
+    assert back_side(other) is None
+    # The card itself is still asked by its front
+    built = build_card(no_art)
+    assert built is not None and built["back"] is None
 
 
 def test_build_card_large_pictures_all_sides_or_none() -> None:
@@ -550,10 +687,11 @@ def test_a_transform_card_is_read_for_its_front_text_only() -> None:
 
 
 def test_a_transform_saga_is_read_as_a_saga() -> None:
-    fable = front_of(
+    fable = face_of(
         _transform(
             {"name": "Fable of the Mirror-Breaker", "type_line": "Enchantment — Saga"}
-        )
+        ),
+        0,
     )
     assert fable.layout == "saga"
     assert fable.name == "Fable of the Mirror-Breaker"
@@ -760,7 +898,9 @@ def test_export_format_writes_the_file(
                 "name_text_boxes": [],
                 "art": "art/id-Lórien Revealed.webp",
                 "artist": "Some Artist",
+                "art_from": None,
                 "horizontal": [False],
+                "back": None,
             }
         ],
     }

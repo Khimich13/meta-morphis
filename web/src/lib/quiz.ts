@@ -2,7 +2,7 @@
 // question offers, and whether an answer is right. No React in here,
 // so it can be tested without a browser.
 
-import type { Card } from './cards';
+import { type Card, visibleName } from './cards';
 import { isDue, type Progress } from './progress';
 
 export const LESSON_LENGTH = 10;
@@ -18,12 +18,25 @@ export const NEW_PER_LESSON = 3;
  */
 export type QuestionKind = 'artwork' | 'picture';
 
+/** An answer to choose from */
+export interface Option {
+  card: Card;
+  /**
+   * The name on its button: a double-faced card's is one side's name,
+   * the side asked about for the card itself, a random one for a wrong
+   * answer - so a back side's name never tells the answer apart
+   */
+  name: string;
+}
+
 export interface Question {
   /** The card being asked about */
   card: Card;
   kind: QuestionKind;
+  /** Asked about a double-faced card's back side, by its artwork */
+  back: boolean;
   /** The answers to choose from, in the order shown: the card itself and wrong ones */
-  options: Card[];
+  options: Option[];
 }
 
 /** Returns a number from 0 up to, but not including, 1 - like Math.random */
@@ -41,21 +54,32 @@ export function shuffle<T>(items: readonly T[], random: Random = Math.random): T
 }
 
 /**
- * A question about the card. `kind` keeps the kind of an earlier question
- * about it; without it, the kind is picked at random.
+ * A question about the card. `same` keeps the kind and side of an earlier
+ * question about it; without it, both are picked at random.
  */
 export function makeQuestion(
   card: Card,
   allCards: readonly Card[],
   random: Random = Math.random,
-  kind?: QuestionKind,
+  same?: Pick<Question, 'kind' | 'back'>,
 ): Question {
   const others = allCards.filter((other) => other.oracle_id !== card.oracle_id);
   const wrong = shuffle(others, random).slice(0, OPTION_COUNT - 1);
-  const options = shuffle([card, ...wrong], random);
-  // Either kind, half the time each, for a card whose name can be hidden
-  const picked: QuestionKind = kind ?? (card.name_box && random() < 0.5 ? 'picture' : 'artwork');
-  return { card, kind: picked, options };
+  const cards = shuffle([card, ...wrong], random);
+  // Either side, half the time each, for a card with a back to ask about.
+  // Either kind, half the time each, on a side whose name can be hidden:
+  // so far only the front's.
+  const back = same?.back ?? (card.back ? random() < 0.5 : false);
+  const kind: QuestionKind =
+    same?.kind ?? (!back && card.name_box && random() < 0.5 ? 'picture' : 'artwork');
+  const options = cards.map((option) => ({
+    card: option,
+    name:
+      option === card
+        ? visibleName(card, back)
+        : visibleName(option, option.images.length > 1 && random() < 0.5),
+  }));
+  return { card, kind, back, options };
 }
 
 /**
@@ -166,11 +190,11 @@ export function afterAnswer(
   }
 
   // Back of the queue, as a new question: new wrong options in a new
-  // order, so the answer can't be remembered by its place. The kind
-  // stays, so the card is asked the same way it was missed
+  // order, so the answer can't be remembered by its place. The kind and
+  // side stay, so the card is asked the same way it was missed
   return {
     ...lesson,
-    queue: [...rest, makeQuestion(card, allCards, random, current.kind)],
+    queue: [...rest, makeQuestion(card, allCards, random, current)],
     missed: isFirstTry(lesson, card) ? [...lesson.missed, card.oracle_id] : lesson.missed,
   };
 }

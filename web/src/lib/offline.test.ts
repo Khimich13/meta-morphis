@@ -7,11 +7,16 @@ function card(name: string, images: string[], art: string): Card {
   return { oracle_id: name, name, images, art, artist: 'Some Artist' };
 }
 
-test('pictureUrls lists every side and the artwork of each card', () => {
-  const cards = [
-    card('Hydroblast', ['hydro.webp'], 'hydro-art.webp'),
-    card('Fable', ['front.webp', 'back.webp'], 'front-art.webp'),
-  ];
+test('pictureUrls lists every side and the artwork of each side', () => {
+  const fable = card('Fable', ['front.webp', 'back.webp'], 'front-art.webp');
+  fable.back = {
+    art: 'back-art.webp',
+    artist: 'Some Artist',
+    art_box: null,
+    // Its artwork cut from its large picture
+    art_from: { picture: 'back-large.jpg', box: [0.5, 0.2, 0.4, 0.5] },
+  };
+  const cards = [card('Hydroblast', ['hydro.webp'], 'hydro-art.webp'), fable];
 
   expect(pictureUrls(cards)).toEqual([
     'hydro.webp',
@@ -19,6 +24,8 @@ test('pictureUrls lists every side and the artwork of each card', () => {
     'front.webp',
     'back.webp',
     'front-art.webp',
+    'back-art.webp',
+    'back-large.jpg',
   ]);
 });
 
