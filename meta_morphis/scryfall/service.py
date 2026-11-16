@@ -9,7 +9,7 @@ from meta_morphis.utils.http import RequestUnavailable
 from meta_morphis.utils.lists import chunked
 from meta_morphis.utils.text import normalize_name
 
-from .artwork import choose_printing, is_regular_printing
+from .artwork import choose_printing, is_regular_printing, scan_is_off
 from .client import fetch_batch, fetch_by_oracle_ids, fetch_single, search_printings
 from .repo import (
     add_alias,
@@ -84,12 +84,14 @@ def get_display_printings(conn: sqlite3.Connection, cards: list[Card]) -> list[C
         saved = get_chosen_printing(conn, oracle_id)
         # A choice "from the future" was saved by a clock that ran ahead -
         # treat it as old rather than trusting it indefinitely. A choice
-        # the rules no longer allow, saved before a rule was added, is
-        # chosen again too.
+        # the rules no longer allow, or with a scan they now pass over,
+        # saved before the rule was added, is chosen again too. A card
+        # whose artwork has only such scans is then searched every run.
         if (
             saved
             and 0 <= saved.age <= config.SCRYFALL_REFRESH_RATE
             and is_regular_printing(saved.raw)
+            and not scan_is_off(saved.raw)
         ):
             shown[oracle_id] = saved
         else:

@@ -30,7 +30,7 @@ def choose_printing(printings: list[dict[str, Any]]) -> dict[str, Any] | None:
         by_artwork.values(),
         key=lambda group: (-len(group), min(_released(p) for p in group)),
     )
-    scanned_well = [p for p in most_printed if not _scan_is_off(p)]
+    scanned_well = [p for p in most_printed if not scan_is_off(p)]
     return max(scanned_well or most_printed, key=_released)
 
 
@@ -66,7 +66,9 @@ def is_regular_printing(printing: dict[str, Any]) -> bool:
 ART_CUT_FOR_MODERN_FRAME_SETS = {"tsr", "h1r", "h2r"}
 
 
-def _scan_is_off(printing: dict[str, Any]) -> bool:
+def scan_is_off(printing: dict[str, Any]) -> bool:
+    """The printing's scan is one choose_printing passes over while its
+    artwork has another printing"""
     # An etched foil (e.g. Multiverse Legends' Thalia, Ragavan, Kaheera)
     # is scanned grey and grainy, its frame dark and metallic
     etched = "etched" in (printing.get("frame_effects") or [])

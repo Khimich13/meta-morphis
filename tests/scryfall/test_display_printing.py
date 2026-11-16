@@ -127,6 +127,18 @@ def test_a_fresh_choice_the_rules_no_longer_allow_is_searched_again(
     assert _shown(conn, DEFAULT) == ["m10"]
 
 
+def test_a_fresh_choice_with_a_scan_now_passed_over_is_searched_again(
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch
+) -> None:
+    # Saved before the timeshifted sets' artwork, cut for the modern
+    # frame, gave way to another printing of it (e.g. Thoughtseize's)
+    timeshifted = {**_raw("tsr", released="2021-03-19"), "set": "tsr", "frame": "1997"}
+    save_chosen_printing(conn, "oid", timeshifted)
+    _searches(monkeypatch, [timeshifted, _raw("2xm", released="2020-08-07")])
+
+    assert _shown(conn, DEFAULT) == ["2xm"]
+
+
 @pytest.mark.parametrize("saved", [True, False])
 def test_unreachable_scryfall_falls_back(
     conn: sqlite3.Connection, monkeypatch: MonkeyPatch, saved: bool
