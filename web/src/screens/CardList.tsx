@@ -30,6 +30,8 @@ const LargeCard = lazy(() => import('../components/LargeCard'));
 
 interface CardListProps {
   selection: Selection;
+  /** The name of the player's own list, when that is what's shown */
+  listName: string | null;
   cards: Card[];
   progress: Progress;
   onBack: () => void;
@@ -44,7 +46,7 @@ interface CardListProps {
  */
 const NEARBY = 2;
 
-export default function CardList({ selection, cards, progress, onBack }: CardListProps) {
+export default function CardList({ selection, listName, cards, progress, onBack }: CardListProps) {
   // "Most played in Pauper", or "Most played creatures in Pauper"
   const what = selection.kind === 'all' ? '' : `${LIST_LABELS[selection.kind].toLowerCase()} `;
 
@@ -133,9 +135,7 @@ export default function CardList({ selection, cards, progress, onBack }: CardLis
         <button className="back" onClick={onBack} aria-label="Back">
           ←
         </button>
-        <h1>
-          Most played {what}in {formatLabel(selection.format)}
-        </h1>
+        <h1>{listName ?? `Most played ${what}in ${formatLabel(selection.format)}`}</h1>
       </header>
       <CardGrid
         gridRef={grid}

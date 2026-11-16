@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import './App.css';
 import { type Card, loadCards } from './lib/cards';
+import { type CustomList } from './lib/customLists';
 import {
   type FormatsFile,
   kindFor,
@@ -16,23 +17,28 @@ import {
 import { formatCards, savePictures } from './lib/offline';
 import { localDay, recordAnswer, recordLesson } from './lib/progress';
 import {
+  loadCustomLists,
   loadFormat,
   loadList,
+  loadOpenList,
   loadProgress,
   loadSoundsOn,
+  saveCustomLists,
   saveFormat,
   saveList,
+  saveOpenList,
   saveProgress,
   saveSoundsOn,
 } from './lib/storage';
 import { useAppUpdate } from './lib/update';
+import AddCards from './screens/AddCards';
 import CardList from './screens/CardList';
 import Formats from './screens/Formats';
 import Home from './screens/Home';
 import Lesson from './screens/Lesson';
 
 /** Which screen is showing */
-type Screen = 'home' | 'lesson' | 'cards' | 'formats';
+type Screen = 'home' | 'lesson' | 'cards' | 'formats' | 'add';
 
 export default function App() {
   // Read from the browser's storage once, when the app starts
@@ -43,6 +49,15 @@ export default function App() {
   );
   // The chosen list of that format: all, creatures, spells or lands
   const [kind, setKind] = useState<ListKind>(() => startKind(loadList()));
+  // The player's own lists of cards, see lib/customLists.ts
+  const [lists, setLists] = useState(loadCustomLists);
+  // The id of the one open instead of the format's list, if any
+  const [openId, setOpenId] = useState(loadOpenList);
+  const openList = lists.find((list) => list.id === openId) ?? null;
+  // The list the add screen adds to at first, null for a new one, and
+  // the screen it goes back to
+  const [addTarget, setAddTarget] = useState<string | null>(null);
+  const [addFrom, setAddFrom] = useState<Screen>('formats');
   // The last format and list whose cards loaded; the way back when a new
   // one fails
   const [lastLoaded, setLastLoaded] = useState<Selection | null>(() => {
@@ -57,7 +72,9 @@ export default function App() {
   // When that format's list was last fetched, if the file says
   const [listUpdated, setListUpdated] = useState<string | undefined>(undefined);
   const [failed, setFailed] = useState(false);
-  const [screen, setScreen] = useState<Screen>(format === null ? 'formats' : 'home');
+  const [screen, setScreen] = useState<Screen>(
+    format === null && openList === null ? 'formats' : 'home',
+  );
   // Whether answers make a sound, see lib/sounds.ts
   const [soundsOn, setSoundsOn] = useState(loadSoundsOn);
   // How many card pictures are saved on the device, out of how many
@@ -75,9 +92,12 @@ export default function App() {
   const offered = formats !== null && format !== null ? listsOf(formats, format) : null;
   const shownKind = offered === null ? kind : kindFor(kind, offered);
 
-  // Runs whenever the chosen format or list changes: load its cards
+  // Runs whenever the chosen format or list changes: load its cards. Not
+  // while one of the player's own lists is open, which has its cards
+  // with it.
+  const listOpen = openList !== null;
   useEffect(() => {
-    if (format === null) return;
+    if (format === null || listOpen) return;
     const selection: Selection = { format, kind: shownKind };
     // A switch before the file arrives makes this load stale: its result
     // must not replace the newer list's cards
@@ -102,20 +122,25 @@ export default function App() {
     return () => {
       stale = true;
     };
-  }, [format, shownKind]);
+  }, [format, shownKind, listOpen]);
+
+  // The cards being learned: the open list's of the player's own, or the
+  // format list's
+  const shownCards = openList?.cards ?? cards;
 
   // Once a list's cards are here, save their pictures for offline use,
-  // keeping those of the format's other lists; a switch stops the saving
-  // for the old list. lastLoaded is set along with the cards, so it names
-  // their format.
-  const cardsFormat = lastLoaded?.format;
+  // keeping those of the format's other lists - or, for one of the
+  // player's own lists, none else; a switch stops the saving for the old
+  // list. lastLoaded is set along with the cards, so it names their
+  // format.
+  const keepFormat = listOpen ? null : lastLoaded?.format;
   useEffect(() => {
-    if (cards === null || cardsFormat === undefined) return;
+    if (shownCards === null || keepFormat === undefined) return;
     let stopped = false;
     setPictures({ saved: 0, total: 0 });
     savePictures(
-      cards,
-      () => formatCards(cardsFormat),
+      shownCards,
+      () => (keepFormat === null ? Promise.resolve([]) : formatCards(keepFormat)),
       (saved, total) => setPictures({ saved, total }),
       () => stopped,
     ).catch(() => {
@@ -125,7 +150,7 @@ export default function App() {
     return () => {
       stopped = true;
     };
-  }, [cards, cardsFormat]);
+  }, [shownCards, keepFormat]);
 
   // Switch to a newly published version of the app, but never mid-lesson
   useAppUpdate(screen !== 'lesson');
@@ -139,7 +164,30 @@ export default function App() {
 
   function chooseFormat(chosen: string) {
     setFormat(chosen);
+    openOwnList(null);
     setScreen('home');
+  }
+
+  /** Opens one of the player's own lists, or with null, the format's again */
+  function openOwnList(id: string | null) {
+    setOpenId(id);
+    saveOpenList(id);
+    if (id !== null) setScreen('home');
+  }
+
+  function addCards(target: string | null, from: Screen) {
+    setAddTarget(target);
+    setAddFrom(from);
+    setScreen('add');
+  }
+
+  /** Saves a new or changed list of the player's own; false if it couldn't */
+  function saveOwnList(list: CustomList): boolean {
+    const had = lists.some((each) => each.id === list.id);
+    const after = had ? lists.map((each) => (each.id === list.id ? list : each)) : [...lists, list];
+    if (!saveCustomLists(after)) return false;
+    setLists(after);
+    return true;
   }
 
   function choose(selection: Selection) {
@@ -147,22 +195,38 @@ export default function App() {
     setKind(selection.kind);
   }
 
-  if (format === null || screen === 'formats') {
+  if (screen === 'add') {
     return (
-      <Formats
-        formats={formats === null ? null : formats.formats}
-        failed={formatsFailed}
-        current={format}
-        onChoose={chooseFormat}
-        onBack={format === null ? null : goHome}
+      <AddCards
+        lists={lists}
+        target={addTarget}
+        onSave={saveOwnList}
+        onOpen={openOwnList}
+        onBack={() => setScreen(addFrom)}
       />
     );
   }
 
-  if (cards !== null && screen === 'lesson') {
+  if ((format === null && openList === null) || screen === 'formats') {
+    return (
+      <Formats
+        formats={formats === null ? null : formats.formats}
+        failed={formatsFailed}
+        current={openList === null ? format : null}
+        onChoose={chooseFormat}
+        lists={lists}
+        currentList={openList?.id ?? null}
+        onChooseList={openOwnList}
+        onAddCards={() => addCards(null, 'formats')}
+        onBack={format === null && openList === null ? null : goHome}
+      />
+    );
+  }
+
+  if (shownCards !== null && screen === 'lesson') {
     return (
       <Lesson
-        cards={cards}
+        cards={shownCards}
         progress={progress}
         onAnswer={(card, correct) =>
           setProgress((before) => recordAnswer(before, card.oracle_id, correct, localDay()))
@@ -174,11 +238,12 @@ export default function App() {
     );
   }
 
-  if (cards !== null && screen === 'cards') {
+  if (shownCards !== null && screen === 'cards') {
     return (
       <CardList
-        selection={{ format, kind: shownKind }}
-        cards={cards}
+        selection={{ format: format ?? '', kind: shownKind }}
+        listName={openList?.name ?? null}
+        cards={shownCards}
         progress={progress}
         onBack={goHome}
       />
@@ -188,13 +253,17 @@ export default function App() {
   return (
     <Home
       listUpdated={listUpdated}
-      selection={{ format, kind: shownKind }}
+      selection={{ format: format ?? '', kind: shownKind }}
+      listName={openList?.name ?? null}
+      onAddCards={() => addCards(openList?.id ?? null, 'home')}
       offered={offered}
       onChooseKind={setKind}
-      cards={cards}
-      failed={failed}
+      cards={shownCards}
+      failed={!listOpen && failed}
       fallback={
-        lastLoaded !== null && (lastLoaded.format !== format || lastLoaded.kind !== shownKind)
+        lastLoaded !== null &&
+        format !== null &&
+        (lastLoaded.format !== format || lastLoaded.kind !== shownKind)
           ? lastLoaded
           : null
       }

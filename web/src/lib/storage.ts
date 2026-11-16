@@ -1,7 +1,9 @@
-// Keeps the progress and the chosen format in the browser's localStorage: a small store of
-// named text values that survives closing the page. It belongs to this
-// browser on this device only.
+// Keeps the progress, the chosen format and the player's own lists in
+// the browser's localStorage: a small store of named text values that
+// survives closing the page. It belongs to this browser on this device
+// only.
 
+import { type CustomList, isCustomList } from './customLists';
 import { parseProgress, type Progress } from './progress';
 
 const KEY = 'meta-morphis-progress';
@@ -103,5 +105,52 @@ export function saveSoundsOn(on: boolean): void {
     localStorage.setItem(SOUNDS_KEY, on ? 'on' : 'off');
   } catch {
     // Not remembered: sounds are on again next time
+  }
+}
+
+const CUSTOM_LISTS_KEY = 'meta-morphis-custom-lists';
+
+/** The player's own lists of cards, see customLists.ts */
+export function loadCustomLists(): CustomList[] {
+  try {
+    const saved: unknown = JSON.parse(localStorage.getItem(CUSTOM_LISTS_KEY) ?? '[]');
+    return Array.isArray(saved) ? saved.filter(isCustomList) : [];
+  } catch {
+    // Switched off, or not readable: as if there were none
+    return [];
+  }
+}
+
+/**
+ * False when the lists could not be saved: storage is full or switched
+ * off. They hold every card's data, so a long list takes room.
+ */
+export function saveCustomLists(lists: readonly CustomList[]): boolean {
+  try {
+    localStorage.setItem(CUSTOM_LISTS_KEY, JSON.stringify(lists));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const OPEN_LIST_KEY = 'meta-morphis-open-list';
+
+/** The id of the player's own list chosen last time, or null for a format's list */
+export function loadOpenList(): string | null {
+  try {
+    return localStorage.getItem(OPEN_LIST_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** null when a format's list is chosen */
+export function saveOpenList(id: string | null): void {
+  try {
+    if (id === null) localStorage.removeItem(OPEN_LIST_KEY);
+    else localStorage.setItem(OPEN_LIST_KEY, id);
+  } catch {
+    // Not remembered: the format's list opens next time
   }
 }

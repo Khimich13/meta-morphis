@@ -1,6 +1,16 @@
 import { afterEach, expect, test, vi } from 'vitest';
 
-import { loadColumns, loadSoundsOn, saveColumns, saveSoundsOn } from './storage';
+import { newList } from './customLists';
+import {
+  loadColumns,
+  loadCustomLists,
+  loadOpenList,
+  loadSoundsOn,
+  saveColumns,
+  saveCustomLists,
+  saveOpenList,
+  saveSoundsOn,
+} from './storage';
 
 /** A stand-in for the browser's localStorage */
 function fakeStorage() {
@@ -8,7 +18,9 @@ function fakeStorage() {
   vi.stubGlobal('localStorage', {
     getItem: (key: string) => values.get(key) ?? null,
     setItem: (key: string, value: string) => values.set(key, value),
+    removeItem: (key: string) => values.delete(key),
   });
+  return values;
 }
 
 afterEach(() => {
@@ -41,4 +53,38 @@ test('sounds are on when storage is switched off', () => {
     },
   });
   expect(loadSoundsOn()).toBe(true);
+});
+
+test('custom lists are saved and read back', () => {
+  fakeStorage();
+  expect(loadCustomLists()).toEqual([]);
+  const list = newList('Burn');
+  expect(saveCustomLists([list])).toBe(true);
+  expect(loadCustomLists()).toEqual([list]);
+});
+
+test('unreadable saved lists are passed over', () => {
+  const values = fakeStorage();
+  values.set('meta-morphis-custom-lists', 'not json');
+  expect(loadCustomLists()).toEqual([]);
+  values.set('meta-morphis-custom-lists', JSON.stringify([{ id: 'a' }, newList('Burn')]));
+  expect(loadCustomLists().map((list) => list.name)).toEqual(['Burn']);
+});
+
+test('saving reports full storage', () => {
+  vi.stubGlobal('localStorage', {
+    setItem: () => {
+      throw new Error('quota exceeded');
+    },
+  });
+  expect(saveCustomLists([newList('Burn')])).toBe(false);
+});
+
+test('the open list is remembered until a format is chosen', () => {
+  fakeStorage();
+  expect(loadOpenList()).toBeNull();
+  saveOpenList('abc');
+  expect(loadOpenList()).toBe('abc');
+  saveOpenList(null);
+  expect(loadOpenList()).toBeNull();
 });

@@ -1,10 +1,15 @@
 import { type Card, formatLabel, LIST_OLD_AFTER_DAYS, listAgeDays } from '../lib/cards';
 import { LIST_LABELS, type ListKind, type Selection, selectionLabel } from '../lib/formats';
 import { dueCount, localDay, masteredCount, type Progress, streak } from '../lib/progress';
+import { OPTION_COUNT } from '../lib/quiz';
 import './Home.css';
 
 interface HomeProps {
   selection: Selection;
+  /** The name of the player's own list that is open, if one is; then selection is not shown */
+  listName: string | null;
+  /** Only with one of the player's own lists open */
+  onAddCards: () => void;
   /** The lists the format offers; null while not known yet */
   offered: ListKind[] | null;
   onChooseKind: (kind: ListKind) => void;
@@ -30,6 +35,8 @@ interface HomeProps {
 
 export default function Home({
   selection,
+  listName,
+  onAddCards,
   offered,
   onChooseKind,
   cards,
@@ -50,18 +57,18 @@ export default function Home({
       <header className="home-title">
         <h1>MetaMorphis</h1>
         <p>
-          {formatLabel(selection.format)} ·{' '}
+          {listName ?? formatLabel(selection.format)} ·{' '}
           <button className="link" onClick={onChangeFormat}>
             Change
           </button>
         </p>
       </header>
 
-      {offered !== null && offered.length > 1 && (
+      {listName === null && offered !== null && offered.length > 1 && (
         <ListChoice offered={offered} current={selection.kind} onChoose={onChooseKind} />
       )}
 
-      <OldListBanner listUpdated={listUpdated} />
+      {listName === null && <OldListBanner listUpdated={listUpdated} />}
 
       {failed ? (
         <LoadFailed selection={selection} fallback={fallback} onChoose={onChooseFallback} />
@@ -71,12 +78,22 @@ export default function Home({
         <>
           <Stats cards={cards} progress={progress} />
           <div className="home-actions">
-            <button className="primary" onClick={onStartLesson}>
-              Start lesson
-            </button>
+            {/* A question needs as many cards as it has answers to choose from */}
+            {cards.length < OPTION_COUNT ? (
+              <p>Add at least {OPTION_COUNT} cards to start a lesson.</p>
+            ) : (
+              <button className="primary" onClick={onStartLesson}>
+                Start lesson
+              </button>
+            )}
             <button className="link" onClick={onSeeCards}>
               See all cards
             </button>
+            {listName !== null && (
+              <button className="link" onClick={onAddCards}>
+                Add cards
+              </button>
+            )}
             <button className="link" aria-pressed={soundsOn} onClick={onToggleSounds}>
               {soundsOn ? '🔊 Sounds on' : '🔇 Sounds off'}
             </button>
