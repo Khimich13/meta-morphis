@@ -22,6 +22,7 @@ from meta_morphis.meta.repo import get_meta_timestamp
 from meta_morphis.meta.service import get_meta_cards
 from meta_morphis.models.card import Card, ImageSide
 from meta_morphis.name_in_text import (
+    PART_COLUMNS,
     REMINDER,
     TEXT_COLUMNS,
     NameInText,
@@ -33,6 +34,9 @@ from meta_morphis.name_in_text import (
     name_in_low_type_line,
     never_read,
     normalize,
+    part_index,
+    part_of,
+    printed_texts,
     short_name,
 )
 from meta_morphis.scryfall.service import fetch_cards, get_display_printings
@@ -60,6 +64,17 @@ class BackSide(TypedDict):
     # Where the name sits on the back's picture, as ExportCard's
     # name_box and name_text_boxes: only a transform card's back, which
     # shows only its own name
+    name_box: list[float] | None
+    name_text_boxes: list[list[float]]
+
+
+class SpellPart(TypedDict):
+    # The spell's name: Petty Theft on Brazen Borrower
+    name: str
+    # Where its name sits on the card's picture, as ExportCard's name_box
+    # and name_text_boxes, for the question about the spell alone, with
+    # the main part's name left in sight. None when it can't be covered
+    # everywhere it shows: then the spell is never asked about.
     name_box: list[float] | None
     name_text_boxes: list[list[float]]
 
@@ -104,6 +119,13 @@ class ExportCard(TypedDict):
     # picture too. None for a card with one side, or
     # whose back lacks its artwork or artist.
     back: BackSide | None
+    # The second, smaller spell printed on an adventure or prepare card
+    # (see name_in_text.PART_COLUMNS), which a question may ask about
+    # instead of the main part, by its full picture only: the artwork is
+    # the main part's. Then name_box and name_text_boxes are the main
+    # part's alone, and its spell's name stays in sight when it is asked.
+    # None for every other card.
+    spell: SpellPart | None
 
 
 class FormatsFile(TypedDict):
@@ -215,6 +237,15 @@ NAME_AREAS = {
 PLANESWALKER_NAME_AREAS = {
     "2015": NameArea(0.072, 0.042, 0.040, 0.921, 0.0485),
 }
+# The small title bar of an adventure's or prepare card's spell, by
+# layout (see name_in_text.PART_COLUMNS), in the modern frame. Measured
+# on 2026-11-16 on the six on the lists then and Jadzi, Steward of Fate:
+# the bar is a little taller on an adventure, but the letters sit in
+# the same rows on all of them.
+SPELL_NAME_AREAS = {
+    "adventure": NameArea(0.080, 0.637, 0.032, 0.479, 0.0435),
+    "prepare": NameArea(0.514, 0.637, 0.032, 0.931, 0.0445),
+}
 # Layouts with one name, in a title bar like a normal card's. A saga,
 # class or case has its text beside its artwork, which
 # name_in_text.TEXT_COLUMNS knows.
@@ -298,8 +329,10 @@ def may_show_name_in_text(card: Card) -> bool:
     if name_in_low_type_line(card) or is_planeswalker(card):
         return True
     oracle_text = raw.get("oracle_text") or ""
-    # In any case: "birds of paradise" in a flavor text
-    text = (oracle_text + "\n" + (raw.get("flavor_text") or "")).lower()
+    # In any case: "birds of paradise" in a flavor text - or in the other
+    # part's text, on a card with two parts
+    texts = [*printed_texts(card), raw.get("flavor_text") or ""]
+    text = "\n".join(texts).lower()
     if card.name.lower() in text or short_name(card.name).lower() in text:
         return True
     # A word of the name by itself in the flavor text: "Lórien" in "the
@@ -341,13 +374,43 @@ def name_boxes(
         # Another double-faced card's front names its back too, and the
         # other way round
         return None, []
-    title = title_name_box(card, name_left, name_right)
+    elif card.layout in PART_COLUMNS:
+        # The main part alone: its spell is asked about by itself
+        card = part_of(card, 0)
+    return with_text_boxes(card, title_name_box(card, name_left, name_right), read_text)
+
+
+def with_text_boxes(
+    card: Card, title: list[float] | None, read_text: ReadText
+) -> tuple[list[float] | None, list[list[float]]]:
+    """The name's box in its title bar, and where `read_text` finds it in
+    the text box too, when it may be printed there: (None, []) when it
+    can't be covered there"""
     if title is None or not may_show_name_in_text(card):
         return title, []
     in_text = read_text(card)
     if in_text is None:
         return None, []
     return title, in_text
+
+
+def spell_part(card: Card, read_text: ReadText = never_read) -> SpellPart | None:
+    """An adventure's or prepare card's spell, for the question about it
+    alone (see name_in_text.PART_COLUMNS); None for every other card"""
+    if card.layout not in PART_COLUMNS or len(card.raw.get("card_faces") or []) != 2:
+        return None
+    spell = part_of(card, 1)
+    raw = spell.raw
+    area = SPELL_NAME_AREAS[card.layout] if card.frame == "2015" else None
+    title = None
+    if area is not None and raw.get("lang") == "en":
+        title = box_before_cost(area, area.left, spell.mana_cost)
+    title, in_text = with_text_boxes(spell, title, read_text)
+    return {
+        "name": shown_name(spell.name),
+        "name_box": title,
+        "name_text_boxes": in_text,
+    }
 
 
 def face_of(card: Card, side: int) -> Card:
@@ -372,8 +435,11 @@ def title_name_box(
     place starts: a transform card's."""
     raw = card.raw
     # One name on one side: a modal double-faced card prints the back's
-    # too, and a split or adventure card has two on one side
-    if card.layout not in ONE_NAME_LAYOUTS or raw.get("lang") != "en":
+    # too, and a split card has two on one side. Of an adventure or a
+    # prepare card, only its main part's (see part_of), whose title bar
+    # is a normal card's: its spell's is spell_part's.
+    one_name = card.layout in ONE_NAME_LAYOUTS or part_index(card) == 0
+    if not one_name or raw.get("lang") != "en":
         return None
     areas = PLANESWALKER_NAME_AREAS if "Planeswalker" in card.type_line else NAME_AREAS
     area = areas.get(card.frame or "")
@@ -388,7 +454,15 @@ def title_name_box(
             if effect in NAME_AFTER_ICON
         ]
     )
-    symbols = len(re.findall(r"\{[^}]*\}", card.mana_cost or ""))
+    return box_before_cost(area, left, card.mana_cost, name_right)
+
+
+def box_before_cost(
+    area: NameArea, left: float, mana_cost: str | None, name_right: float | None = None
+) -> list[float]:
+    """The name's box in a title bar, from `left` up to just before the
+    mana cost, or before an icon starting at `name_right`"""
+    symbols = len(re.findall(r"\{[^}]*\}", mana_cost or ""))
     cost_left = area.cost_right - symbols * area.symbol
     right = (cost_left if name_right is None else name_right) - NAME_GAP
     return [round(value, 4) for value in (left, area.top, right - left, area.height)]
@@ -505,6 +579,7 @@ def build_card(card: Card, read_text: ReadText = never_read) -> ExportCard | Non
         "art_from": art_from(front, front_name, front_box),
         "horizontal": horizontal_sides(card),
         "back": back_side(card, read_text),
+        "spell": spell_part(card, read_text),
     }
 
 

@@ -751,3 +751,64 @@ def test_a_planeswalkers_type_is_covered_when_its_text_uses_it_too(
     )
     boxes = name_in_text.name_in_text(jace, b"png", GAME_WORDS)
     assert boxes is not None and len(boxes) == 2
+
+
+def _with_spell(layout: str) -> Card:
+    """An adventure or prepare card as a whole, as Scryfall gives it"""
+    return _card(
+        name="Jadzi, Steward of Fate // Oracle's Gift",
+        layout=layout,
+        oracle_text=None,
+        card_faces=[
+            {
+                "name": "Jadzi, Steward of Fate",
+                "mana_cost": "{2}{U}",
+                "type_line": "Legendary Creature — Human Wizard",
+                "oracle_text": "Jadzi enters prepared.",
+            },
+            {
+                "name": "Oracle's Gift",
+                "mana_cost": "{X}{X}{U}",
+                "type_line": "Sorcery",
+                "oracle_text": "Create X 0/0 Fractal creature tokens.",
+            },
+        ],
+    )
+
+
+def test_each_part_of_a_card_with_a_spell_is_a_card_by_itself() -> None:
+    whole = _with_spell("prepare")
+    main, spell = name_in_text.part_of(whole, 0), name_in_text.part_of(whole, 1)
+    assert (main.name, main.mana_cost) == ("Jadzi, Steward of Fate", "{2}{U}")
+    assert (spell.name, spell.mana_cost) == ("Oracle's Gift", "{X}{X}{U}")
+    assert spell.raw["oracle_text"] == "Create X 0/0 Fractal creature tokens."
+    assert [name_in_text.part_index(card) for card in (main, spell)] == [0, 1]
+    # Not a part: the card as a whole, or any other card
+    assert name_in_text.part_index(whole) is None
+    assert name_in_text.part_index(_card()) is None
+    # Both share the picture: the spell is kept apart
+    assert name_in_text.saved_key(main) == "printing"
+    assert name_in_text.saved_key(spell) == "printing/spell"
+
+
+def test_a_part_is_read_in_its_own_half_of_the_text_box_first() -> None:
+    prepare = _with_spell("prepare")
+    assert name_in_text.areas_to_read(name_in_text.part_of(prepare, 0)) == [
+        (0.07, 0.60, 0.50, 0.94),
+        (0.50, 0.72, 0.93, 0.94),
+    ]
+    assert name_in_text.areas_to_read(name_in_text.part_of(prepare, 1)) == [
+        (0.50, 0.72, 0.93, 0.94),
+        (0.07, 0.60, 0.50, 0.94),
+    ]
+    # An adventure's spell is on the left
+    adventure = name_in_text.part_of(_with_spell("adventure"), 1)
+    assert name_in_text.areas_to_read(adventure)[0] == (0.07, 0.72, 0.50, 0.94)
+
+
+def test_both_parts_text_is_printed_text() -> None:
+    spell = name_in_text.part_of(_with_spell("prepare"), 1)
+    # The other part's words are printed too: never the name read badly
+    assert {"create", "fractal", "enters", "prepared"} <= name_in_text.words_of_text(
+        spell
+    )

@@ -2,7 +2,7 @@
 // question offers, and whether an answer is right. No React in here,
 // so it can be tested without a browser.
 
-import { type Card, visibleName } from './cards';
+import { type Card, partName } from './cards';
 import { isDue, type Progress } from './progress';
 
 export const LESSON_LENGTH = 10;
@@ -14,7 +14,7 @@ export const NEW_PER_LESSON = 3;
  * What a question shows:
  *   artwork - the card's artwork alone
  *   picture - the full card, the side asked about, with its name covered
- *             (see name_box in cards.ts)
+ *             (see name_box in cards.ts), or a spell's alone (see spell)
  */
 export type QuestionKind = 'artwork' | 'picture';
 
@@ -24,7 +24,8 @@ export interface Option {
   /**
    * The name on its button: a double-faced card's is one side's name,
    * the side asked about for the card itself, a random one for a wrong
-   * answer - so a back side's name never tells the answer apart
+   * answer - so a back side's name never tells the answer apart. The
+   * same for a card with a spell: its spell's name or its main part's.
    */
   name: string;
 }
@@ -35,6 +36,11 @@ export interface Question {
   kind: QuestionKind;
   /** Asked about a double-faced card's back side */
   back: boolean;
+  /**
+   * Asked about an adventure's or prepare card's spell alone, by the
+   * full picture with the spell's name covered (see SpellPart in cards.ts)
+   */
+  spell: boolean;
   /** The answers to choose from, in the order shown: the card itself and wrong ones */
   options: Option[];
 }
@@ -61,24 +67,34 @@ export function makeQuestion(
   card: Card,
   allCards: readonly Card[],
   random: Random = Math.random,
-  same?: Pick<Question, 'kind' | 'back'>,
+  same?: Pick<Question, 'kind' | 'back' | 'spell'>,
 ): Question {
   const others = allCards.filter((other) => other.oracle_id !== card.oracle_id);
   const wrong = shuffle(others, random).slice(0, OPTION_COUNT - 1);
   const cards = shuffle([card, ...wrong], random);
-  // Either side, half the time each, for a card with a back to ask about.
-  // Either kind, half the time each, on a side whose name can be hidden.
+  // Either side, half the time each, for a card with a back to ask about,
+  // and either part, for a card with a spell whose name can be hidden.
+  // Either kind, half the time each, on a side whose name can be hidden -
+  // a spell only by the picture: the artwork is the main part's.
   const back = same?.back ?? (card.back ? random() < 0.5 : false);
+  const spell = same?.spell ?? (card.spell?.name_box ? random() < 0.5 : false);
   const nameBox = back ? card.back?.name_box : card.name_box;
-  const kind: QuestionKind = same?.kind ?? (nameBox && random() < 0.5 ? 'picture' : 'artwork');
+  const kind: QuestionKind =
+    same?.kind ?? (spell || (nameBox && random() < 0.5) ? 'picture' : 'artwork');
   const options = cards.map((option) => ({
     card: option,
-    name:
-      option === card
-        ? visibleName(card, back)
-        : visibleName(option, option.images.length > 1 && random() < 0.5),
+    name: option === card ? partName(card, back, spell) : wrongName(option, random),
   }));
-  return { card, kind, back, options };
+  return { card, kind, back, spell, options };
+}
+
+/**
+ * A wrong answer's name: a random side or part of its card, of those
+ * that can be asked about, so the right answer's never stands out
+ */
+function wrongName(card: Card, random: Random): string {
+  if (card.spell?.name_box) return partName(card, false, random() < 0.5);
+  return partName(card, card.images.length > 1 && random() < 0.5, false);
 }
 
 /**

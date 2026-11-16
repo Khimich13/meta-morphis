@@ -35,6 +35,23 @@ export interface BackSide {
   name_text_boxes?: [number, number, number, number][];
 }
 
+/**
+ * The second, smaller spell printed on an adventure or prepare card:
+ * Petty Theft on Brazen Borrower. A question may ask about it instead of
+ * the main part, by the full picture only - the artwork is the main
+ * part's - with the main part's name left in sight.
+ */
+export interface SpellPart {
+  name: string;
+  /**
+   * Where its name sits on the card's picture, like Card's name_box and
+   * name_text_boxes. Null when it can't be covered everywhere it shows:
+   * then the spell is never asked about.
+   */
+  name_box: [number, number, number, number] | null;
+  name_text_boxes: [number, number, number, number][];
+}
+
 export interface Card {
   oracle_id: string;
   name: string;
@@ -91,6 +108,12 @@ export interface Card {
    * added.
    */
   back?: BackSide | null;
+  /**
+   * An adventure's or prepare card's spell. Then name_box and
+   * name_text_boxes are the main part's alone. Null for every other
+   * card; missing in files written before it was added.
+   */
+  spell?: SpellPart | null;
 }
 
 export interface CardFile {
@@ -186,4 +209,15 @@ export function visibleName(card: Card, showingBack: boolean): string {
   const faces = card.name.split(' // ');
   if (card.images.length < 2 || faces.length !== 2) return card.name;
   return showingBack ? faces[1] : faces[0];
+}
+
+/**
+ * The name of the part a question asks about, for its answer button:
+ * one side's of a double-faced card (see visibleName), and of a card with
+ * a spell, the spell's or the main part's alone. Any other card's whole
+ * name.
+ */
+export function partName(card: Card, back: boolean, spell: boolean): string {
+  if (card.spell) return spell ? card.spell.name : card.name.split(' // ')[0];
+  return visibleName(card, back);
 }

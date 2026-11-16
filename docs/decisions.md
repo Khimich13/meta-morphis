@@ -45,7 +45,8 @@ what has been done is in the commit history.
   text. The front's name starts after an icon; the back's after one
   too, or, when the icon sits on the right where a mana cost would be,
   where a normal card's starts. A modal double-faced card doesn't: each
-  side names the other too. A card that can be asked both ways gets
+  side names the other too. An adventure or a prepare card does, by
+  each part: see below. A card that can be asked both ways gets
   either, half the time each.
 - **A double-faced card is asked by either side,** half the time each:
   by its back's artwork, as by its front's, and a transform card's by
@@ -53,6 +54,17 @@ what has been done is in the commit history.
   each: the side asked for the card itself, either side for a wrong
   answer, so a back's name never tells the right one apart. After the
   answer the card shows the side asked first; the other is a flip away.
+- **An adventure or a prepare card is asked by either part,** half the
+  time each: its main part, as any card, or the second, smaller spell
+  printed on it (Petty Theft on Brazen Borrower), by its full picture
+  only - the artwork is the main part's. One part is asked at a time,
+  with the other's name left in sight. The spell's name is covered in its
+  own small title bar, measured on the six on the lists on 2026-11-16 -
+  on the left on an adventure (an omen too), on the right on a prepare
+  card - and the text box is read for each part's name, its own half
+  first. The answers name one part each, as a double-faced card's name
+  one side: the part asked for the card itself, either part for a wrong
+  answer.
 - **The artwork comes from Scryfall,** cut out by them, except where
   their cut catches text around it: then the app cuts it from the card's
   large picture itself, at the measured art box. Only Summon: Esper

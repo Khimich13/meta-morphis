@@ -25,6 +25,7 @@ from meta_morphis.export import (
     name_boxes,
     report_left_out,
     shown_name,
+    spell_part,
     title_name_box,
     write_json,
 )
@@ -81,6 +82,7 @@ def test_build_card_single_faced() -> None:
         "art_from": None,
         "horizontal": [False],
         "back": None,
+        "spell": None,
     }
     assert build_card(card) == expected
 
@@ -958,6 +960,7 @@ def test_export_format_writes_the_file(
                 "art_from": None,
                 "horizontal": [False],
                 "back": None,
+                "spell": None,
             }
         ],
     }
@@ -1229,3 +1232,124 @@ def test_report_left_out_adds_to_the_github_job_summary(
     # Nothing left out: nothing added
     report_left_out([])
     assert page.read_text(encoding="utf-8").endswith("- Masticore: unsure\n")
+
+
+def _two_part(layout: str, **extra: Any) -> Card:
+    """An adventure or prepare card, as Scryfall gives it: one picture,
+    and both parts in card_faces"""
+    fields: dict[str, Any] = {
+        "lang": "en",
+        "layout": layout,
+        "released_at": "2026-04-24",
+        "set_type": "expansion",
+        "card_faces": [
+            {
+                "name": "Brazen Borrower",
+                "mana_cost": "{1}{U}{U}",
+                "type_line": "Creature — Faerie Rogue",
+                "oracle_text": "Flash\nFlying",
+            },
+            {
+                "name": "Petty Theft",
+                "mana_cost": "{1}{U}",
+                "type_line": "Instant — Adventure",
+                "oracle_text": "Return target nonland permanent.",
+            },
+        ],
+    }
+    return Card.from_raw(_raw("Brazen Borrower // Petty Theft", **{**fields, **extra}))
+
+
+@pytest.mark.parametrize(
+    "layout, spell_box",
+    [
+        # Two symbols of 0.0435, and the gap of 0.02, before 0.479
+        ("adventure", [0.08, 0.637, 0.292, 0.032]),
+        # Two symbols of 0.0445, and the gap of 0.02, before 0.931
+        ("prepare", [0.514, 0.637, 0.308, 0.032]),
+    ],
+)
+def test_each_part_of_a_card_with_a_spell_has_its_own_name_box(
+    layout: str, spell_box: list[float]
+) -> None:
+    card = _two_part(layout)
+    # The main part's, in a normal card's title bar, before its own cost
+    assert name_boxes(card) == ([0.08, 0.052, 0.6735, 0.051], [])
+    assert spell_part(card) == {
+        "name": "Petty Theft",
+        "name_box": spell_box,
+        "name_text_boxes": [],
+    }
+
+
+def test_each_part_is_read_for_its_own_name() -> None:
+    read: list[str] = []
+
+    def read_text(card: Card) -> list[list[float]] | None:
+        read.append(card.name)
+        return [[0.1, 0.8, 0.2, 0.03]] if card.name == "Brazen Borrower" else None
+
+    # Printed with the name where the Oracle text says "this creature",
+    # and the spell's name in the main part's text
+    card = _two_part(
+        "adventure",
+        released_at="2019-10-04",
+        card_faces=[
+            {
+                "name": "Brazen Borrower",
+                "mana_cost": "{1}{U}{U}",
+                "type_line": "Creature — Faerie Rogue",
+                "oracle_text": "This creature can block only creatures with flying.",
+            },
+            {
+                "name": "Petty Theft",
+                "mana_cost": "{1}{U}",
+                "type_line": "Instant — Adventure",
+                "oracle_text": "Return target nonland permanent.",
+            },
+        ],
+    )
+    assert name_boxes(card, read_text)[1] == [[0.1, 0.8, 0.2, 0.03]]
+    # "This creature" is the main part: the spell's name is in its title
+    # bar alone, and isn't read for
+    spell = spell_part(card, read_text)
+    assert spell and spell["name_box"] == [0.08, 0.637, 0.292, 0.032]
+    assert read == ["Brazen Borrower"]
+
+    # The spell's name in the main part's text: read for it, and here
+    # it can't be covered, so the spell is never asked about
+    named = _two_part(
+        "adventure",
+        card_faces=[
+            {
+                "name": "Brazen Borrower",
+                "mana_cost": "{1}{U}{U}",
+                "type_line": "Creature — Faerie Rogue",
+                "oracle_text": "You may cast Petty Theft twice.",
+            },
+            {
+                "name": "Petty Theft",
+                "mana_cost": "{1}{U}",
+                "type_line": "Instant — Adventure",
+                "oracle_text": "Return target nonland permanent.",
+            },
+        ],
+    )
+    read.clear()
+    spell = spell_part(named, read_text)
+    assert spell and spell["name_box"] is None
+    assert read == ["Petty Theft"]
+
+
+def test_a_spell_is_asked_by_its_picture_only_in_the_modern_frame() -> None:
+    spell = spell_part(_two_part("adventure", frame="2003"))
+    assert spell and spell["name_box"] is None
+    french = spell_part(_two_part("adventure", lang="fr"))
+    assert french and french["name_box"] is None
+
+
+def test_only_adventure_and_prepare_cards_have_a_spell() -> None:
+    built = build_card(_two_part("prepare"))
+    assert built and built["spell"] and built["spell"]["name"] == "Petty Theft"
+    assert spell_part(Card.from_raw(_raw("Wear // Tear", layout="split"))) is None
+    assert spell_part(Card.from_raw(_raw("Counterspell"))) is None

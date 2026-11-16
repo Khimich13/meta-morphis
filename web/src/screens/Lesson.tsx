@@ -206,9 +206,10 @@ export default function Lesson({
             </div>
             {question.kind === 'picture' ? (
               <NameHidden
-                key={`${card.oracle_id}-${question.back}`}
+                key={`${card.oracle_id}-${question.back}-${question.spell}`}
                 card={card}
                 back={question.back}
+                spell={question.spell}
               />
             ) : (
               /* A figure ties the credit to the artwork, for screen readers too */
@@ -407,10 +408,11 @@ const TEXT_COVER_TRIM = 1;
  * name. The paint is a layer over the picture, which stays as it is, and
  * never covers the artist or copyright. Until it is painted - or if the
  * picture's pixels can't be read - a plain bar covers the title too.
- * `back` shows a transform card's back, with its own name hidden.
+ * `back` shows a transform card's back, with its own name hidden, and
+ * `spell` the card with its spell's name hidden instead of its own.
  */
-function NameHidden({ card, back }: { card: Card; back: boolean }) {
-  const side = back && card.back ? card.back : card;
+function NameHidden({ card, back, spell }: { card: Card; back: boolean; spell: boolean }) {
+  const side = spell && card.spell ? card.spell : back && card.back ? card.back : card;
   const boxes = [side.name_box ?? [0, 0, 0, 0], ...(side.name_text_boxes ?? [])];
   const picture = useRef<HTMLImageElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);

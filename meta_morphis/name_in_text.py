@@ -62,6 +62,20 @@ TEXT_COLUMNS = {"saga": (0.07, 0.50), "class": (0.50, 0.93), "case": (0.50, 0.93
 COLUMN_TOP, COLUMN_BOTTOM = 0.11, 0.84
 # Their type line, as left, top, right and bottom
 LOW_TYPE_LINE = (0.07, 0.84, 0.93, 0.905)
+# Cards with a second, smaller spell printed on their one side, in a box
+# of its own in half the text box - its name, mana cost and type line
+# above its text: on the left for an adventure (an omen too, which
+# Scryfall counts as one), on the right for a prepare card. The other
+# half has the main part's text. Each part is asked about by itself
+# (see part_of), and the whole text box is read for its name: its own
+# half first. The halves' left and right, for the main part and the
+# spell. Measured on Scryfall's pictures on 2026-11-16.
+PART_COLUMNS = {
+    "adventure": ((0.50, 0.93), (0.07, 0.50)),
+    "prepare": ((0.07, 0.50), (0.50, 0.93)),
+}
+# Where the spell's text starts, below its type line
+SPELL_TEXT_TOP = 0.72
 # A planeswalker's type line sits right below its artwork, higher than
 # other cards', and moves up with it when the abilities take this many
 # lines or more. Its type there is nearly always a word of its name:
@@ -158,9 +172,40 @@ def planeswalker_type(card: Card) -> str | None:
     return subtype if subtype in name_words else None
 
 
+def part_of(card: Card, part: int) -> Card:
+    """One part of a card in PART_COLUMNS as a card by itself, 0 for the
+    main part and 1 for the spell: its own name, mana cost, type line and
+    text, with both parts in its card_faces still, as both are printed."""
+    raw = {**card.raw, **card.raw["card_faces"][part]}
+    one = Card.from_raw(raw)
+    # Card.from_raw takes the first face's mana cost for a card with faces
+    one.mana_cost = raw.get("mana_cost") or None
+    return one
+
+
+def part_index(card: Card) -> int | None:
+    """Which part of a card in PART_COLUMNS this is (see part_of): 0 for
+    the main part, 1 for the spell. None for any other card, and for such
+    a card as a whole."""
+    if card.layout not in PART_COLUMNS:
+        return None
+    names = [face.get("name") for face in card.raw.get("card_faces") or []]
+    return names.index(card.name) if card.name in names else None
+
+
 def areas_to_read(card: Card) -> list[Area]:
     """Where the name may be printed outside the title bar: the text
-    first, then a type line apart from it"""
+    first, then a type line apart from it - or, for a part of a card
+    with two (see part_of), its own half of the text box first, then the
+    other part's"""
+    part = part_index(card)
+    if part is not None:
+        tops = (TEXT_TOP, SPELL_TEXT_TOP)
+        columns = PART_COLUMNS[card.layout]
+        return [
+            (columns[i][0], tops[i], columns[i][1], TEXT_BOTTOM)
+            for i in (part, 1 - part)
+        ]
     if is_planeswalker(card):
         long_text = has_long_text(card.raw.get("oracle_text") or "")
         top = PLANESWALKER_LONG_TEXT_TOP if long_text else PLANESWALKER_TEXT_TOP
@@ -216,9 +261,18 @@ def edits(a: str, b: str) -> int:
     return row[-1]
 
 
+def printed_texts(card: Card) -> list[str]:
+    """The Oracle text printed on the card's picture: its own, and for a
+    part of a card with two (see part_of), the other part's too"""
+    own = card.raw.get("oracle_text") or ""
+    if part_index(card) is None:
+        return [own]
+    return [face.get("oracle_text") or "" for face in card.raw["card_faces"]]
+
+
 def words_of_text(card: Card) -> frozenset[str]:
     """The words of the card's Oracle text, normalized: "cant" for "can't\""""
-    oracle_text = card.raw.get("oracle_text") or ""
+    oracle_text = "\n".join(printed_texts(card))
     words = (normalize(word) for word in re.split(r"[^\w'’]+", oracle_text))
     return frozenset(word for word in words if word)
 
@@ -535,8 +589,11 @@ def saved_key(card: Card) -> str:
     """Where a side's reading is kept in the results: under its printing's
     id, and a double-faced card's back under the id and "/back" - both
     sides share the id. Scryfall's link to a back's picture has "/back/"
-    in it."""
+    in it. A card's spell (see part_of) is kept under the id and
+    "/spell": both parts share the picture."""
     picture_url = (card.raw.get("image_uris") or {}).get("png") or ""
+    if part_index(card) == 1:
+        return f"{card.id}/spell"
     return f"{card.id}/back" if "/back/" in picture_url else card.id
 
 

@@ -34,7 +34,7 @@
   "018160fe-f602-43f5-8495-241a08eaa69c": {
     "name": "Goblin Tomb Raider",
     "picture": "https://cards.scryfall.io/png/front/0/1/018160fe-f602-43f5-8495-241a08eaa69c.png?1783913759",
-    "reader": 5,
+    "reader": 9,
     "boxes": [
       [
         0.0881,
@@ -136,8 +136,15 @@
   "049d96ef-f46c-44d7-8ec4-cdbcc3cd0397": {
     "name": "Goblin King",
     "picture": "https://cards.scryfall.io/png/front/0/4/049d96ef-f46c-44d7-8ec4-cdbcc3cd0397.png?1783946281",
-    "reader": 5,
-    "boxes": null
+    "reader": 9,
+    "boxes": [
+      [
+        0.2342,
+        0.7595,
+        0.106,
+        0.0493
+      ]
+    ]
   },
   "0540ee72-6370-4f70-9526-6f441b3cac1e": {
     "name": "Stormwing Entity",
@@ -444,7 +451,7 @@
   "109900a9-6dcb-4f89-b84c-0ce0a0175e8f": {
     "name": "Restless Anchorage",
     "picture": "https://cards.scryfall.io/png/front/1/0/109900a9-6dcb-4f89-b84c-0ce0a0175e8f.png?1789599913",
-    "reader": 5,
+    "reader": 9,
     "boxes": []
   },
   "11721250-c377-475c-86b7-78be44153114": {
@@ -701,6 +708,19 @@
       ]
     ]
   },
+  "1d95a7dd-2803-4164-8979-d7e8e8085ca2": {
+    "name": "Sanctum Prelate",
+    "picture": "https://cards.scryfall.io/png/front/1/d/1d95a7dd-2803-4164-8979-d7e8e8085ca2.png?1783937362",
+    "reader": 9,
+    "boxes": [
+      [
+        0.1497,
+        0.6619,
+        0.3275,
+        0.0286
+      ]
+    ]
+  },
   "1e0c695d-62f9-4805-9e2f-7032e8464136": {
     "name": "No More Lies",
     "picture": "https://cards.scryfall.io/png/front/1/e/1e0c695d-62f9-4805-9e2f-7032e8464136.png?1783912840",
@@ -772,7 +792,7 @@
   "212d97c5-c144-483b-b42e-00623477e928": {
     "name": "Simic Growth Chamber",
     "picture": "https://cards.scryfall.io/png/front/2/1/212d97c5-c144-483b-b42e-00623477e928.png?1783909568",
-    "reader": 5,
+    "reader": 9,
     "boxes": [
       [
         0.0881,
@@ -829,7 +849,7 @@
   "21a2d11e-48b7-4e9a-a574-838cc26c2b17": {
     "name": "Silhana Ledgewalker",
     "picture": "https://cards.scryfall.io/png/front/2/1/21a2d11e-48b7-4e9a-a574-838cc26c2b17.png?1783911906",
-    "reader": 5,
+    "reader": 9,
     "boxes": [
       [
         0.0881,
@@ -946,6 +966,12 @@
       ]
     ]
   },
+  "25d309d6-9e56-441e-bd29-5c903d5221bf": {
+    "name": "Brazen Borrower",
+    "picture": "https://cards.scryfall.io/png/front/2/5/25d309d6-9e56-441e-bd29-5c903d5221bf.png?1783903792",
+    "reader": 9,
+    "boxes": []
+  },
   "284c4710-4183-4743-9c8b-515cc98cbbb8": {
     "name": "Glint Hawk",
     "picture": "https://cards.scryfall.io/png/front/2/8/284c4710-4183-4743-9c8b-515cc98cbbb8.png?1783941745",
@@ -1051,6 +1077,25 @@
     "picture": "https://cards.scryfall.io/png/front/2/c/2c531254-1b12-44d8-a942-e767d516364e.png?1783906970",
     "reader": 9,
     "boxes": []
+  },
+  "2c645151-c98a-45e1-831e-72b43485f9a2": {
+    "name": "Elvish Spirit Guide",
+    "picture": "https://cards.scryfall.io/png/front/2/c/2c645151-c98a-45e1-831e-72b43485f9a2.png?1783910600",
+    "reader": 9,
+    "boxes": [
+      [
+        0.2117,
+        0.6701,
+        0.4287,
+        0.0377
+      ],
+      [
+        0.5558,
+        0.8403,
+        0.1202,
+        0.031
+      ]
+    ]
   },
   "2ef878cb-27b6-47d8-ad11-bd20529b0e7e": {
     "name": "Cast into the Fire",
@@ -1489,6 +1534,19 @@
         0.7864,
         0.314,
         0.0377
+      ]
+    ]
+  },
+  "474c067f-eb24-4ae8-b4c0-f6f8e24cdb2a": {
+    "name": "Melded Moxite",
+    "picture": "https://cards.scryfall.io/png/front/4/7/474c067f-eb24-4ae8-b4c0-f6f8e24cdb2a.png?1783905952",
+    "reader": 9,
+    "boxes": [
+      [
+        0.2057,
+        0.8427,
+        0.1189,
+        0.0228
       ]
     ]
   },
@@ -2071,7 +2129,7 @@
   "5e3f50c4-2443-4e7a-9d3a-b360037fc94d": {
     "name": "Warping Wail",
     "picture": "https://cards.scryfall.io/png/front/5/e/5e3f50c4-2443-4e7a-9d3a-b360037fc94d.png?1783911393",
-    "reader": 5,
+    "reader": 9,
     "boxes": []
   },
   "5edb0c1d-be6a-42b1-829c-ffbea3647ad8": {
@@ -2270,7 +2328,7 @@
   "6506277d-f031-4db5-9d16-bf2389094785": {
     "name": "Vren, the Relentless",
     "picture": "https://cards.scryfall.io/png/front/6/5/6506277d-f031-4db5-9d16-bf2389094785.png?1783910791",
-    "reader": 5,
+    "reader": 9,
     "boxes": []
   },
   "652236c2-84ef-45e4-b5fc-ed6170bc3d6c": {
@@ -2480,6 +2538,25 @@
         0.7691,
         0.3978,
         0.0339
+      ]
+    ]
+  },
+  "6a0b230b-d391-4998-a3f7-7b158a0ec2cd": {
+    "name": "Llanowar Elves",
+    "picture": "https://cards.scryfall.io/png/front/6/a/6a0b230b-d391-4998-a3f7-7b158a0ec2cd.png?1783909057",
+    "reader": 9,
+    "boxes": [
+      [
+        0.1754,
+        0.7355,
+        0.0994,
+        0.031
+      ],
+      [
+        0.4093,
+        0.7355,
+        0.2076,
+        0.031
       ]
     ]
   },
@@ -3346,6 +3423,19 @@
       ]
     ]
   },
+  "8966483f-7977-44ee-b255-3e89262e0a71": {
+    "name": "Kiora, Behemoth Beckoner",
+    "picture": "https://cards.scryfall.io/png/front/8/9/8966483f-7977-44ee-b255-3e89262e0a71.png?1783910037",
+    "reader": 9,
+    "boxes": [
+      [
+        0.6289,
+        0.572,
+        0.112,
+        0.0358
+      ]
+    ]
+  },
   "8995ceaf-b7e0-423c-8f3e-25212d522502": {
     "name": "Sunspine Lynx",
     "picture": "https://cards.scryfall.io/png/front/8/9/8995ceaf-b7e0-423c-8f3e-25212d522502.png?1783910815",
@@ -3671,6 +3761,19 @@
         0.8403,
         0.2234,
         0.03
+      ]
+    ]
+  },
+  "90ca5812-ceb5-46bd-b049-aed7ff10e6af": {
+    "name": "Garruk, Curse Breaker",
+    "picture": "https://cards.scryfall.io/png/front/9/0/90ca5812-ceb5-46bd-b049-aed7ff10e6af.png?1788329370",
+    "reader": 9,
+    "boxes": [
+      [
+        0.629,
+        0.5047,
+        0.1485,
+        0.0368
       ]
     ]
   },
@@ -4125,6 +4228,18 @@
         0.0353
       ]
     ]
+  },
+  "a8f5f102-cc75-4cee-a117-4bdaaf86c2e9": {
+    "name": "Hearth Elemental",
+    "picture": "https://cards.scryfall.io/png/front/a/8/a8f5f102-cc75-4cee-a117-4bdaaf86c2e9.png?1783915092",
+    "reader": 9,
+    "boxes": []
+  },
+  "a8f5f102-cc75-4cee-a117-4bdaaf86c2e9/spell": {
+    "name": "Stoke Genius",
+    "picture": "https://cards.scryfall.io/png/front/a/8/a8f5f102-cc75-4cee-a117-4bdaaf86c2e9.png?1783915092",
+    "reader": 9,
+    "boxes": []
   },
   "a9738cda-adb1-47fb-9f4c-ecd930228c4d": {
     "name": "Ragavan, Nimble Pilferer",
@@ -4924,6 +5039,25 @@
       ]
     ]
   },
+  "cddd314c-c271-475a-b076-01a8599c8015": {
+    "name": "Thor, God of Thunder",
+    "picture": "https://cards.scryfall.io/png/front/c/d/cddd314c-c271-475a-b076-01a8599c8015.png?1783902923",
+    "reader": 9,
+    "boxes": [
+      [
+        0.2063,
+        0.672,
+        0.1054,
+        0.0281
+      ],
+      [
+        0.0854,
+        0.8355,
+        0.1048,
+        0.0281
+      ]
+    ]
+  },
   "cdfadb17-76ad-4d4d-9fa7-33c4b88b4c0a": {
     "name": "Sowing Mycospawn",
     "picture": "https://cards.scryfall.io/png/front/c/d/cdfadb17-76ad-4d4d-9fa7-33c4b88b4c0a.png?1783911255",
@@ -5350,7 +5484,7 @@
   "e802838f-cc8c-4313-8c3b-32a6a7248e64": {
     "name": "Leonardo, Big Brother",
     "picture": "https://cards.scryfall.io/png/front/e/8/e802838f-cc8c-4313-8c3b-32a6a7248e64.png?1783904124",
-    "reader": 5,
+    "reader": 9,
     "boxes": [
       [
         0.0867,
@@ -5646,6 +5780,19 @@
         0.6927,
         0.3402,
         0.0296
+      ]
+    ]
+  },
+  "fa434b41-e5f7-4989-865a-95db67b05cb1": {
+    "name": "Gran-Gran",
+    "picture": "https://cards.scryfall.io/png/front/f/a/fa434b41-e5f7-4989-865a-95db67b05cb1.png?1786399175",
+    "reader": 9,
+    "boxes": [
+      [
+        0.3098,
+        0.6355,
+        0.2378,
+        0.03
       ]
     ]
   },

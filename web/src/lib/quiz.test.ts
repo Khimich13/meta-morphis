@@ -147,6 +147,56 @@ test('a double-faced wrong answer is named by either side', () => {
   expect([...names].some((name) => name.includes(' // '))).toBe(false);
 });
 
+function withSpell(n: number, spellBox: Card['name_box'] = [0.08, 0.637, 0.29, 0.032]): Card {
+  return {
+    ...card(n),
+    name: `Main ${n} // Spell ${n}`,
+    name_box: [0.08, 0.052, 0.7, 0.051],
+    spell: { name: `Spell ${n}`, name_box: spellBox ?? null, name_text_boxes: [] },
+  };
+}
+
+test('a card with a spell is asked by either part, named by the part asked', () => {
+  const card = withSpell(0);
+  const asked = SEEDS.map((seed) => makeQuestion(card, CARDS, seeded(seed)));
+  expect(new Set(asked.map((question) => question.spell))).toEqual(new Set([false, true]));
+  for (const question of asked) {
+    const right = question.options.find((option) => option.card === card);
+    expect(right?.name).toBe(question.spell ? 'Spell 0' : 'Main 0');
+    // The artwork is the main part's: a spell only by the picture
+    if (question.spell) expect(question.kind).toBe('picture');
+  }
+  const main = asked.filter((question) => !question.spell).map((question) => question.kind);
+  expect(new Set(main)).toEqual(new Set(['artwork', 'picture']));
+});
+
+test("a spell whose name can't be hidden is never asked about", () => {
+  const card = withSpell(0, null);
+  for (const seed of SEEDS) {
+    const question = makeQuestion(card, CARDS, seeded(seed));
+    expect(question.spell).toBe(false);
+    // Still named by its main part alone
+    expect(question.options.find((option) => option.card === card)?.name).toBe('Main 0');
+  }
+});
+
+test('a wrong answer with a spell is named by either part', () => {
+  const others = [CARDS[0], withSpell(1), withSpell(2), withSpell(3, null)];
+  const names = new Set(
+    SEEDS.flatMap((seed) =>
+      makeQuestion(CARDS[0], others, seeded(seed)).options.map((option) => option.name),
+    ),
+  );
+  for (const n of [1, 2]) {
+    expect(names).toContain(`Main ${n}`);
+    expect(names).toContain(`Spell ${n}`);
+  }
+  // A spell never asked about is never a wrong answer either
+  expect(names).toContain('Main 3');
+  expect(names).not.toContain('Spell 3');
+  expect([...names].some((name) => name.includes(' // '))).toBe(false);
+});
+
 const TODAY = '2026-10-15';
 const YESTERDAY = '2026-10-14';
 
@@ -287,6 +337,21 @@ test('a missed card comes back as the same kind of question', () => {
     for (let round = 0; round < 3; round++) {
       lesson = afterAnswer(lesson, false, pictured, seeded(seed + round));
       expect(lesson.queue[lesson.queue.length - 1].kind).toBe(kind);
+      for (let i = 0; i < LESSON_LENGTH - 1; i++) {
+        lesson = { ...lesson, queue: [...lesson.queue.slice(1), lesson.queue[0]] };
+      }
+    }
+  }
+});
+
+test('a missed card comes back on the same part', () => {
+  const parted = CARDS.map((_, n) => withSpell(n));
+  for (const seed of SEEDS) {
+    let lesson = startLesson(parted, EMPTY_PROGRESS, TODAY, seeded(seed));
+    const spell = lesson.queue[0].spell;
+    for (let round = 0; round < 3; round++) {
+      lesson = afterAnswer(lesson, false, parted, seeded(seed + round));
+      expect(lesson.queue[lesson.queue.length - 1].spell).toBe(spell);
       for (let i = 0; i < LESSON_LENGTH - 1; i++) {
         lesson = { ...lesson, queue: [...lesson.queue.slice(1), lesson.queue[0]] };
       }
