@@ -6,7 +6,7 @@
 // this same cache.
 
 import { type ArtFrom, type Card, loadCards } from './cards';
-import { listFile, listsOf, loadFormats } from './formats';
+import { type FormatsFile, listFile, listsOf, loadFormats } from './formats';
 
 /** Must match the cacheName for card pictures in vite.config.ts */
 export const PICTURE_CACHE = 'card-pictures';
@@ -34,6 +34,29 @@ export async function formatCards(format: string): Promise<Card[]> {
   const kinds = listsOf(await loadFormats(), format);
   const files = await Promise.all(kinds.map((kind) => loadCards(listFile({ format, kind }))));
   return files.flatMap((file) => file.cards);
+}
+
+/**
+ * Every format's cards, all its lists together, by format: where a
+ * lesson's wrong answers come from beyond the list being learned (see
+ * makeQuestion in quiz.ts). Only names and types are needed there, so
+ * no pictures are saved for them. A format whose lists can't be loaded
+ * (e.g. offline, for one never opened) is left out.
+ */
+export async function cardsByFormat(formats: FormatsFile): Promise<Record<string, Card[]>> {
+  const loaded = await Promise.all(
+    formats.formats.map(async (format) => {
+      try {
+        const files = await Promise.all(
+          listsOf(formats, format).map((kind) => loadCards(listFile({ format, kind }))),
+        );
+        return [[format, files.flatMap((file) => file.cards)]];
+      } catch {
+        return [];
+      }
+    }),
+  );
+  return Object.fromEntries(loaded.flat());
 }
 
 /**

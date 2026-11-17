@@ -35,10 +35,14 @@ const CARDS = Array.from({ length: 50 }, (_, n) => card(n));
 // so a failing test fails every time
 function seeded(seed: number): Random {
   let state = seed;
-  return () => {
+  const next = () => {
     state = (state * 1664525 + 1013904223) % 4294967296;
     return state / 4294967296;
   };
+  // The first number is nearly the same for nearby seeds (about 0.24 for
+  // 1 to 200), so a question's first random choice would be too
+  next();
+  return next;
 }
 
 const SEEDS = Array.from({ length: 200 }, (_, n) => n + 1);
@@ -249,6 +253,73 @@ test('a split wrong answer is named by either half', () => {
 
 test('a card without halves is asked whole', () => {
   for (const seed of SEEDS) expect(makeQuestion(CARDS[0], CARDS, seeded(seed)).half).toBe(null);
+});
+
+function typed(n: number, type: string): Card {
+  return { ...card(n), type };
+}
+
+/** The wrong answers' cards of a question */
+function wrongCards(question: ReturnType<typeof makeQuestion>): Card[] {
+  return question.options.map((option) => option.card).filter((other) => other !== question.card);
+}
+
+test('wrong answers are of the type asked about, from beyond the cards when they run out', () => {
+  // One planeswalker among the cards learned, as in a format's list: the
+  // other planeswalkers come from the wider pool, never the creatures
+  const walker = typed(0, 'planeswalker');
+  const learned = [walker, typed(1, 'creature'), typed(2, 'creature'), typed(3, 'creature')];
+  const elsewhere = [typed(4, 'planeswalker'), typed(5, 'planeswalker'), typed(6, 'planeswalker')];
+  for (const seed of SEEDS) {
+    const question = makeQuestion(walker, learned, seeded(seed), undefined, [elsewhere]);
+    expect(wrongCards(question).map((other) => other.type)).toEqual([
+      'planeswalker',
+      'planeswalker',
+      'planeswalker',
+    ]);
+  }
+});
+
+test('wrong answers of the type come from the earlier pools first', () => {
+  const asked = typed(0, 'instant');
+  const learned = [asked, typed(1, 'instant'), typed(2, 'creature')];
+  const format = [typed(3, 'instant'), typed(4, 'creature')];
+  const everywhere = [...format, typed(5, 'instant'), typed(6, 'instant')];
+  const seen = new Set<string>();
+  for (const seed of SEEDS) {
+    const question = makeQuestion(asked, learned, seeded(seed), undefined, [format, everywhere]);
+    const ids = wrongCards(question).map((other) => other.oracle_id);
+    // The learned instant and the format's always, one more from everywhere
+    expect(ids).toContain('id-1');
+    expect(ids).toContain('id-3');
+    expect(new Set(ids).size).toBe(OPTION_COUNT - 1);
+    ids.forEach((id) => seen.add(id));
+  }
+  expect(seen).toEqual(new Set(['id-1', 'id-3', 'id-5', 'id-6']));
+});
+
+test('other types fill in when too few of the type are anywhere', () => {
+  const asked = typed(0, 'planeswalker');
+  const learned = [asked, typed(1, 'planeswalker'), typed(2, 'creature'), typed(3, 'land')];
+  for (const seed of SEEDS) {
+    const question = makeQuestion(asked, learned, seeded(seed), undefined, [
+      [asked, typed(1, 'planeswalker')],
+    ]);
+    expect(question.options).toHaveLength(OPTION_COUNT);
+    // The other planeswalker always, counted once though in both pools
+    expect(wrongCards(question).filter((other) => other.oracle_id === 'id-1')).toHaveLength(1);
+  }
+});
+
+test('a double-faced wrong answer is named by its side of the type asked about', () => {
+  // A front creature with a land on its back, as Delver's or a modal land
+  const asked = typed(0, 'land');
+  const flip = { ...doubleFaced(1), type: 'creature' };
+  flip.back = { ...flip.back!, type: 'land' };
+  for (const seed of SEEDS) {
+    const question = makeQuestion(asked, [asked, flip], seeded(seed));
+    expect(question.options.find((option) => option.card === flip)?.name).toBe('Back 1');
+  }
 });
 
 const TODAY = '2026-10-15';

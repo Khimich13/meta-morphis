@@ -2,7 +2,7 @@
 // question offers, and whether an answer is right. No React in here,
 // so it can be tested without a browser.
 
-import { type Card, partName } from './cards';
+import { type Card, partName, partType } from './cards';
 import { isDue, type Progress } from './progress';
 
 export const LESSON_LENGTH = 10;
@@ -71,16 +71,21 @@ export function shuffle<T>(items: readonly T[], random: Random = Math.random): T
 /**
  * A question about the card. `same` keeps the kind and side of an earlier
  * question about it; without it, both are picked at random.
+ *
+ * The wrong answers are of the same type as the part asked about, so the
+ * shape of a name never gives the answer away - a planeswalker's "Name,
+ * epithet" among three plain names. They come from `allCards` first, the
+ * cards being learned, then from each of `moreCards` in turn: the
+ * format's other cards, then every format's. Only when all of those run
+ * out of that type do cards of other types fill in.
  */
 export function makeQuestion(
   card: Card,
   allCards: readonly Card[],
   random: Random = Math.random,
   same?: Pick<Question, 'kind' | 'back' | 'spell' | 'half'>,
+  moreCards: readonly (readonly Card[])[] = [],
 ): Question {
-  const others = allCards.filter((other) => other.oracle_id !== card.oracle_id);
-  const wrong = shuffle(others, random).slice(0, OPTION_COUNT - 1);
-  const cards = shuffle([card, ...wrong], random);
   // Either side, half the time each, for a card with a back to ask about,
   // either part, for a card with a spell whose name can be hidden, and
   // either half of a split card. Either kind, half the time each, on a
@@ -97,11 +102,49 @@ export function makeQuestion(
         : card.name_box;
   const kind: QuestionKind =
     same?.kind ?? (spell || (nameBox && random() < 0.5) ? 'picture' : 'artwork');
-  const options = cards.map((option) => ({
-    card: option,
-    name: option === card ? partName(card, back, spell, half) : wrongName(option, random),
-  }));
+  const right = { card, name: partName(card, back, spell, half) };
+  const wrong = wrongOptions(
+    card,
+    partType(card, back, spell, half),
+    [allCards, ...moreCards],
+    random,
+  );
+  const options = shuffle([right, ...wrong], random);
   return { card, kind, back, spell, half, options };
+}
+
+/**
+ * OPTION_COUNT - 1 wrong answers for a question about the card, whose
+ * part asked about is of this type: cards with a part of that type
+ * first, each named by such a part, the earlier pools' before the later
+ * ones', in random order within each pool. Then, if those are too few,
+ * any other cards, each named by a random part. A card in more than one
+ * pool counts once.
+ */
+function wrongOptions(
+  card: Card,
+  type: string,
+  pools: readonly (readonly Card[])[],
+  random: Random,
+): Option[] {
+  const seen = new Set([card.oracle_id]);
+  const matching: Option[] = [];
+  const others: Card[] = [];
+  for (const pool of pools) {
+    for (const other of shuffle(pool, random)) {
+      if (seen.has(other.oracle_id)) continue;
+      seen.add(other.oracle_id);
+      const parts = answerParts(other).filter((part) => part.type === type);
+      if (parts.length > 0) {
+        matching.push({ card: other, name: parts[Math.floor(random() * parts.length)].name });
+      } else {
+        others.push(other);
+      }
+    }
+    if (matching.length >= OPTION_COUNT - 1) break;
+  }
+  const filler = others.map((other) => ({ card: other, name: wrongName(other, random) }));
+  return [...matching, ...filler].slice(0, OPTION_COUNT - 1);
 }
 
 /** Either half of a split card, half the time each */
@@ -110,13 +153,29 @@ function pickHalf(random: Random): number {
 }
 
 /**
+ * The parts of a card that can be asked about, each with its name, as
+ * its answer button shows it, and its type: a split card's halves, an
+ * adventure's or prepare card's main part and spell, a double-faced
+ * card's sides, or any other card whole
+ */
+function answerParts(card: Card): { name: string; type: string }[] {
+  const part = (back: boolean, spell: boolean, half: number | null = null) => ({
+    name: partName(card, back, spell, half),
+    type: partType(card, back, spell, half),
+  });
+  if (card.halves) return [part(false, false, 0), part(false, false, 1)];
+  if (card.spell?.name_box) return [part(false, false), part(false, true)];
+  if (card.images.length > 1) return [part(false, false), part(true, false)];
+  return [part(false, false)];
+}
+
+/**
  * A wrong answer's name: a random side or part of its card, of those
  * that can be asked about, so the right answer's never stands out
  */
 function wrongName(card: Card, random: Random): string {
-  if (card.halves) return partName(card, false, false, pickHalf(random));
-  if (card.spell?.name_box) return partName(card, false, random() < 0.5);
-  return partName(card, card.images.length > 1 && random() < 0.5, false);
+  const parts = answerParts(card);
+  return parts[Math.floor(random() * parts.length)].name;
 }
 
 /**
@@ -188,9 +247,11 @@ export function startLesson(
   progress: Progress,
   today: string,
   random: Random = Math.random,
+  /** Where wrong answers come from beyond allCards, see makeQuestion */
+  moreCards: readonly (readonly Card[])[] = [],
 ): LessonState {
   const queue = chooseLessonCards(allCards, progress, today, random).map((card) =>
-    makeQuestion(card, allCards, random),
+    makeQuestion(card, allCards, random, undefined, moreCards),
   );
   return {
     queue,
@@ -213,6 +274,8 @@ export function afterAnswer(
   correct: boolean,
   allCards: readonly Card[],
   random: Random = Math.random,
+  /** Where wrong answers come from beyond allCards, see makeQuestion */
+  moreCards: readonly (readonly Card[])[] = [],
 ): LessonState {
   const [current, ...rest] = lesson.queue;
   const card = current.card;
@@ -231,7 +294,7 @@ export function afterAnswer(
   // side stay, so the card is asked the same way it was missed
   return {
     ...lesson,
-    queue: [...rest, makeQuestion(card, allCards, random, current)],
+    queue: [...rest, makeQuestion(card, allCards, random, current, moreCards)],
     missed: isFirstTry(lesson, card) ? [...lesson.missed, card.oracle_id] : lesson.missed,
   };
 }

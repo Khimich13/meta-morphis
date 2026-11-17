@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import './App.css';
 import { type Card, loadCards } from './lib/cards';
@@ -14,7 +14,7 @@ import {
   startFormat,
   startKind,
 } from './lib/formats';
-import { formatCards, savePictures } from './lib/offline';
+import { cardsByFormat, formatCards, savePictures } from './lib/offline';
 import { localDay, recordAnswer, recordLesson } from './lib/progress';
 import {
   loadCustomLists,
@@ -68,6 +68,9 @@ export default function App() {
   // The formats and lists that have card data; null until loaded
   const [formats, setFormats] = useState<FormatsFile | null>(null);
   const [formatsFailed, setFormatsFailed] = useState(false);
+  // Every format's cards, for wrong answers from beyond the list being
+  // learned; empty until loaded, see cardsByFormat
+  const [pool, setPool] = useState<Record<string, Card[]>>({});
   // The chosen format's cards; null until they have arrived
   const [cards, setCards] = useState<Card[] | null>(null);
   // When that format's list was last fetched, if the file says
@@ -87,6 +90,16 @@ export default function App() {
       .then(setFormats)
       .catch(() => setFormatsFailed(true));
   }, []);
+
+  // Once the formats are known: every format's cards, for wrong answers
+  useEffect(() => {
+    if (formats === null) return;
+    cardsByFormat(formats)
+      .then(setPool)
+      .catch(() => {
+        // Never fails: a format that can't load is left out
+      });
+  }, [formats]);
 
   // The lists the chosen format offers, once known. A chosen kind of list
   // the format lacks (say, after switching format) means its overall list.
@@ -128,6 +141,15 @@ export default function App() {
   // The cards being learned: the open list's of the player's own, or the
   // format list's
   const shownCards = openList?.cards ?? cards;
+
+  // Where a lesson's wrong answers come from beyond its cards: the
+  // format's other cards first - none for one of the player's own lists,
+  // which has no format - then every format's (see makeQuestion)
+  const moreCards = useMemo(() => {
+    const everyFormat = Object.values(pool).flat();
+    const sameFormat = !listOpen && format !== null ? (pool[format] ?? []) : [];
+    return [sameFormat, everyFormat];
+  }, [pool, format, listOpen]);
 
   // Once a list's cards are here, save their pictures for offline use,
   // keeping those of the format's other lists - or, for one of the
@@ -255,6 +277,7 @@ export default function App() {
     return (
       <Lesson
         cards={shownCards}
+        moreCards={moreCards}
         progress={progress}
         onAnswer={(card, correct) =>
           setProgress((before) => recordAnswer(before, card.oracle_id, correct, localDay()))

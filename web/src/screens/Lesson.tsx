@@ -47,6 +47,8 @@ import './Lesson.css';
 
 interface LessonProps {
   cards: Card[];
+  /** Where wrong answers come from beyond `cards`, see makeQuestion in quiz.ts */
+  moreCards: readonly (readonly Card[])[];
   /** Decides which cards the lesson asks about */
   progress: Progress;
   /** Called with the first answer to each card - repeats are not reported */
@@ -61,6 +63,7 @@ interface LessonProps {
 
 export default function Lesson({
   cards,
+  moreCards,
   progress,
   onAnswer,
   onLessonFinished,
@@ -68,7 +71,9 @@ export default function Lesson({
   soundsOn,
 }: LessonProps) {
   // The rules for what comes next are in quiz.ts
-  const [lesson, setLesson] = useState(() => startLesson(cards, progress, localDay()));
+  const [lesson, setLesson] = useState(() =>
+    startLesson(cards, progress, localDay(), Math.random, moreCards),
+  );
   // The answer chosen for the question on screen, or null while choosing
   const [picked, setPicked] = useState<Option | null>(null);
   // The card's record before this answer, to show how the answer changed it
@@ -136,7 +141,13 @@ export default function Lesson({
   function next() {
     // Continue only appears after an answer, so this is just a safeguard
     if (picked === null) return;
-    const after = afterAnswer(lesson, isCorrect(lesson.queue[0], picked.card), cards);
+    const after = afterAnswer(
+      lesson,
+      isCorrect(lesson.queue[0], picked.card),
+      cards,
+      Math.random,
+      moreCards,
+    );
     if (isFinished(after)) {
       onLessonFinished();
     }
@@ -146,7 +157,7 @@ export default function Lesson({
   }
 
   function restart() {
-    setLesson(startLesson(cards, progress, localDay()));
+    setLesson(startLesson(cards, progress, localDay(), Math.random, moreCards));
     setPicked(null);
     answered.current = false;
   }
