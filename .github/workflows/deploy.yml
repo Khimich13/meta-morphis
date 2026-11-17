@@ -35,11 +35,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Keep the card database and the exported card files between runs.
-      # The database means data that is still fresh (Scryfall's card data
-      # and artwork choices, for 30 days) isn't fetched again every day;
-      # the card files let a format that fails today keep publishing its
-      # last good list. Each run saves under its own name; the next run
+      # Keep the data folder and the exported card files between runs.
+      # The data folder holds the database of MTGGoldfish's lists and
+      # Scryfall's card data, downloaded again only when Scryfall has made
+      # a newer file; the card files let a format that fails today keep
+      # publishing its last good list. Each run saves under its own name; the next run
       # restores the newest. If nothing is saved yet, the export starts
       # empty.
       - name: Restore the card data
@@ -117,10 +117,11 @@ jobs:
         uses: actions/deploy-pages@v5
 
       # Everything that worked is published by now; mark the run as failed
-      # if a format couldn't be exported, so GitHub emails about it. The
-      # export step's log says which format and why.
-      - name: Report formats that failed to export
+      # if a format couldn't be exported, or Scryfall's card data is more
+      # than a week old, so GitHub emails about it. The export step's log
+      # says which and why.
+      - name: Report a failed export
         if: steps.export.outcome == 'failure'
         run: |
-          echo "::error::A format could not be exported - see the Export card data step"
+          echo "::error::The export failed - see the Export card data step"
           exit 1

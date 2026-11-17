@@ -6,12 +6,9 @@ from pytest import MonkeyPatch
 
 from meta_morphis import config
 from meta_morphis.scryfall.client import (
-    fetch_batch,
-    fetch_by_oracle_ids,
+    fetch_bulk_info,
     fetch_catalog,
-    fetch_single,
     fetch_symbology,
-    search_printings,
 )
 from meta_morphis.utils.http import RequestUnavailable
 
@@ -27,141 +24,38 @@ class FakeResponse:
         return self._payload
 
 
-def test_fetch_batch_success(monkeypatch: MonkeyPatch) -> None:
-    def fake_post(
-        method: str, url: str, headers: Any, params: Any, json: Any, timeout: int
-    ) -> FakeResponse:
-        assert method == "POST"
-        assert url == config.SCRYFALL_COLLECTION_URL
-        assert json == {"identifiers": [{"name": "Lightning Bolt"}]}
-        return FakeResponse(200, {"data": "ok"})
+def test_fetch_bulk_info_success(monkeypatch: MonkeyPatch) -> None:
+    info = {
+        "type": "default_cards",
+        "updated_at": "2026-11-17T22:06:47.962+00:00",
+        "jsonl_download_uri": "https://data.scryfall.io/default-cards/x.jsonl.gz",
+        "compressed_size": 81227194,
+    }
 
-    monkeypatch.setattr("requests.request", fake_post)
-
-    result = fetch_batch(["Lightning Bolt"])
-    assert result == {"data": "ok"}
-
-
-def test_fetch_by_oracle_ids_success(monkeypatch: MonkeyPatch) -> None:
-    def fake_post(
-        method: str, url: str, headers: Any, params: Any, json: Any, timeout: int
-    ) -> FakeResponse:
-        assert method == "POST"
-        assert url == config.SCRYFALL_COLLECTION_URL
-        assert json == {"identifiers": [{"oracle_id": "o1"}, {"oracle_id": "o2"}]}
-        return FakeResponse(200, {"data": "ok"})
-
-    monkeypatch.setattr("requests.request", fake_post)
-
-    result = fetch_by_oracle_ids(["o1", "o2"])
-    assert result == {"data": "ok"}
-
-
-def test_fetch_batch_failure(monkeypatch: MonkeyPatch) -> None:
-    # A 500 exhausting all retries means "couldn't complete the request",
-    # not "these cards don't exist" - fetch_batch must let it propagate
-    # rather than return None, so callers don't mistake a Scryfall outage
-    # for a clean empty result.
-    def fake_post(
-        method: str, url: str, headers: Any, params: Any, json: Any, timeout: int
-    ) -> FakeResponse:
-        return FakeResponse(500, {"something_happened": []})
-
-    monkeypatch.setattr("requests.request", fake_post)
-
-    monkeypatch.setattr("time.sleep", lambda x: None)
-
-    with pytest.raises(RequestUnavailable):
-        fetch_batch(["Bolt"])
-
-
-def test_fetch_batch_bad_200_response(monkeypatch: MonkeyPatch) -> None:
-    # A 200 status doesn't guarantee a JSON body - e.g. a Cloudflare
-    # interstitial or a truncated proxy response. request_with_retries
-    # treats 200 as success and returns the raw text either way.
-    def fake_post(
-        method: str, url: str, headers: Any, params: Any, json: Any, timeout: int
-    ) -> FakeResponse:
-        response = FakeResponse(200, {})
-        response.text = "<html>Just a moment...</html>"
-        return response
-
-    monkeypatch.setattr("requests.request", fake_post)
-
-    with pytest.raises(RequestUnavailable):
-        fetch_batch(["Lightning Bolt"])
-
-
-def test_fetch_single_exact_success(monkeypatch: MonkeyPatch) -> None:
-    def fake_get(
-        method: str, url: str, headers: Any, params: Any, json: Any, timeout: int
-    ) -> FakeResponse:
+    def fake_get(method: str, url: str, **kwargs: Any) -> FakeResponse:
         assert method == "GET"
-        assert params == {"exact": "Lightning Bolt"}
-        return FakeResponse(200, {"name": "Lightning Bolt"})
+        assert url == config.SCRYFALL_BULK_DATA_URL
+        return FakeResponse(200, info)
 
     monkeypatch.setattr("requests.request", fake_get)
 
-    result = fetch_single("Lightning Bolt")
-    assert result == {"name": "Lightning Bolt"}
+    assert fetch_bulk_info() == info
 
 
-def test_fetch_single_fuzzy_success(monkeypatch: MonkeyPatch) -> None:
-    calls: list[Any] = []
-
-    def fake_request_with_retries(
-        method: str, url: str, headers: Any, params: Any, **kwargs: Any
-    ) -> str | None:
-        calls.append(params)
-        if params == {"exact": "Lightning Bolt"}:
-            return None
-        assert params == {"fuzzy": "Lightning Bolt"}
-        return json.dumps({"name": "Lightning Bolt"})
-
-    monkeypatch.setattr(
-        "meta_morphis.scryfall.client.request_with_retries", fake_request_with_retries
-    )
-
-    result = fetch_single("Lightning Bolt")
-    assert result == {"name": "Lightning Bolt"}
-    assert calls == [{"exact": "Lightning Bolt"}, {"fuzzy": "Lightning Bolt"}]
-
-
-def test_fetch_single_exact_404_falls_back_to_fuzzy(monkeypatch: MonkeyPatch) -> None:
-    def fake_get(
-        method: str, url: str, headers: Any, params: Any, json: Any, timeout: int
-    ) -> FakeResponse:
-        if params == {"exact": "Lightnig Bolt"}:
-            return FakeResponse(404, {"error": []})
-        assert params == {"fuzzy": "Lightnig Bolt"}
-        return FakeResponse(200, {"name": "Lightning Bolt"})
-
-    monkeypatch.setattr("requests.request", fake_get)
-
-    result = fetch_single("Lightnig Bolt")
-    assert result == {"name": "Lightning Bolt"}
-
-
-def test_fetch_single_failure(monkeypatch: MonkeyPatch) -> None:
-    def fake_get(
-        method: str, url: str, headers: Any, params: Any, json: Any, timeout: int
-    ) -> FakeResponse:
-        return FakeResponse(404, {"error": []})
-
-    monkeypatch.setattr("requests.request", fake_get)
-
+def test_fetch_bulk_info_failure(monkeypatch: MonkeyPatch) -> None:
+    # A 500 exhausting all retries means "couldn't complete the request" -
+    # it propagates, so the caller keeps its last copy of the file
+    monkeypatch.setattr("requests.request", lambda *a, **k: FakeResponse(500, {}))
     monkeypatch.setattr("time.sleep", lambda x: None)
 
-    result = fetch_single("Unknown Card")
-    assert result is None
+    with pytest.raises(RequestUnavailable):
+        fetch_bulk_info()
 
 
-# Returning None here used to read as "confirmed missing", which put a
-# real card on the 7-day card_lookup_failures list
-def test_fetch_single_bad_200_response(monkeypatch: MonkeyPatch) -> None:
-    def fake_get(
-        method: str, url: str, headers: Any, params: Any, json: Any, timeout: int
-    ) -> FakeResponse:
+def test_fetch_bulk_info_bad_200_response(monkeypatch: MonkeyPatch) -> None:
+    # A 200 status doesn't guarantee a JSON body - e.g. a Cloudflare
+    # interstitial or a truncated proxy response
+    def fake_get(method: str, url: str, **kwargs: Any) -> FakeResponse:
         response = FakeResponse(200, {})
         response.text = "<html>Just a moment...</html>"
         return response
@@ -169,18 +63,16 @@ def test_fetch_single_bad_200_response(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr("requests.request", fake_get)
 
     with pytest.raises(RequestUnavailable):
-        fetch_single("Lightning Bolt")
+        fetch_bulk_info()
 
 
-# Scryfall allows 2 requests/second on these endpoints and locks the
+# Scryfall allows 2 requests/second on its API and locks the
 # client out for 30s after a 429 - every call must carry those settings,
 # not request_with_retries' faster generic defaults.
 @pytest.mark.parametrize(
     "call",
     [
-        lambda: fetch_batch(["Lightning Bolt"]),
-        lambda: fetch_by_oracle_ids(["o1"]),
-        lambda: fetch_single("Lightning Bolt"),
+        lambda: fetch_bulk_info(),
         lambda: fetch_symbology(),
         lambda: fetch_catalog("creature-types"),
     ],
@@ -237,58 +129,3 @@ def test_fetch_symbology_bad_200_response(monkeypatch: MonkeyPatch) -> None:
 
     with pytest.raises(RequestUnavailable):
         fetch_symbology()
-
-
-def test_search_printings_follows_every_page(monkeypatch: MonkeyPatch) -> None:
-    pages = {
-        config.SCRYFALL_SEARCH_URL: {
-            "data": [{"set": "lea"}],
-            "has_more": True,
-            "next_page": "https://next",
-        },
-        "https://next": {"data": [{"set": "m10"}], "has_more": False},
-    }
-    asked: list[tuple[str, Any]] = []
-
-    def fake_get(method: str, url: str, **kwargs: Any) -> FakeResponse:
-        asked.append((url, kwargs.get("params")))
-        return FakeResponse(200, pages[url])
-
-    monkeypatch.setattr("requests.request", fake_get)
-
-    assert search_printings(["a", "b"]) == [{"set": "lea"}, {"set": "m10"}]
-    first_url, first_params = asked[0]
-    assert first_url == config.SCRYFALL_SEARCH_URL
-    # All the cards in one search, the filters applied to every one
-    assert first_params["q"].startswith("(oracleid:a or oracleid:b) ")
-    assert config.SCRYFALL_REGULAR_PRINTINGS in first_params["q"]
-    assert first_params["unique"] == "prints"
-
-
-def test_search_printings_no_match_is_empty(monkeypatch: MonkeyPatch) -> None:
-    # Scryfall answers a search with no results with a 404
-    monkeypatch.setattr("requests.request", lambda *a, **k: FakeResponse(404, {}))
-    assert search_printings(["oid"]) == []
-
-
-def test_search_printings_missing_later_page_is_unavailable(
-    monkeypatch: MonkeyPatch,
-) -> None:
-    # A first page that promises more, then a 404: the list would be
-    # incomplete, so this must not pass as a full answer
-    def fake_get(method: str, url: str, **kwargs: Any) -> FakeResponse:
-        if url == config.SCRYFALL_SEARCH_URL:
-            return FakeResponse(
-                200,
-                {
-                    "data": [{"set": "lea"}],
-                    "has_more": True,
-                    "next_page": "https://next",
-                },
-            )
-        return FakeResponse(404, {})
-
-    monkeypatch.setattr("requests.request", fake_get)
-
-    with pytest.raises(RequestUnavailable):
-        search_printings(["oid"])

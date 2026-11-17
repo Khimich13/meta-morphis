@@ -1,5 +1,7 @@
 from typing import Any
 
+import pytest
+
 from meta_morphis.scryfall.artwork import choose_printing, is_regular_printing
 
 
@@ -160,3 +162,48 @@ def test_special_printings_that_slip_through_are_ignored() -> None:
         _printing("mb2", "2024-08-02", "meehan", frame="future"),
     ]
     assert _chosen_set(printings) == "m10"
+
+
+def _numbered(set_code: str, number: str) -> dict[str, Any]:
+    return {
+        **_printing(set_code, "2024-06-14", "same art"),
+        "id": f"id-{set_code}-{number}",
+        "collector_number": number,
+    }
+
+
+def _chosen_number(printings: list[dict[str, Any]]) -> str:
+    chosen = choose_printing(printings)
+    assert chosen is not None
+    return f"{chosen['set']} {chosen['collector_number']}"
+
+
+# Scryfall's card data file lists printings in no useful order, so the
+# order they come in must never decide which one is shown
+@pytest.mark.parametrize(
+    "printings, shown",
+    [
+        # A set numbers its special versions after its regular cards:
+        # Priest of Titania's retro frame is 428, the regular card 286
+        ([_numbered("mh3", "428"), _numbered("mh3", "286")], "mh3 286"),
+        # Numbers compare as numbers, not text
+        ([_numbered("mh3", "1000"), _numbered("mh3", "99")], "mh3 99"),
+        # The plain number before a marked one
+        ([_numbered("7ed", "133★"), _numbered("7ed", "133")], "7ed 133"),
+        # Between sets, by set code, as Scryfall's search listed them
+        ([_numbered("frc", "37"), _numbered("fdc", "53")], "fdc 53"),
+        # A number without digits comes last
+        ([_numbered("plst", "A25-82"), _numbered("plst", "5")], "plst 5"),
+    ],
+)
+def test_a_tie_on_the_same_day_is_decided_by_set_and_number(
+    printings: list[dict[str, Any]], shown: str
+) -> None:
+    assert _chosen_number(printings) == shown
+    assert _chosen_number(list(reversed(printings))) == shown
+
+
+def test_a_newer_printing_wins_over_a_lower_number() -> None:
+    older = _numbered("mh3", "286")
+    newer = {**_numbered("mh3", "428"), "released_at": "2024-06-15"}
+    assert _chosen_number([older, newer]) == "mh3 428"

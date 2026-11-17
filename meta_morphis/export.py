@@ -5,7 +5,6 @@ Run with: uv run python -m meta_morphis.export
 
 import json
 import logging
-import math
 import os
 import re
 import sqlite3
@@ -21,6 +20,7 @@ from meta_morphis.db.init_db import init_db
 from meta_morphis.meta.repo import get_meta_timestamp
 from meta_morphis.meta.service import get_meta_cards
 from meta_morphis.models.card import Card, ImageSide
+from meta_morphis.models.meta import MetaEntry
 from meta_morphis.name_in_text import (
     PART_COLUMNS,
     REMINDER,
@@ -39,8 +39,8 @@ from meta_morphis.name_in_text import (
     printed_texts,
     short_name,
 )
-from meta_morphis.scryfall.service import fetch_cards, get_display_printings
-from meta_morphis.utils.text import card_count
+from meta_morphis.scryfall.bulk import bulk_file_age, read_cards, update_bulk_file
+from meta_morphis.utils.text import card_count, normalize_name
 
 log = logging.getLogger(__name__)
 
@@ -742,13 +742,6 @@ def build_card(card: Card, read_text: ReadText = never_read) -> ExportCard | Non
     }
 
 
-def _staleness(card: Card) -> float:
-    # A negative age was written by a clock that ran ahead, so nothing
-    # says how old the data really is - it counts as the oldest, as the
-    # cache in scryfall/service.py treats it as stale
-    return math.inf if card.age < 0 else card.age
-
-
 def build_export(
     format_name: str,
     cards: list[Card],
@@ -757,12 +750,7 @@ def build_export(
 ) -> ExportFile:
     # The app tells cards apart by oracle id, so each may appear only once.
     # Two names on the list can still lead to one card, e.g. an old
-    # spelling and the new one after Scryfall renamed it. Usually both
-    # copies are already one object here: get_display_printings gives
-    # every copy the same chosen printing, so the first copy is kept. Only
-    # a card with no choice, saved or new, reaches here as two different
-    # copies. Then the one with the newest Scryfall data is kept - it
-    # carries the card's current name - whichever name the list put first.
+    # spelling and the new one after Scryfall renamed it: the first is kept.
     kept: dict[str, tuple[Card, ExportCard]] = {}
     for card in cards:
         built = build_card(card, read_text)
@@ -774,15 +762,11 @@ def build_export(
             continue
         oracle_id = built["oracle_id"]
         other = kept.get(oracle_id)
-        if other and _staleness(other[0]) <= _staleness(card):
+        if other:
             log.warning(
                 f"Leaving out '{card.name}' - the same card as '{other[0].name}'"
             )
             continue
-        if other:
-            log.warning(
-                f"Leaving out '{other[0].name}' - the same card as '{card.name}'"
-            )
         kept[oracle_id] = (card, built)
 
     # Sorted so the file doesn't reshuffle between runs
@@ -838,18 +822,23 @@ def export_format(
     conn: sqlite3.Connection,
     format_name: str,
     kind: str,
+    meta: list[MetaEntry],
+    cards: dict[str, Card],
     out_dir: Path,
     read_text: ReadText = never_read,
 ) -> Path:
     """Exports one list of one format, e.g. "pauper" and "lands", to a
-    file named after the list - see list_name in config.py."""
+    file named after the list - see list_name in config.py. `meta` is the
+    list from MTGGoldfish, and `cards` the cards from read_cards, each in
+    the printing it is shown with."""
     name = config.list_name(format_name, kind)
-    meta = get_meta_cards(conn, format_name, kind)
     list_updated = _check_list_age(conn, name)
-    cards = [card for card in fetch_cards(conn, meta) if not is_basic_land(card)]
-    # The printing each card is shown with - see scryfall/artwork.py
-    cards = get_display_printings(conn, cards)
-    data = build_export(name, cards, list_updated, read_text)
+    # A name read_cards couldn't find a card for was logged there
+    on_list = [
+        cards[key] for entry in meta if (key := normalize_name(entry.name)) in cards
+    ]
+    on_list = [card for card in on_list if not is_basic_land(card)]
+    data = build_export(name, on_list, list_updated, read_text)
     minimum = config.min_cards(kind)
     if len(data["cards"]) < minimum:
         raise RuntimeError(
@@ -883,11 +872,15 @@ def export_all(
     formats: list[str],
     kinds: list[str],
     out_dir: Path,
+    bulk_path: Path,
     read_text: ReadText = never_read,
 ) -> list[str]:
     """Exports each list of each format on its own: one that fails keeps
     the file it had, and the others are still written. Then writes
     formats.json. Returns the lists that failed.
+
+    Every list is read from MTGGoldfish first, so Scryfall's card data
+    (`bulk_path`) is read only once, for the names on all of them.
     """
     # A run killed while write_json was writing - out of memory, or over
     # the time limit - leaves its half-written .tmp file, and the daily
@@ -896,21 +889,43 @@ def export_all(
         log.warning(f"Removing {stray} left by an interrupted run")
         stray.unlink()
 
-    failed: list[str] = []
-    for format_name in formats:
-        for kind in kinds:
+    all_lists = [(format_name, kind) for format_name in formats for kind in kinds]
+    failed: set[tuple[str, str]] = set()
+    lists: dict[tuple[str, str], list[MetaEntry]] = {}
+    for format_name, kind in all_lists:
+        try:
+            lists[format_name, kind] = get_meta_cards(conn, format_name, kind)
+        except Exception:
+            # With the full error, so the log says why
             name = config.list_name(format_name, kind)
-            try:
-                export_format(conn, format_name, kind, out_dir, read_text)
-            except Exception:
-                # With the full error, so the log says why
-                log.exception(
-                    f"Could not export {name} - keeping its previous file, if any"
-                )
-                failed.append(name)
+            log.exception(
+                f"Could not get the {name} list - keeping its previous file, if any"
+            )
+            failed.add((format_name, kind))
+
+    try:
+        names = {entry.name for meta in lists.values() for entry in meta}
+        cards = read_cards(bulk_path, names)
+    except Exception:
+        log.exception(
+            "Could not read Scryfall's card data - keeping every list's previous file"
+        )
+        failed.update(lists)
+        lists = {}
+
+    for (format_name, kind), meta in lists.items():
+        try:
+            export_format(conn, format_name, kind, meta, cards, out_dir, read_text)
+        except Exception:
+            name = config.list_name(format_name, kind)
+            log.exception(
+                f"Could not export {name} - keeping its previous file, if any"
+            )
+            failed.add((format_name, kind))
 
     write_formats(out_dir, formats, kinds)
-    return failed
+    # In the order of the lists, not of the steps they failed at
+    return [config.list_name(*key) for key in all_lists if key in failed]
 
 
 def write_formats(out_dir: Path, formats: list[str], kinds: list[str]) -> Path:
@@ -961,6 +976,7 @@ def main() -> int:
         load_name_in_text(config.NAME_IN_TEXT_PATH), fetch_game_words()
     )
     try:
+        update_bulk_file(config.BULK_PATH)
         with get_connection() as conn:
             init_db(conn)
             failed = export_all(
@@ -968,6 +984,7 @@ def main() -> int:
                 config.GOLDFISH_FORMATS,
                 config.GOLDFISH_LISTS,
                 config.EXPORT_DIR,
+                config.BULK_PATH,
                 read_text,
             )
     finally:
@@ -978,10 +995,26 @@ def main() -> int:
             )
         report_left_out(read_text.summary())
 
+    old_data = _bulk_file_is_old(config.BULK_PATH)
     if failed:
         log.error(f"Failed to export: {', '.join(failed)}")
-        return 1
-    return 0
+    return 1 if failed or old_data else 0
+
+
+def _bulk_file_is_old(path: Path) -> bool:
+    """Logs an error if Scryfall's card data is older than
+    SCRYFALL_STALE_AFTER - see config.py. A missing file has already
+    failed every list."""
+    if not path.exists():
+        return False
+    age = bulk_file_age(path)
+    if age <= config.SCRYFALL_STALE_AFTER:
+        return False
+    log.error(
+        f"Scryfall's card data is {int(age // config.DAY)} days old - downloading "
+        "it has failed since. The warnings above say why."
+    )
+    return True
 
 
 if __name__ == "__main__":

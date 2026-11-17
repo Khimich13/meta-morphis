@@ -38,8 +38,10 @@ like an app, and works offline once a list has been opened.
 ```
 
 - **`meta_morphis/`** (Python) reads MTGGoldfish's lists of most played
-  cards and fetches each card's data from Scryfall, keeping both in a SQLite
-  cache. Its exporter writes a JSON file for each format and list. It reads
+  cards, keeping them in a SQLite database, and reads each card's data
+  from Scryfall's daily file of every card, downloaded only when Scryfall
+  has made a newer one. Its exporter writes a JSON file for each format
+  and list. It reads
   card pictures with Tesseract to find a card's name in its text box, and
   keeps what it found in `meta_morphis/name_in_text.json`, in git.
 - **`web/`** (React, TypeScript, Vite) is the app. It reads those JSON files
@@ -57,8 +59,8 @@ Node.js 26, and [Tesseract](https://tesseract-ocr.github.io/) (`sudo apt
 install tesseract-ocr`). Without Tesseract the export still works, but cards
 with their name in their text box are asked only by their artwork.
 
-Write the card files (the first run fetches everything and takes a few
-minutes):
+Write the card files (the first run downloads Scryfall's card data, about
+80 MB, and takes a minute or two):
 
 ```bash
 uv run python -m meta_morphis.export

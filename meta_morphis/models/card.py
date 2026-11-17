@@ -38,7 +38,6 @@ class Card:
     mana_cost: str | None
     type_line: str
     faces: list[CardFace]
-    age: int
     raw: dict[str, Any]
     oracle_id: str | None = None
     layout: str = "normal"
@@ -80,7 +79,6 @@ class Card:
             mana_cost=mana_cost,
             type_line=raw.get("type_line", ""),
             faces=faces,
-            age=0,
             raw=raw,
             oracle_id=oracle_id_of(raw),
             layout=raw.get("layout") or "normal",

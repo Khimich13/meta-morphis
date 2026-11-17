@@ -5,34 +5,10 @@ from meta_morphis import config
 from meta_morphis.utils.http import RequestUnavailable, request_with_retries
 
 
-def fetch_batch(names: list[str]) -> dict[str, Any] | None:
-    return _fetch_collection([{"name": n} for n in names])
-
-
-def fetch_by_oracle_ids(oracle_ids: list[str]) -> dict[str, Any] | None:
-    """The cards with these oracle_ids, one printing of each. An
-    oracle_id is a card's permanent identity: unlike a name, Scryfall
-    can't answer it with a different card, and it stays the same when
-    the card is renamed.
-    """
-    return _fetch_collection([{"oracle_id": oracle_id} for oracle_id in oracle_ids])
-
-
-def _fetch_collection(identifiers: list[dict[str, str]]) -> dict[str, Any] | None:
-    raw = _request(
-        "POST",
-        config.SCRYFALL_COLLECTION_URL,
-        json={"identifiers": identifiers},
-    )
-    if raw is None:
-        return None
-    return _parse_json(raw)
-
-
-def fetch_single(name: str) -> dict[str, Any] | None:
-    raw = _request("GET", config.SCRYFALL_NAMED_URL, params={"exact": name})
-    if raw is None:
-        raw = _request("GET", config.SCRYFALL_NAMED_URL, params={"fuzzy": name})
+def fetch_bulk_info() -> dict[str, Any] | None:
+    """Where today's file of every printing is and when it was made:
+    jsonl_download_uri, updated_at and compressed_size - see bulk.py"""
+    raw = _request("GET", config.SCRYFALL_BULK_DATA_URL)
     if raw is None:
         return None
     return _parse_json(raw)
@@ -55,34 +31,6 @@ def fetch_catalog(name: str) -> list[str] | None:
         return None
     words: list[str] = _parse_json(raw).get("data", [])
     return words
-
-
-def search_printings(oracle_ids: list[str]) -> list[dict[str, Any]]:
-    """Every regular printing of these cards, in one search. Keep the
-    list to SCRYFALL_PRINTINGS_PER_SEARCH cards: longer queries lose
-    their filters - see config.py. Empty when none matched.
-    """
-    cards = " or ".join(f"oracleid:{oracle_id}" for oracle_id in oracle_ids)
-    params = {
-        "q": f"({cards}) {config.SCRYFALL_REGULAR_PRINTINGS}",
-        "unique": "prints",
-        "order": "released",
-        "dir": "asc",
-    }
-    raw = _request("GET", config.SCRYFALL_SEARCH_URL, params=params)
-    if raw is None:
-        return []
-    page = _parse_json(raw)
-    printings: list[dict[str, Any]] = list(page.get("data", []))
-
-    # Results come in pages of 175
-    while page.get("has_more") and page.get("next_page"):
-        raw = _request("GET", page["next_page"])
-        if raw is None:
-            raise RequestUnavailable("a further page of search results was missing")
-        page = _parse_json(raw)
-        printings.extend(page.get("data", []))
-    return printings
 
 
 def _request(

@@ -3,6 +3,7 @@ the artwork that appears on the most printings - the art a player has
 most likely seen.
 """
 
+import re
 from typing import Any
 
 
@@ -11,8 +12,10 @@ def choose_printing(printings: list[dict[str, Any]]) -> dict[str, Any] | None:
     the older one when two are printed equally often, since it has been in
     players' hands longer - and return the newest printing of it, which is
     usually the best scan, passing over one whose scan is off - artwork
-    cut wrong, or an etched foil - while the artwork has another. None if
-    no printing has the pictures to show.
+    cut wrong, or an etched foil - while the artwork has another. Of two
+    printed the same day, the first by set code and then by collector
+    number - see _in_set_order. None if no printing has the pictures to
+    show.
     """
     by_artwork: dict[str, list[dict[str, Any]]] = {}
     for printing in printings:
@@ -31,13 +34,18 @@ def choose_printing(printings: list[dict[str, Any]]) -> dict[str, Any] | None:
         key=lambda group: (-len(group), min(_released(p) for p in group)),
     )
     scanned_well = [p for p in most_printed if not scan_is_off(p)]
-    return max(scanned_well or most_printed, key=_released)
+    # max() keeps the first of the newest, so the order decides a tie
+    in_order = sorted(scanned_well or most_printed, key=_in_set_order)
+    return max(in_order, key=_released)
 
 
 def is_regular_printing(printing: dict[str, Any]) -> bool:
-    """The same rules as SCRYFALL_REGULAR_PRINTINGS in config.py, checked
-    on the printing's own data. Scryfall can silently drop filters from a
-    long query, so the search results are not trusted to follow them.
+    """A printing a player could meet at a table: paper and English only,
+    and none of the special versions - promos, gold-bordered and
+    oversized cards (not tournament-legal), memorabilia, and showcase,
+    borderless, extended-art, full-art or "future" frames. Scryfall's
+    card data also has cards from sets printed only in another language,
+    such as Renaissance in French.
     """
     effects = printing.get("frame_effects") or []
     return (
@@ -97,6 +105,22 @@ def _has_pictures(printing: dict[str, Any]) -> bool:
         return True
     faces = printing.get("card_faces") or []
     return bool(faces) and all("image_uris" in face for face in faces)
+
+
+def _in_set_order(printing: dict[str, Any]) -> tuple[str, int, int]:
+    """By set code, then by collector number, then the plain number before
+    a marked one: 133 before 133★. Within a set this puts the regular
+    card first, as a set numbers its special versions after its regular
+    cards: Priest of Titania's 286 in Modern Horizons 3 before its retro
+    frame 428. Between sets it is the order Scryfall's search listed
+    printings of the same day in, which chose the printings before its
+    card data file did. The file comes in no useful order of its own.
+    """
+    number = printing.get("collector_number", "")
+    digits = re.match(r"\d+", number)
+    # A number without digits, if there ever is one, comes last
+    value = int(digits.group()) if digits else 10**9
+    return printing.get("set", ""), value, len(number)
 
 
 def _released(printing: dict[str, Any]) -> str:

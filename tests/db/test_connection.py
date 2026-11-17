@@ -5,7 +5,6 @@ import pytest
 from pytest import MonkeyPatch
 
 from meta_morphis.db.connection import get_connection
-from meta_morphis.db.init_db import init_db
 
 
 def test_get_connection_creates_missing_parent_directory(
@@ -30,13 +29,11 @@ def test_get_connection_enforces_foreign_keys(
     db_path = tmp_path / "cards.db"
     monkeypatch.setattr("meta_morphis.db.connection.config.DB_PATH", db_path)
 
+    # No table has a foreign key today; one added later is enforced
     with get_connection() as conn:
         assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
 
-        init_db(conn)
-
+        conn.execute("CREATE TABLE parent (name TEXT PRIMARY KEY)")
+        conn.execute("CREATE TABLE child (name TEXT REFERENCES parent(name))")
         with pytest.raises(sqlite3.IntegrityError):
-            conn.execute(
-                "INSERT INTO card_aliases (alias, card_name) VALUES (?, ?)",
-                ("ghost", "no-such-card"),
-            )
+            conn.execute("INSERT INTO child VALUES ('no-such-parent')")

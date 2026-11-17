@@ -25,14 +25,7 @@ def test_init_db_creates_all_expected_tables() -> None:
         ).fetchall()
     }
 
-    assert tables == {
-        "cards",
-        "card_aliases",
-        "card_lookup_failures",
-        "meta_refresh",
-        "meta",
-        "chosen_printings",
-    }
+    assert tables == {"meta_refresh", "meta"}
 
 
 # Uses a file - an in-memory database can't be put in WAL mode at all.
@@ -49,8 +42,7 @@ def test_init_db_is_idempotent() -> None:
     conn = sqlite3.connect(":memory:")
     init_db(conn)
     conn.execute(
-        "INSERT INTO cards (id, name, json, updated_at) VALUES (?, ?, ?, ?)",
-        ("1", "lightning bolt", "{}", 0),
+        "INSERT INTO meta (name, format) VALUES (?, ?)", ("Lightning Bolt", "modern")
     )
     conn.commit()
 
@@ -62,7 +54,7 @@ def test_init_db_is_idempotent() -> None:
 
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     assert version == SCHEMA_VERSION
-    assert conn.execute("SELECT name FROM cards").fetchall() == [("lightning bolt",)]
+    assert conn.execute("SELECT name FROM meta").fetchall() == [("Lightning Bolt",)]
 
 
 def test_init_db_refuses_a_newer_schema_version() -> None:
@@ -77,8 +69,8 @@ def test_init_db_refuses_a_newer_schema_version() -> None:
 
 
 def test_init_db_upgrades_a_version_1_database() -> None:
-    # A database made before chosen_printings existed keeps its data
-    # and gains the new table
+    # A database made before chosen_printings existed goes through every
+    # step: the table is made, then dropped with the other Scryfall tables
     conn = sqlite3.connect(":memory:")
     conn.execute("""
         CREATE TABLE cards (
@@ -94,8 +86,9 @@ def test_init_db_upgrades_a_version_1_database() -> None:
     init_db(conn)
 
     assert conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
-    assert conn.execute("SELECT name FROM cards").fetchall() == [("lightning bolt",)]
-    assert conn.execute("SELECT COUNT(*) FROM chosen_printings").fetchone()[0] == 0
+    tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master")}
+    assert "cards" not in tables
+    assert "chosen_printings" not in tables
 
 
 def test_init_db_upgrades_a_version_2_database() -> None:
@@ -120,3 +113,48 @@ def test_init_db_upgrades_a_version_2_database() -> None:
     columns = [row[1] for row in conn.execute("PRAGMA table_info(meta)")]
     assert columns == ["name", "format", "rank", "percent", "avg_copies"]
     assert conn.execute("SELECT name FROM meta").fetchall() == [("Wear // Tear",)]
+
+
+def test_init_db_upgrades_a_version_3_database() -> None:
+    # The Scryfall tables go - its card data now comes from its daily
+    # file - and the MTGGoldfish lists stay
+    conn = sqlite3.connect(":memory:")
+    version_3 = """
+        CREATE TABLE cards (
+            id TEXT, name TEXT UNIQUE NOT NULL,
+            json TEXT NOT NULL, updated_at INTEGER NOT NULL
+        );
+        CREATE TABLE card_aliases (
+            alias TEXT PRIMARY KEY,
+            card_name TEXT NOT NULL REFERENCES cards(name)
+        );
+        CREATE TABLE card_lookup_failures (
+            name TEXT PRIMARY KEY, last_attempt INTEGER NOT NULL
+        );
+        CREATE TABLE chosen_printings (
+            oracle_id TEXT PRIMARY KEY,
+            json TEXT NOT NULL, updated_at INTEGER NOT NULL
+        );
+        CREATE TABLE meta_refresh (
+            format TEXT PRIMARY KEY, last_updated INTEGER NOT NULL
+        );
+        CREATE TABLE meta (
+            name TEXT NOT NULL, format TEXT NOT NULL, rank INTEGER,
+            percent REAL, avg_copies FLOAT, PRIMARY KEY (format, name)
+        );
+        INSERT INTO cards VALUES ('1', 'lightning bolt', '{}', 0);
+        INSERT INTO card_aliases VALUES ('lightning bolt', 'lightning bolt');
+        INSERT INTO meta VALUES ('Lightning Bolt', 'modern', 1, 10.0, 4.0);
+        PRAGMA user_version = 3;
+    """
+    conn.executescript(version_3)
+
+    init_db(conn)
+
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
+    tables = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+    }
+    assert tables == {"meta_refresh", "meta"}
+    assert conn.execute("SELECT name FROM meta").fetchall() == [("Lightning Bolt",)]

@@ -35,10 +35,11 @@ GOLDFISH_REFRESH_RATE = 20 * 60 * 60
 GOLDFISH_BAD_ROWS_LIMIT = 10
 
 # Scryfall
-SCRYFALL_COLLECTION_URL = "https://api.scryfall.com/cards/collection"
-SCRYFALL_NAMED_URL = "https://api.scryfall.com/cards/named"
+# Scryfall's file of every printing, one card per line - see
+# scryfall/bulk.py. This address says where today's file is; the file
+# itself comes from data.scryfall.io, which has no rate limit.
+SCRYFALL_BULK_DATA_URL = "https://api.scryfall.com/bulk-data/default-cards"
 SCRYFALL_SYMBOLOGY_URL = "https://api.scryfall.com/symbology"
-SCRYFALL_SEARCH_URL = "https://api.scryfall.com/cards/search"
 SCRYFALL_CATALOG_URL = "https://api.scryfall.com/catalog/"
 # The subtypes printed on type lines, which a card's text uses as plain
 # game words: "a Goblin card". Planeswalker types are left out: they are
@@ -51,34 +52,14 @@ SCRYFALL_SUBTYPE_CATALOGS = [
     "spell-types",
     "battle-types",
 ]
-# Printings a player could meet at a table, for choosing a card's
-# artwork: paper and English only, and none of the special versions -
-# promos, gold-bordered and oversized cards (not tournament-legal),
-# memorabilia, and showcase, borderless, extended-art, full-art or
-# "future" frames. Without lang:en, Scryfall also returns printings from
-# sets printed only in another language, such as Renaissance in French.
-SCRYFALL_REGULAR_PRINTINGS = (
-    "game:paper lang:en -is:promo -is:digital -border:gold -is:oversized "
-    "-st:memorabilia -frame:future -is:showcase -is:extendedart "
-    "-is:fullart -is:borderless"
-)
-# Cards per printing search. Scryfall silently ignores the filters above
-# once a query gets too long: tested in October 2026, 15 cards per search
-# kept them and 20 did not, with no warning in the response. 10 leaves a
-# margin, and scryfall/artwork.py checks every printing again anyway.
-SCRYFALL_PRINTINGS_PER_SEARCH = 10
 SCRYFALL_HEADERS = {
     "User-Agent": "meta-morphis/0.1.0 (+https://github.com/Khimich13/meta-morphis)",
     "Accept": "application/json",
 }
-# For downloading card pictures, which are not JSON
-SCRYFALL_IMAGE_HEADERS = {"User-Agent": SCRYFALL_HEADERS["User-Agent"]}
-SCRYFALL_REFRESH_RATE = 30 * DAY
-SCRYFALL_BATCH_SIZE_LIMIT = 75
-SCRYFALL_BAD_NAMES_LOOKUP_COOLDOWN = 7 * DAY
-# /cards/collection and /cards/named are limited to 2 requests/second,
-# and a 429 locks the client out for 30 seconds
-# (https://scryfall.com/docs/api/rate-limits)
+# For downloading files that are not JSON: card pictures and the card data
+SCRYFALL_FILE_HEADERS = {"User-Agent": SCRYFALL_HEADERS["User-Agent"]}
+# Scryfall's API allows 2 requests a second, and a 429 locks the client
+# out for 30 seconds (https://scryfall.com/docs/api/rate-limits)
 SCRYFALL_MIN_DELAY = 0.5
 SCRYFALL_RATE_LIMIT_COOLDOWN = 30.0
 
@@ -107,9 +88,18 @@ def min_cards(kind: str) -> int:
 # LIST_OLD_AFTER_DAYS in web/src/lib/cards.ts, which shows a banner.
 EXPORT_STALE_AFTER = 3 * DAY
 
+# Scryfall's card data older than this makes the run fail after the
+# export, so GitHub reports a download that has failed for a week. The
+# export still uses the old file: cards change little in a week.
+SCRYFALL_STALE_AFTER = 7 * DAY
+
 # Database
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = Path(os.environ.get("META_MORPHIS_DB") or PROJECT_ROOT / "data" / "cards.db")
+
+# The last downloaded copy of Scryfall's card data, next to the database,
+# so the daily run keeps it between runs too
+BULK_PATH = PROJECT_ROOT / "data" / "default-cards.jsonl.gz"
 
 # Where each printing's name was found in its text box, read from its
 # picture - see name_in_text.py. Kept in git, unlike the database: the

@@ -4,7 +4,7 @@ import sqlite3
 # block below with the migration steps. CREATE TABLE IF NOT EXISTS alone
 # can't detect an existing table whose columns have drifted from what the
 # code now expects - this guard makes that drift loud instead of silent.
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 def init_db(conn: sqlite3.Connection) -> None:
@@ -34,10 +34,14 @@ def init_db(conn: sqlite3.Connection) -> None:
         _migrate_to_v3(c)
         current_version = 3
 
+    if current_version < 4:
+        _migrate_to_v4(c)
+        current_version = 4
+
     # Next schema change adds a block here, e.g.:
-    # if current_version < 4:
-    #     _migrate_to_v4(c)
-    #     current_version = 4
+    # if current_version < 5:
+    #     _migrate_to_v5(c)
+    #     current_version = 5
 
     c.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     conn.commit()
@@ -106,5 +110,16 @@ def _migrate_to_v2(c: sqlite3.Cursor) -> None:
 
 def _migrate_to_v3(c: sqlite3.Cursor) -> None:
     # The front face's name of a split card, which it used to be looked up
-    # by - see _classify_cards in scryfall/service.py for why it no longer is
+    # by: "Fire" is also a face of Start // Fire. A card is now found by
+    # its full name first - see read_cards in scryfall/bulk.py
     c.execute("ALTER TABLE meta DROP COLUMN lookup_name")
+
+
+def _migrate_to_v4(c: sqlite3.Cursor) -> None:
+    # Scryfall's card data now comes from its daily file of every card -
+    # see scryfall/bulk.py - so the cards looked up one by one, the names
+    # that led to them, the names it couldn't find and the printings
+    # chosen from its searches are no longer kept. The aliases first:
+    # they point into cards.
+    for table in ("card_aliases", "cards", "card_lookup_failures", "chosen_printings"):
+        c.execute(f"DROP TABLE IF EXISTS {table}")

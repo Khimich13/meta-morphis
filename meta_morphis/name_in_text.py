@@ -849,7 +849,7 @@ def _download(url: str) -> bytes | None:
     # first run over thousands of cards gentle
     time.sleep(0.1)
     try:
-        response = requests.get(url, headers=config.SCRYFALL_IMAGE_HEADERS, timeout=30)
+        response = requests.get(url, headers=config.SCRYFALL_FILE_HEADERS, timeout=30)
         response.raise_for_status()
     except requests.RequestException as e:
         log.warning(f"Could not download {url}: {e}")

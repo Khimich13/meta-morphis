@@ -14,8 +14,15 @@ what has been done is in the commit history.
   file per format and list (`pauper.json`, `pauper-lands.json`, …) and
   `formats.json`, which lists what exists.
 - **The data refreshes once a day** on GitHub Actions, at 19:17 UTC, about an
-  hour after MTGGoldfish was seen to update its lists. The card database is
-  kept between runs, so Scryfall data is only fetched again after 30 days.
+  hour after MTGGoldfish was seen to update its lists.
+- **Scryfall's card data comes from its file of every printing** ("Default
+  cards" bulk data), not from looking cards up one by one: Scryfall asks for
+  its bulk files when many cards are looked up, and they have no rate
+  limit. It is downloaded only when Scryfall has made a newer one, and kept
+  between runs. If the download fails the last copy is used, and after a
+  week of that the run is marked as failed, so GitHub reports it. A name on
+  a list must match a card's name exactly, ignoring case and accents: its
+  full name first, then a front face, then another face.
 - **One list failing doesn't stop the others.** It keeps its previous file,
   the other lists are published, and the run is then marked as failed, so
   GitHub reports it. A list older than three days fails on purpose, rather
