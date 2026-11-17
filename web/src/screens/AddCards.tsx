@@ -65,7 +65,7 @@ export default function AddCards({ lists, target, onSave, onOpen, onBack }: AddC
   }
 
   return (
-    <main className="add-cards">
+    <main className="form-screen add-cards">
       <header>
         <button className="link" onClick={onBack}>
           ← Back

@@ -8,6 +8,7 @@ import {
   DEFAULT_LIST_NAME,
   nameKey,
   newList,
+  removeCard,
 } from './customLists';
 
 /** A card with only what matching names looks at */
@@ -87,4 +88,11 @@ test('a new list without a name gets the default one', () => {
   expect(newList('  ').name).toBe(DEFAULT_LIST_NAME);
   expect(newList(' Burn ').name).toBe('Burn');
   expect(newList('a').id).not.toBe(newList('a').id);
+});
+
+test('removing a card leaves the others in their order', () => {
+  const [a, b, c] = [card('A'), card('B'), card('C')];
+  const list = { ...newList('Burn'), cards: [a, b, c] };
+  expect(removeCard(list, 'B').cards).toEqual([a, c]);
+  expect(list.cards).toEqual([a, b, c]);
 });

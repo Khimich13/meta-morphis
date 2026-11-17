@@ -456,3 +456,59 @@ button {
 .progress-bar > .seen-only {
   background: color-mix(in srgb, #2e9e5b 40%, transparent);
 }
+
+/* A screen with fields to fill in: Add cards and Edit list */
+.form-screen {
+  box-sizing: border-box;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
+  display: grid;
+  gap: 16px;
+}
+
+.form-screen h1 {
+  margin: 8px 0 4px;
+}
+
+.form-screen header p {
+  margin: 0;
+  opacity: 0.7;
+}
+
+.form-screen label {
+  display: grid;
+  gap: 4px;
+}
+
+.form-screen input,
+.form-screen select,
+.form-screen textarea {
+  box-sizing: border-box;
+  width: 100%;
+  /* 16px at least, or Safari on iPhones zooms the page into the field */
+  font: inherit;
+  font-size: 16px;
+  padding: 10px 12px;
+  border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--page) 50%, Canvas);
+  color: inherit;
+}
+
+.form-screen input,
+.form-screen select {
+  min-height: 48px;
+}
+
+/* Text selection is off everywhere (see html above); typing
+   needs it */
+.form-screen input,
+.form-screen textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.form-screen textarea {
+  resize: vertical;
+}

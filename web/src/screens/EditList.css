@@ -1,0 +1,59 @@
+.edit-list h2 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  opacity: 0.7;
+}
+
+.edit-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* A card's name, and its Remove button at the end of the row */
+.edit-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+}
+
+.edit-list li span {
+  flex: 1;
+}
+
+.edit-list li button {
+  padding: 4px 14px;
+  min-height: 40px;
+  border-width: 1px;
+  font-size: 0.9rem;
+}
+
+.delete-confirm {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.delete-confirm p {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+/* Deleting can't be undone: red rather than the green of the main action */
+.danger {
+  background: #c8372d;
+  border-color: #c8372d;
+  color: #fff;
+}
+
+.danger-outline {
+  color: #c8372d;
+}
+
+@media (prefers-color-scheme: dark) {
+  .danger-outline {
+    color: #ef6b61;
+  }
+}

@@ -33,12 +33,13 @@ import {
 import { useAppUpdate } from './lib/update';
 import AddCards from './screens/AddCards';
 import CardList from './screens/CardList';
+import EditList from './screens/EditList';
 import Formats from './screens/Formats';
 import Home from './screens/Home';
 import Lesson from './screens/Lesson';
 
 /** Which screen is showing */
-type Screen = 'home' | 'lesson' | 'cards' | 'formats' | 'add';
+type Screen = 'home' | 'lesson' | 'cards' | 'formats' | 'add' | 'edit';
 
 export default function App() {
   // Read from the browser's storage once, when the app starts
@@ -181,6 +182,20 @@ export default function App() {
     setScreen('add');
   }
 
+  /**
+   * Deletes the open list of the player's own, and goes back to the
+   * format's list - or to choosing one, if none was ever chosen
+   */
+  function deleteOpenList() {
+    if (openList === null) return;
+    const after = lists.filter((each) => each.id !== openList.id);
+    // Saving less never runs out of room; storage switched off forgets it anyway
+    saveCustomLists(after);
+    setLists(after);
+    openOwnList(null);
+    setScreen(format === null ? 'formats' : 'home');
+  }
+
   /** Saves a new or changed list of the player's own; false if it couldn't */
   function saveOwnList(list: CustomList): boolean {
     const had = lists.some((each) => each.id === list.id);
@@ -193,6 +208,19 @@ export default function App() {
   function choose(selection: Selection) {
     setFormat(selection.format);
     setKind(selection.kind);
+  }
+
+  if (screen === 'edit' && openList !== null) {
+    return (
+      <EditList
+        // A fresh screen for each list, so it starts from that list's name
+        key={openList.id}
+        list={openList}
+        onSave={saveOwnList}
+        onDelete={deleteOpenList}
+        onBack={goHome}
+      />
+    );
   }
 
   if (screen === 'add') {
@@ -256,6 +284,7 @@ export default function App() {
       selection={{ format: format ?? '', kind: shownKind }}
       listName={openList?.name ?? null}
       onAddCards={() => addCards(openList?.id ?? null, 'home')}
+      onEditList={() => setScreen('edit')}
       offered={offered}
       onChooseKind={setKind}
       cards={shownCards}

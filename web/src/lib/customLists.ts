@@ -129,6 +129,11 @@ export function addCards(
   return result;
 }
 
+/** The list without the card; the card's progress stays, see progress.ts */
+export function removeCard(list: CustomList, oracleId: string): CustomList {
+  return { ...list, cards: list.cards.filter((card) => card.oracle_id !== oracleId) };
+}
+
 /** A new, empty list; an empty or blank name becomes DEFAULT_LIST_NAME */
 export function newList(name: string): CustomList {
   // Not crypto.randomUUID: it exists only on https pages, and the app is

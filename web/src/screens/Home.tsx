@@ -10,6 +10,7 @@ interface HomeProps {
   listName: string | null;
   /** Only with one of the player's own lists open */
   onAddCards: () => void;
+  onEditList: () => void;
   /** The lists the format offers; null while not known yet */
   offered: ListKind[] | null;
   onChooseKind: (kind: ListKind) => void;
@@ -37,6 +38,7 @@ export default function Home({
   selection,
   listName,
   onAddCards,
+  onEditList,
   offered,
   onChooseKind,
   cards,
@@ -90,9 +92,14 @@ export default function Home({
               See all cards
             </button>
             {listName !== null && (
-              <button className="link" onClick={onAddCards}>
-                Add cards
-              </button>
+              <>
+                <button className="link" onClick={onAddCards}>
+                  Add cards
+                </button>
+                <button className="link" onClick={onEditList}>
+                  Edit list
+                </button>
+              </>
             )}
             <button className="link" aria-pressed={soundsOn} onClick={onToggleSounds}>
               {soundsOn ? '🔊 Sounds on' : '🔇 Sounds off'}
@@ -122,6 +129,8 @@ function Stats({ cards, progress }: { cards: Card[]; progress: Progress }) {
   const seen = cards.filter((card) => card.oracle_id in progress.cards).length;
   const mastered = masteredCount(progress, ids);
   const due = dueCount(progress, ids, today);
+  // A list of the player's own can be emptied: then the bar stays empty
+  const share = (count: number) => (cards.length === 0 ? 0 : (count / cards.length) * 100);
 
   return (
     <div className="home-middle">
@@ -141,11 +150,8 @@ function Stats({ cards, progress }: { cards: Card[]; progress: Progress }) {
           aria-valuetext={`${mastered} of ${cards.length} cards mastered, ${seen} seen`}
           aria-label="Cards mastered"
         >
-          <div style={{ width: `${(mastered / cards.length) * 100}%` }} />
-          <div
-            className="seen-only"
-            style={{ width: `${((seen - mastered) / cards.length) * 100}%` }}
-          />
+          <div style={{ width: `${share(mastered)}%` }} />
+          <div className="seen-only" style={{ width: `${share(seen - mastered)}%` }} />
         </div>
         <p>
           {seen} of {cards.length} seen · <strong>{mastered} mastered</strong>
