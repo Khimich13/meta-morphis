@@ -619,6 +619,12 @@
     "reader": 9,
     "boxes": []
   },
+  "192eab08-3fec-46cb-9237-2866e3bd08b8": {
+    "name": "Archon of Emeria",
+    "picture": "https://cards.scryfall.io/png/front/1/9/192eab08-3fec-46cb-9237-2866e3bd08b8.png?1783910621",
+    "reader": 9,
+    "boxes": []
+  },
   "1ab6ffe8-e1ad-4db9-98f7-d6038f271866": {
     "name": "Grim Lavamancer",
     "picture": "https://cards.scryfall.io/png/front/1/a/1ab6ffe8-e1ad-4db9-98f7-d6038f271866.png?1783918459",
@@ -1931,6 +1937,19 @@
       ]
     ]
   },
+  "5358b87a-1a29-426d-b165-40c97da2c14d/back": {
+    "name": "Soporific Springs",
+    "picture": "https://cards.scryfall.io/png/back/5/3/5358b87a-1a29-426d-b165-40c97da2c14d.png?1783911236",
+    "reader": 9,
+    "boxes": [
+      [
+        0.1479,
+        0.6316,
+        0.3205,
+        0.0329
+      ]
+    ]
+  },
   "53a938a7-0154-4350-87cb-00da24ec3824": {
     "name": "Starscape Cleric",
     "picture": "https://cards.scryfall.io/png/front/5/3/53a938a7-0154-4350-87cb-00da24ec3824.png?1783910828",
@@ -2243,6 +2262,38 @@
         0.0881,
         0.7403,
         0.1955,
+        0.0291
+      ]
+    ]
+  },
+  "61237530-ad49-469c-a952-67c92315708e": {
+    "name": "Jennifer Walters",
+    "picture": "https://cards.scryfall.io/png/front/6/1/61237530-ad49-469c-a952-67c92315708e.png?1783902978",
+    "reader": 9,
+    "boxes": [
+      [
+        0.5202,
+        0.7114,
+        0.3554,
+        0.0368
+      ]
+    ]
+  },
+  "61237530-ad49-469c-a952-67c92315708e/back": {
+    "name": "The Sensational She-Hulk",
+    "picture": "https://cards.scryfall.io/png/back/6/1/61237530-ad49-469c-a952-67c92315708e.png?1783902978",
+    "reader": 9,
+    "boxes": [
+      [
+        0.5457,
+        0.7855,
+        0.3292,
+        0.0291
+      ],
+      [
+        0.0881,
+        0.8172,
+        0.1975,
         0.0291
       ]
     ]

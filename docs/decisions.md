@@ -44,15 +44,17 @@ what has been done is in the commit history.
   transform card, by either side: each shows only its own name and
   text. The front's name starts after an icon; the back's after one
   too, or, when the icon sits on the right where a mana cost would be,
-  where a normal card's starts. A modal double-faced card doesn't: each
-  side names the other too. An adventure or a prepare card does, by
+  where a normal card's starts. So does a modal double-faced card, by
+  either side: the strip at its bottom left shows the other side's type
+  and mana cost or ability, never its name, and both sides' names start
+  after an icon. An adventure or a prepare card does, by
   each part: see below. A card that can be asked both ways gets
   either, half the time each.
 - **A double-faced card is asked by either side,** half the time each:
-  by its back's artwork, as by its front's, and a transform card's by
-  its back's full picture too. The answers name one side
-  each: the side asked for the card itself, either side for a wrong
-  answer, so a back's name never tells the right one apart. After the
+  by its back's artwork, as by its front's, and a transform or modal
+  double-faced card's by its back's full picture too. The answers name
+  one side each: the side asked for the card itself, either side for a
+  wrong answer, so a back's name never tells the right one apart. After the
   answer the card shows the side asked first; the other is a flip away.
 - **An adventure or a prepare card is asked by either part,** half the
   time each: its main part, as any card, or the second, smaller spell

@@ -7,7 +7,8 @@ where on the picture, and not always rightly for an old printing: its
 Oracle text says "this creature" where the printing may say the name, or
 something else. So the picture itself is read, once per printing, and
 the result is kept in config.NAME_IN_TEXT_PATH for the next runs. A
-transform card's sides are each read as a card by itself.
+transform or modal double-faced card's sides are each read as a card
+by itself.
 
 A reading leaves the card out when anything like a word of its name is
 left uncovered - a word read with a letter wrong, the name split up or

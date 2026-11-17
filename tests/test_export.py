@@ -750,10 +750,51 @@ def test_a_transform_cards_back_is_read_for_its_own_text() -> None:
     assert read.cards == ["Back"]
 
 
-def test_a_modal_double_faced_cards_back_is_never_asked_by_its_picture() -> None:
-    # Each side names the other one too
-    modal = _double_faced("modal_dfc", {}, lang="en")
-    assert name_boxes(modal, side=1) == (None, [])
+def _modal(front: dict[str, Any], back: dict[str, Any]) -> Card:
+    return Card.from_raw(
+        {
+            **_raw("Front // Back", lang="en", layout="modal_dfc"),
+            "released_at": "2024-06-14",
+            "set_type": "draft_innovation",
+            "card_faces": [
+                {"name": "Front", "type_line": "Instant", **front},
+                {"name": "Back", "type_line": "Land", **back},
+            ],
+        }
+    )
+
+
+def test_a_modal_double_faced_card_is_asked_by_either_side() -> None:
+    # Sink into Stupor // Soporific Springs: each side's name starts after
+    # the icon on the left, and is read for in its own text only
+    sink = _modal(
+        {
+            "name": "Sink into Stupor",
+            "mana_cost": "{1}{U}{U}",
+            "oracle_text": "Return target spell to its owner's hand.",
+        },
+        {"name": "Soporific Springs", "oracle_text": "{T}: Add {U}."},
+    )
+    read = _ReadAs(IN_TEXT)
+    assert name_boxes(sink, read) == ([0.16, 0.052, 0.5935, 0.051], [])
+    assert name_boxes(sink, read, side=1) == ([0.16, 0.052, 0.748, 0.051], [])
+    assert read.cards == []
+
+
+def test_a_modal_double_faced_cards_sides_are_read_for_their_own_names() -> None:
+    walters = _modal(
+        {"name": "Jennifer Walters", "oracle_text": "Transform Jennifer Walters."},
+        {"name": "The Sensational She-Hulk", "oracle_text": "Reach"},
+    )
+    read = _ReadAs(IN_TEXT)
+    assert name_boxes(walters, read) == ([0.16, 0.052, 0.748, 0.051], IN_TEXT)
+    assert name_boxes(walters, read, side=1) == ([0.16, 0.052, 0.748, 0.051], [])
+    assert read.cards == ["Jennifer Walters"]
+
+
+def test_a_battles_back_is_never_asked_by_its_picture() -> None:
+    battle = _double_faced("battle", {}, lang="en")
+    assert name_boxes(battle, side=1) == (None, [])
 
 
 def test_a_transform_saga_is_read_as_a_saga() -> None:

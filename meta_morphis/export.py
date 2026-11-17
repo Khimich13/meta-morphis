@@ -62,8 +62,8 @@ class BackSide(TypedDict):
     # As ExportCard's art_from
     art_from: ArtFrom | None
     # Where the name sits on the back's picture, as ExportCard's
-    # name_box and name_text_boxes: only a transform card's back, which
-    # shows only its own name
+    # name_box and name_text_boxes: only a transform or modal
+    # double-faced card's back, which shows only its own name
     name_box: list[float] | None
     name_text_boxes: list[list[float]]
     # The back's own type, as ExportCard's type: Insectile Aberration's
@@ -135,8 +135,8 @@ class ExportCard(TypedDict):
     # it the right way up when there is room, in landscape.
     horizontal: list[bool]
     # A double-faced card's back side, which a question may show instead
-    # of the front: by its artwork, or a transform card's by its full
-    # picture too. None for a card with one side, or
+    # of the front: by its artwork, or a transform or modal double-faced
+    # card's by its full picture too. None for a card with one side, or
     # whose back lacks its artwork or artist.
     back: BackSide | None
     # The second, smaller spell printed on an adventure or prepare card
@@ -315,7 +315,9 @@ ONE_NAME_LAYOUTS = {"normal", *TEXT_COLUMNS}
 NAME_AFTER_ICON = {"lesson": 0.165, "tombstone": 0.105}
 # A transform card's front shows its own name only, after an icon telling
 # which side is up: where the name starts then. Measured on Scryfall's
-# pictures on 2026-11-14.
+# pictures on 2026-11-14. A modal double-faced card's sides have their
+# icon there too, and the same left edge: measured on 2026-11-17 on the
+# three on the lists then.
 TRANSFORM_NAME_LEFT = 0.16
 # Frame effects whose transform back has its icon left of the name too,
 # as the front: a sun and moon, Fable of the Mirror-Breaker's fan, and
@@ -416,7 +418,8 @@ def name_boxes(
     card: Card, read_text: ReadText = never_read, side: int = 0
 ) -> tuple[list[float] | None, list[list[float]]]:
     """Where the name sits on a side's picture, 0 for the front and 1 for
-    a transform card's back, for the question "which card is this?"
+    a transform or modal double-faced card's back, for the question
+    "which card is this?"
     asked with the full card: in the title bar, [left, top, width,
     height] up to just before the mana cost, and wherever `read_text`
     finds it in the text box. (None, []) when the name can't be covered
@@ -431,9 +434,12 @@ def name_boxes(
         else:
             name_right = BACK_ICON_RIGHT_LEFT
         card = face_of(card, side)
+    elif card.layout == "modal_dfc":
+        # Its icon is on the left on both sides
+        name_left = TRANSFORM_NAME_LEFT
+        card = face_of(card, side)
     elif side:
-        # Another double-faced card's front names its back too, and the
-        # other way round
+        # A battle's back isn't measured
         return None, []
     elif card.layout in PART_COLUMNS:
         # The main part alone: its spell is asked about by itself
@@ -566,7 +572,9 @@ def face_of(card: Card, side: int) -> Card:
     front and 1 for the back. A transform card's picture shows only that
     side's name, text and type line - a normal card's or, like Fable of
     the Mirror-Breaker's front, a saga's. The other side's name is
-    nowhere on it."""
+    nowhere on it. Nor on a modal double-faced card's: the strip at its
+    bottom left shows the other side's type and mana cost or ability,
+    never its name."""
     raw = {key: value for key, value in card.raw.items() if key != "card_faces"}
     face = card.raw["card_faces"][side]
     layout = "saga" if "Saga" in face.get("type_line", "") else "normal"
@@ -582,8 +590,7 @@ def title_name_box(
     frame effects, and `name_right` where an icon in the mana cost's
     place starts: a transform card's."""
     raw = card.raw
-    # One name on one side: a modal double-faced card prints the back's
-    # too, and a split card has two on one side. Of an adventure or a
+    # One name on one side: a split card has two. Of an adventure or a
     # prepare card, only its main part's (see part_of), whose title bar
     # is a normal card's: its spell's is spell_part's.
     one_name = card.layout in ONE_NAME_LAYOUTS or part_index(card) == 0
@@ -669,7 +676,8 @@ BACK_ART_LAYOUTS = {"transform", "modal_dfc"}
 
 def back_side(card: Card, read_text: ReadText = never_read) -> BackSide | None:
     """A double-faced card's back, for questions about its artwork, and
-    a transform card's about its full picture too; None for a card with
+    a transform or modal double-faced card's about its full picture
+    too; None for a card with
     one side, or a back without artwork or artist, or whose artwork is
     of another printing."""
     sides = card.image_sides()
