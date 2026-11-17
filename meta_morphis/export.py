@@ -79,6 +79,18 @@ class SpellPart(TypedDict):
     name_text_boxes: list[list[float]]
 
 
+class SplitHalf(TypedDict):
+    # The half's name: Wear on Wear // Tear
+    name: str
+    # Where its name sits on the card's picture, as stored - upright,
+    # with the halves' writing running up the side - as [left, top,
+    # width, height], for the question about this half alone, with the
+    # other half's name left in sight. None when it isn't measured, or
+    # may be printed in a text box too: then the half is asked about by
+    # its artwork only.
+    name_box: list[float] | None
+
+
 class ExportCard(TypedDict):
     oracle_id: str
     name: str
@@ -126,6 +138,13 @@ class ExportCard(TypedDict):
     # part's alone, and its spell's name stays in sight when it is asked.
     # None for every other card.
     spell: SpellPart | None
+    # The two halves of a split card printed sideways (Wear // Tear, the
+    # Rooms), first half first, in the modern frame. A question asks
+    # about one half: by its half of `art` - the first half's on the
+    # left - or by the full picture with its name covered. Then name_box
+    # is None: the card has no one name to cover. None for every other
+    # card, which is asked about whole.
+    halves: list[SplitHalf] | None
 
 
 class FormatsFile(TypedDict):
@@ -246,6 +265,36 @@ SPELL_NAME_AREAS = {
     "adventure": NameArea(0.080, 0.637, 0.032, 0.479, 0.0435),
     "prepare": NameArea(0.514, 0.637, 0.032, 0.931, 0.0445),
 }
+
+
+# Where a half's name sits on a split card printed sideways, on its
+# picture as stored: in a title bar running up the card's left side,
+# from the bar's lower end up to the mana cost at its top. All as shares
+# of the card's width and height, for the second half, whose bar is the
+# upper one: the bar's left and width, where its mana cost starts at the
+# top and how far down each symbol takes it, and where its name starts
+# at the bottom. The first half's bar is the same, `first_lower` lower.
+@dataclass(frozen=True)
+class SidewaysNameArea:
+    left: float
+    width: float
+    cost_top: float
+    symbol: float
+    bottom: float
+    first_lower: float
+
+
+# By kind of split card, in the modern frame, measured on 2026-11-16 on
+# the only one of each on the lists then, Wear // Tear and Unholy Annex //
+# Ritual Chamber: the same frame on a split card without fuse isn't
+# known, nor an older frame's.
+SIDEWAYS_NAME_AREAS = {
+    "fuse": SidewaysNameArea(0.077, 0.052, 0.0529, 0.0366, 0.440, 0.460),
+    "room": SidewaysNameArea(0.058, 0.0555, 0.0567, 0.0356, 0.438, 0.457),
+}
+# Room left between the mana cost and the name's area, as a share of the
+# card's height
+SIDEWAYS_NAME_GAP = 0.005
 # Layouts with one name, in a title bar like a normal card's. A saga,
 # class or case has its text beside its artwork, which
 # name_in_text.TEXT_COLUMNS knows.
@@ -411,6 +460,46 @@ def spell_part(card: Card, read_text: ReadText = never_read) -> SpellPart | None
         "name_box": title,
         "name_text_boxes": in_text,
     }
+
+
+def split_halves(card: Card) -> list[SplitHalf] | None:
+    """A split card's two halves printed sideways, each asked about by
+    itself (see ExportCard's halves), in the modern frame; None for
+    every other card"""
+    faces = card.raw.get("card_faces") or []
+    if not all(horizontal_sides(card)) or len(faces) != 2 or card.frame != "2015":
+        return None
+    halves: list[SplitHalf] = []
+    for index in (0, 1):
+        half = part_of(card, index)
+        other = faces[1 - index].get("oracle_text") or ""
+        in_text = may_show_name_in_text(half) or half.name.lower() in other.lower()
+        area = sideways_name_area(card)
+        box = None
+        if area is not None and card.raw.get("lang") == "en" and not in_text:
+            box = sideways_name_box(area, half.mana_cost, index)
+        halves.append({"name": shown_name(half.name), "name_box": box})
+    return halves
+
+
+def sideways_name_area(card: Card) -> SidewaysNameArea | None:
+    if "Room" in card.type_line:
+        return SIDEWAYS_NAME_AREAS["room"]
+    if "Fuse" in card.keywords:
+        return SIDEWAYS_NAME_AREAS["fuse"]
+    return None
+
+
+def sideways_name_box(
+    area: SidewaysNameArea, mana_cost: str | None, half: int
+) -> list[float]:
+    """A half's name's box, from just below its mana cost down to its
+    bar's lower end, 0 for the first half and 1 for the second"""
+    symbols = len(re.findall(r"\{[^}]*\}", mana_cost or ""))
+    lower = area.first_lower if half == 0 else 0
+    top = area.cost_top + symbols * area.symbol + SIDEWAYS_NAME_GAP + lower
+    bottom = area.bottom + lower
+    return [round(value, 4) for value in (area.left, top, area.width, bottom - top)]
 
 
 def face_of(card: Card, side: int) -> Card:
@@ -580,6 +669,7 @@ def build_card(card: Card, read_text: ReadText = never_read) -> ExportCard | Non
         "horizontal": horizontal_sides(card),
         "back": back_side(card, read_text),
         "spell": spell_part(card, read_text),
+        "halves": split_halves(card),
     }
 
 

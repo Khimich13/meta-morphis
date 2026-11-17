@@ -17,6 +17,7 @@ import { canSpeak, sayName } from '../lib/speech';
 import './CardPicture.css';
 import type { TurnBack, TurnedFrom } from './LargeCard';
 import LargeView from './LargeView';
+import type { NameCover } from './NameCovers';
 
 // The large view's card, with the zoom library: loaded the first time a
 // large view opens, so the rest of the app starts without it. Once
@@ -64,16 +65,8 @@ export default function CardPicture({
   const [showingBack, setShowingBack] = useState(startOnBack);
   const flip = () => setShowingBack(!showingBack);
   const large = useLargeView();
-  const LargeCard = loadedLargeCard ?? LazyLargeCard;
   const picture = useRef<HTMLDivElement>(null);
-  const { turnedFrom, turnBack, goingBack, openByTap, followsPhone } = useOpenOnTurn(
-    openOnTurn && isHorizontal(card, showingBack),
-    picture,
-    large,
-  );
-  // While the large view's card eases back into this one's place, the view's
-  // copy of it stands in for it (see TurnBack in LargeCard.tsx)
-  const standIn = goingBack !== false && large.isOpen;
+  const turn = useOpenOnTurn(openOnTurn && isHorizontal(card, showingBack), picture, large);
 
   return (
     <>
@@ -83,33 +76,77 @@ export default function CardPicture({
         lazy={lazy}
         showingBack={showingBack}
         onFlip={flip}
-        onEnlarge={openByTap}
+        onEnlarge={turn.openByTap}
         // Two fingers on the card open the large view too, to pinch there
-        onTwoFingers={openByTap}
+        onTwoFingers={turn.openByTap}
         speaker={speaker}
-        hidden={standIn}
+        hidden={standsIn(turn, large)}
       />
-      {large.isOpen && (
-        <LargeView
-          onClose={large.close}
-          uprightToClose={followsPhone}
-          // For the page's and the view's rules (see Lesson.css and LargeView.css)
-          className={[turnedFrom && 'opened-by-turn', goingBack === 'landed' && 'leaving']
-            .filter(Boolean)
-            .join(' ')}
-        >
-          <Suspense fallback={<div className="card-placeholder" />}>
-            <LargeCard
-              card={card}
-              showingBack={showingBack}
-              onFlip={flip}
-              turnedFrom={turnedFrom}
-              turnBack={turnBack}
-            />
-          </Suspense>
-        </LargeView>
-      )}
+      <TurningLargeView
+        card={card}
+        showingBack={showingBack}
+        onFlip={flip}
+        large={large}
+        turn={turn}
+      />
     </>
+  );
+}
+
+type LargeViewState = ReturnType<typeof useLargeView>;
+type Turn = ReturnType<typeof useOpenOnTurn>;
+
+/**
+ * While the large view's card eases back into the card's place on the
+ * page, the view's copy of it stands in for it (see TurnBack in
+ * LargeCard.tsx): the card there stays hidden
+ */
+export function standsIn(turn: Turn, large: LargeViewState): boolean {
+  return turn.goingBack !== false && large.isOpen;
+}
+
+/**
+ * The large view of a card on the page that a turn of the phone may open
+ * (see useOpenOnTurn), while it is open. `cover` hides the card's name in
+ * it, for a question (see NameCovers).
+ */
+export function TurningLargeView({
+  card,
+  showingBack,
+  onFlip,
+  large,
+  turn,
+  cover,
+}: {
+  card: Card;
+  showingBack: boolean;
+  onFlip: () => void;
+  large: LargeViewState;
+  turn: Turn;
+  cover?: NameCover;
+}) {
+  const LargeCard = loadedLargeCard ?? LazyLargeCard;
+  if (!large.isOpen) return null;
+  return (
+    <LargeView
+      onClose={large.close}
+      uprightToClose={turn.followsPhone}
+      // For the page's and the view's rules (see Lesson.css and LargeView.css)
+      className={[turn.turnedFrom && 'opened-by-turn', turn.goingBack === 'landed' && 'leaving']
+        .filter(Boolean)
+        .join(' ')}
+    >
+      <Suspense fallback={<div className="card-placeholder" />}>
+        <LargeCard
+          card={card}
+          showingBack={showingBack}
+          onFlip={onFlip}
+          turnedFrom={turn.turnedFrom}
+          turnBack={turn.turnBack}
+          cover={cover}
+        />
+      </Suspense>
+    </LargeView>
   );
 }
 
@@ -193,7 +230,7 @@ export function PlainCardPicture({
  * how to open the view by tapping, which forgets the turn; and whether
  * the view follows the phone.
  */
-function useOpenOnTurn(
+export function useOpenOnTurn(
   enabled: boolean,
   picture: RefObject<HTMLDivElement | null>,
   { isOpen, open, close }: { isOpen: boolean; open: () => void; close: () => void },
@@ -345,21 +382,25 @@ export function CardSides({
   showingBack,
   lazy,
   pictures = card.images,
+  nameHidden = false,
 }: {
   card: Card;
   showingBack: boolean;
   lazy: boolean;
   /** Other pictures of the same sides, e.g. larger ones */
   pictures?: string[];
+  /** For a question: the alt text must not give the answer away */
+  nameHidden?: boolean;
 }) {
   const [front, back] = pictures;
+  const name = nameHidden ? 'Card with its name hidden' : card.name;
   return (
     <div className={showingBack ? 'card-sides flipped' : 'card-sides'}>
       {/* crossOrigin lets the saved copy of the picture be used */}
       <img
         className="card-side"
         src={front}
-        alt={card.name}
+        alt={name}
         loading={lazy ? 'lazy' : undefined}
         // Turned into pixels in the background, so scrolling never waits for it
         decoding="async"
@@ -370,7 +411,7 @@ export function CardSides({
         <img
           className="card-side card-back"
           src={back}
-          alt={`${card.name}, back`}
+          alt={`${name}, back`}
           loading={lazy ? 'lazy' : undefined}
           decoding="async"
           crossOrigin="anonymous"

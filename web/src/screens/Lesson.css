@@ -242,30 +242,6 @@
   view-transition-name: card-whole;
 }
 
-/* Over the name: the title bar painted over it, or a plain bar until
-   then (see NameHidden in Lesson.tsx) */
-.name-cover {
-  position: absolute;
-  border-radius: 6px;
-  background: #4a4a4a;
-}
-
-/* In the text box: a plain bar with square corners, so it is clear that
-   a word was taken out there */
-.name-cover.in-text {
-  border-radius: 0;
-}
-
-.name-cover.painted {
-  background: none;
-}
-
-.name-cover canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
 /* The full card after a picture question: the covered card moves and
    grows into it, and the bar fades away with the old picture */
 .picture.after-picture > .card-picture {
@@ -307,6 +283,12 @@
 .lesson:has(.enlarged.opened-by-turn[open]:not(.leaving)) > :not(.picture),
 .lesson:has(.enlarged.opened-by-turn[open]:not(.leaving)) .picture > :not(dialog) {
   visibility: hidden;
+}
+
+/* The view itself shows: before an answer, it is inside the question,
+   hidden above (see NameHidden in Lesson.tsx) */
+.lesson:has(.enlarged.opened-by-turn[open]:not(.leaving)) .enlarged {
+  visibility: visible;
 }
 
 /* Behind any large view: the lesson's top bar, hidden too. The view's

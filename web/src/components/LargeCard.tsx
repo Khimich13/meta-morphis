@@ -10,10 +10,12 @@ import { type Card, isHorizontal, visibleName } from '../lib/cards';
 import { useLargePictures } from '../lib/largePictures';
 import { buttonCorner, CardSides, FlipButton, pictureClass, SayOnCard } from './CardPicture';
 import { ZoomedContext } from './LargeView';
+import NameCovers, { type NameCover } from './NameCovers';
 
 /**
  * A card in the large view, with its flip and speaker buttons. It zooms
- * over the whole screen, see Zoomable.
+ * over the whole screen, see Zoomable. With `cover`, a question's card:
+ * its name hidden, and no buttons, which would name it.
  */
 export default function LargeCard({
   card,
@@ -21,6 +23,7 @@ export default function LargeCard({
   onFlip,
   turnedFrom,
   turnBack,
+  cover,
 }: {
   card: Card;
   showingBack: boolean;
@@ -29,6 +32,7 @@ export default function LargeCard({
   turnedFrom?: TurnedFrom;
   /** Opened by turning the phone: turning it back closes the view */
   turnBack?: TurnBack;
+  cover?: NameCover;
 }) {
   // Zoomed in: the large view pauses moving to other cards, and hides
   // its buttons and the page behind
@@ -48,10 +52,22 @@ export default function LargeCard({
       >
         {(pictures) => (
           <div className={pictureClass(card)} style={buttonCorner(card, showingBack)}>
-            <CardSides card={card} showingBack={showingBack} lazy={false} pictures={pictures} />
-            {/* The name of the side showing, not both of a double-faced card */}
-            <SayOnCard name={visibleName(card, showingBack)} />
-            <FlipButton card={card} showingBack={showingBack} onFlip={onFlip} />
+            <CardSides
+              card={card}
+              showingBack={showingBack}
+              lazy={false}
+              pictures={pictures}
+              nameHidden={cover !== undefined}
+            />
+            {cover ? (
+              <NameCovers cover={cover} />
+            ) : (
+              <>
+                {/* The name of the side showing, not both of a double-faced card */}
+                <SayOnCard name={visibleName(card, showingBack)} />
+                <FlipButton card={card} showingBack={showingBack} onFlip={onFlip} />
+              </>
+            )}
           </div>
         )}
       </Zoomable>

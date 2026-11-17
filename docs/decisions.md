@@ -65,6 +65,19 @@ what has been done is in the commit history.
   first. The answers name one part each, as a double-faced card's name
   one side: the part asked for the card itself, either part for a wrong
   answer.
+- **A split card printed sideways is asked by either half,** half the
+  time each (Wear // Tear, the Rooms), in the modern frame: by its half
+  of the artwork, which Scryfall crops with both side by side and the
+  app cuts in two, or by its full picture with its name covered and the
+  other half's left in sight. Each name bar runs up the card's left
+  side, measured on 2026-11-16 on Wear // Tear and Unholy Annex //
+  Ritual Chamber, the only ones on the lists; a split card without fuse
+  isn't measured, so its halves are asked by their artwork only. The
+  name is painted along its own line, as it reads. The answers name one
+  half each, as for a part above. An aftermath card keeps being asked
+  whole. Turning the phone sideways during the question opens the card
+  in the large view the right way up, its name still covered, as the
+  answer card does after it.
 - **The artwork comes from Scryfall,** cut out by them, except where
   their cut catches text around it: then the app cuts it from the card's
   large picture itself, at the measured art box. Only Summon: Esper

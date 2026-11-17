@@ -52,6 +52,21 @@ export interface SpellPart {
   name_text_boxes: [number, number, number, number][];
 }
 
+/**
+ * One half of a split card printed sideways: Wear on Wear // Tear, or a
+ * Room's door. A question asks about one half at a time, with the other
+ * half's name left in sight.
+ */
+export interface SplitHalf {
+  name: string;
+  /**
+   * Where its name sits on the card's picture as stored - upright, the
+   * name running up the side - like Card's name_box. Null when it can't
+   * be covered: then the half is asked about by its artwork only.
+   */
+  name_box: [number, number, number, number] | null;
+}
+
 export interface Card {
   oracle_id: string;
   name: string;
@@ -114,6 +129,13 @@ export interface Card {
    * card; missing in files written before it was added.
    */
   spell?: SpellPart | null;
+  /**
+   * A split card's two halves, first half first, each asked about by
+   * itself: by its half of `art` (see halfArt), or by the full picture
+   * with its name covered. Null for every other card, which is asked
+   * about whole; missing in files written before it was added.
+   */
+  halves?: [SplitHalf, SplitHalf] | null;
 }
 
 export interface CardFile {
@@ -200,6 +222,44 @@ export function isHorizontal(card: Card, showingBack: boolean): boolean {
 export const SIDEWAYS_ART_BOX = [0.145, 0.05, 0.39, 0.85];
 
 /**
+ * The same for each half of a split card (see Card's halves): the first
+ * half's artwork is the lower one, as stored. Measured on Wear // Tear,
+ * whose two artworks have a gap between them, on 2026-11-16.
+ */
+export const SIDEWAYS_HALF_ART_BOXES = [
+  [0.145, 0.5, 0.39, 0.4],
+  [0.145, 0.05, 0.39, 0.4],
+];
+
+/** A side's artwork, as a question shows it by itself */
+export interface ArtSide {
+  art: string;
+  artist: string;
+  art_from?: ArtFrom | null;
+}
+
+const halfArts = new WeakMap<Card, ArtSide[]>();
+
+/**
+ * One half of a split card's artwork: Scryfall's crops both, side by
+ * side as the card is read, the first half's on the left. Cut by the app
+ * from that picture (see Card's art_from); the same object each time for
+ * the same card and half, so the cut isn't made again on every render.
+ */
+export function halfArt(card: Card, half: number): ArtSide {
+  let sides = halfArts.get(card);
+  if (!sides) {
+    sides = [0, 0.5].map((left): ArtSide => ({
+      art: card.art,
+      artist: card.artist,
+      art_from: { picture: card.art, box: [left, 0, 0.5, 1] },
+    }));
+    halfArts.set(card, sides);
+  }
+  return sides[half];
+}
+
+/**
  * The name of the side being looked at. A double-faced card's name is
  * its two face names joined by " // ", in the same order as its two
  * pictures. A split card has " // " in its name too, but both halves
@@ -214,10 +274,16 @@ export function visibleName(card: Card, showingBack: boolean): string {
 /**
  * The name of the part a question asks about, for its answer button:
  * one side's of a double-faced card (see visibleName), and of a card with
- * a spell, the spell's or the main part's alone. Any other card's whole
- * name.
+ * a spell, the spell's or the main part's alone, and of a split card,
+ * the half's (0 or 1). Any other card's whole name.
  */
-export function partName(card: Card, back: boolean, spell: boolean): string {
+export function partName(
+  card: Card,
+  back: boolean,
+  spell: boolean,
+  half: number | null = null,
+): string {
+  if (card.halves && half !== null) return card.halves[half].name;
   if (card.spell) return spell ? card.spell.name : card.name.split(' // ')[0];
   return visibleName(card, back);
 }

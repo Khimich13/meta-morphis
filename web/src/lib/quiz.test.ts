@@ -197,6 +197,60 @@ test('a wrong answer with a spell is named by either part', () => {
   expect([...names].some((name) => name.includes(' // '))).toBe(false);
 });
 
+function split(n: number, firstBox: Card['name_box'] = [0.077, 0.59, 0.052, 0.31]): Card {
+  return {
+    ...card(n),
+    name: `Left ${n} // Right ${n}`,
+    name_box: null,
+    horizontal: [true],
+    halves: [
+      { name: `Left ${n}`, name_box: firstBox ?? null },
+      { name: `Right ${n}`, name_box: [0.077, 0.09, 0.052, 0.35] },
+    ],
+  };
+}
+
+test('a split card is asked by either half, named by the half asked', () => {
+  const card = split(0);
+  const asked = SEEDS.map((seed) => makeQuestion(card, CARDS, seeded(seed)));
+  expect(new Set(asked.map((question) => question.half))).toEqual(new Set([0, 1]));
+  for (const question of asked) {
+    const right = question.options.find((option) => option.card === card);
+    expect(right?.name).toBe(question.half ? 'Right 0' : 'Left 0');
+  }
+  // Each half by its artwork or its picture
+  for (const half of [0, 1]) {
+    const kinds = asked.filter((question) => question.half === half).map((q) => q.kind);
+    expect(new Set(kinds)).toEqual(new Set(['artwork', 'picture']));
+  }
+});
+
+test("a split card's half whose name can't be hidden is asked by its artwork", () => {
+  const card = split(0, null);
+  const asked = SEEDS.map((seed) => makeQuestion(card, CARDS, seeded(seed)));
+  const first = asked.filter((question) => question.half === 0);
+  expect(first.length).toBeGreaterThan(0);
+  for (const question of first) expect(question.kind).toBe('artwork');
+});
+
+test('a split wrong answer is named by either half', () => {
+  const others = [CARDS[0], split(1), split(2), split(3)];
+  const names = new Set(
+    SEEDS.flatMap((seed) =>
+      makeQuestion(CARDS[0], others, seeded(seed)).options.map((option) => option.name),
+    ),
+  );
+  for (const n of [1, 2, 3]) {
+    expect(names).toContain(`Left ${n}`);
+    expect(names).toContain(`Right ${n}`);
+  }
+  expect([...names].some((name) => name.includes(' // '))).toBe(false);
+});
+
+test('a card without halves is asked whole', () => {
+  for (const seed of SEEDS) expect(makeQuestion(CARDS[0], CARDS, seeded(seed)).half).toBe(null);
+});
+
 const TODAY = '2026-10-15';
 const YESTERDAY = '2026-10-14';
 
@@ -352,6 +406,21 @@ test('a missed card comes back on the same part', () => {
     for (let round = 0; round < 3; round++) {
       lesson = afterAnswer(lesson, false, parted, seeded(seed + round));
       expect(lesson.queue[lesson.queue.length - 1].spell).toBe(spell);
+      for (let i = 0; i < LESSON_LENGTH - 1; i++) {
+        lesson = { ...lesson, queue: [...lesson.queue.slice(1), lesson.queue[0]] };
+      }
+    }
+  }
+});
+
+test('a missed split card comes back on the same half', () => {
+  const halved = CARDS.map((_, n) => split(n));
+  for (const seed of SEEDS) {
+    let lesson = startLesson(halved, EMPTY_PROGRESS, TODAY, seeded(seed));
+    const half = lesson.queue[0].half;
+    for (let round = 0; round < 3; round++) {
+      lesson = afterAnswer(lesson, false, halved, seeded(seed + round));
+      expect(lesson.queue[lesson.queue.length - 1].half).toBe(half);
       for (let i = 0; i < LESSON_LENGTH - 1; i++) {
         lesson = { ...lesson, queue: [...lesson.queue.slice(1), lesson.queue[0]] };
       }

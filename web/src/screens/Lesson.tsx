@@ -8,9 +8,17 @@ import {
 } from 'react';
 import { flushSync } from 'react-dom';
 
-import CardPicture from '../components/CardPicture';
+import CardPicture, { standsIn, TurningLargeView, useOpenOnTurn } from '../components/CardPicture';
+import NameCovers, { type NameCover } from '../components/NameCovers';
 import StandingLabel, { type PipChange } from '../components/StandingLabel';
-import { type ArtFrom, type Card, isHorizontal, SIDEWAYS_ART_BOX } from '../lib/cards';
+import {
+  type ArtFrom,
+  type Card,
+  halfArt,
+  isHorizontal,
+  SIDEWAYS_ART_BOX,
+  SIDEWAYS_HALF_ART_BOXES,
+} from '../lib/cards';
 import {
   backWhen,
   type CardProgress,
@@ -31,6 +39,7 @@ import {
   segments,
   startLesson,
 } from '../lib/quiz';
+import { useLargeView } from '../lib/largeView';
 import { FILL_REACH, fillName } from '../lib/nameFill';
 import { playAnswerSound } from '../lib/sounds';
 import './Lesson.css';
@@ -168,8 +177,9 @@ export default function Lesson({
   const record = progress.cards[card.oracle_id];
   // Whether the question on screen was answered right; null while choosing
   const answer = picked === null ? null : isCorrect(question, picked.card);
-  // The side asked about: its artwork, and where on its picture it lands
+  // The side or half asked about: its artwork, and where on its picture it lands
   const back = question.back && card.back ? card.back : null;
+  const art = question.half !== null ? halfArt(card, question.half) : (back ?? card);
   // Cards answered right, including this one as soon as it is
   const done = lesson.done + (answer === true ? 1 : 0);
   const bar = segments(lesson, answer);
@@ -206,23 +216,24 @@ export default function Lesson({
             </div>
             {question.kind === 'picture' ? (
               <NameHidden
-                key={`${card.oracle_id}-${question.back}-${question.spell}`}
+                key={`${card.oracle_id}-${question.back}-${question.spell}-${question.half}`}
                 card={card}
                 back={question.back}
                 spell={question.spell}
+                half={question.half}
               />
             ) : (
               /* A figure ties the credit to the artwork, for screen readers too */
               <figure className="artwork">
                 <Artwork
                   // Its own for each question, so a cut never shows on another
-                  key={`${card.oracle_id}-${question.back}`}
-                  side={back ?? card}
-                  transition={artTransition(card, question.back)}
+                  key={`${card.oracle_id}-${question.back}-${question.half}`}
+                  side={art}
+                  transition={artTransition(card, question.back, question.half)}
                 />
                 {/* Scryfall asks for this whenever the artwork is shown by itself */}
                 <figcaption className="credit">
-                  Illustrated by {(back ?? card).artist} · © Wizards of the Coast
+                  Illustrated by {art.artist} · © Wizards of the Coast
                 </figcaption>
               </figure>
             )}
@@ -258,7 +269,7 @@ export default function Lesson({
               <div
                 className={isHorizontal(card, question.back) ? 'art-target sideways' : 'art-target'}
                 aria-hidden="true"
-                style={artTarget(card, question.back)}
+                style={artTarget(card, question.back, question.half)}
               />
             )}
           </div>
@@ -395,69 +406,109 @@ function Artwork({
 }
 
 /**
- * How many pixels are taken off the top and the bottom of a cover in the
- * text box, so it sits a little thinner over the line's letters
- */
-const TEXT_COVER_TRIM = 1;
-
-/**
  * The question's full card with its name hidden: in the title bar, it is
  * painted over by the bar around it (see lib/nameFill.ts); wherever else
- * it is printed in the text box, a plain bar covers it, so it is plain to
- * see that a word was taken out there. Everything on the card but its
- * name. The paint is a layer over the picture, which stays as it is, and
- * never covers the artist or copyright. Until it is painted - or if the
- * picture's pixels can't be read - a plain bar covers the title too.
- * `back` shows a transform card's back, with its own name hidden, and
- * `spell` the card with its spell's name hidden instead of its own.
+ * it is printed in the text box, a plain bar covers it (see NameCovers).
+ * Everything on the card but its name. The paint is a layer over the
+ * picture, which stays as it is, and never covers the artist or
+ * copyright. Until it is painted - or if the picture's pixels can't be
+ * read - a plain bar covers the title too. `back` shows a transform
+ * card's back, with its own name hidden, and `spell` the card with its
+ * spell's name hidden instead of its own, and `half` a split card with
+ * that half's name hidden. A name printed sideways is painted along its
+ * own line, as it reads.
+ *
+ * A card printed sideways opens in the large view when the phone turns
+ * sideways, the right way up and its name still hidden, as the answer
+ * card does (see useOpenOnTurn in CardPicture.tsx).
  */
-function NameHidden({ card, back, spell }: { card: Card; back: boolean; spell: boolean }) {
-  const side = spell && card.spell ? card.spell : back && card.back ? card.back : card;
-  const boxes = [side.name_box ?? [0, 0, 0, 0], ...(side.name_text_boxes ?? [])];
+function NameHidden({
+  card,
+  back,
+  spell,
+  half,
+}: {
+  card: Card;
+  back: boolean;
+  spell: boolean;
+  half: number | null;
+}) {
+  const side =
+    half !== null && card.halves
+      ? card.halves[half]
+      : spell && card.spell
+        ? card.spell
+        : back && card.back
+          ? card.back
+          : card;
+  const boxes = [
+    side.name_box ?? [0, 0, 0, 0],
+    ...(('name_text_boxes' in side && side.name_text_boxes) || []),
+  ];
+  const sideways = isHorizontal(card, back);
   const picture = useRef<HTMLImageElement>(null);
-  const canvas = useRef<HTMLCanvasElement>(null);
+  const cardBox = useRef<HTMLDivElement>(null);
   // Where each cover sits, as shares of the card: the name's box, then,
   // once the title is painted, the whole pixels it was painted on, so the
   // paint lines up with the picture's own pixels exactly
-  const [places, setPlaces] = useState<number[][]>(boxes);
-  const [painted, setPainted] = useState(false);
+  const [cover, setCover] = useState<NameCover>({ places: boxes, painted: null });
+  const large = useLargeView();
+  const turn = useOpenOnTurn(sideways, cardBox, large);
 
   function paint() {
     const image = picture.current;
-    const target = canvas.current;
-    if (!image?.naturalWidth || !target) return;
+    if (!image?.naturalWidth) return;
     const across = image.naturalWidth;
     const down = image.naturalHeight;
     const reach = Math.round(FILL_REACH * across);
     const box = boxes[0];
     const [x, w] = [box[0], box[2]].map((share) => Math.round(share * across));
     const [y, h] = [box[1], box[3]].map((share) => Math.round(share * down));
+    // Along the name and across it: a name printed sideways runs up the
+    // picture, and is painted turned a quarter clockwise, as it reads
+    const [along, crosswise] = sideways ? [h, w] : [w, h];
     try {
       // The area with a row more above and below it, and room to each side
       const around = document.createElement('canvas');
-      around.width = w + 2 * reach;
-      around.height = h + 2;
+      around.width = along + 2 * reach;
+      around.height = crosswise + 2;
       const context = around.getContext('2d', { willReadFrequently: true });
       if (!context) return;
-      context.drawImage(
-        image,
-        x - reach,
-        y - 1,
-        around.width,
-        around.height,
-        0,
-        0,
-        around.width,
-        around.height,
-      );
+      if (sideways) {
+        context.translate(around.width, 0);
+        context.rotate(Math.PI / 2);
+      }
+      // The same area of the picture either way, turned or not
+      const [fromX, fromY] = sideways ? [x - 1, y - reach] : [x - reach, y - 1];
+      const [fromW, fromH] = sideways
+        ? [around.height, around.width]
+        : [around.width, around.height];
+      context.drawImage(image, fromX, fromY, fromW, fromH, 0, 0, fromW, fromH);
       const pixels = context.getImageData(0, 0, around.width, around.height).data;
+      const filled = new ImageData(fillName(pixels, around.width, reach), along, crosswise);
+      // The paint, kept as a picture: the large view lays it over its own
+      // copy of the card too
+      const target = document.createElement('canvas');
       target.width = w;
       target.height = h;
-      target
-        .getContext('2d')
-        ?.putImageData(new ImageData(fillName(pixels, around.width, reach), w, h), 0, 0);
-      setPlaces([[x / across, y / down, w / across, h / down], ...boxes.slice(1)]);
-      setPainted(true);
+      const out = target.getContext('2d');
+      if (!out) return;
+      if (sideways) {
+        // Turned back: putImageData ignores turning, drawImage doesn't
+        const flat = document.createElement('canvas');
+        flat.width = along;
+        flat.height = crosswise;
+        flat.getContext('2d')?.putImageData(filled, 0, 0);
+        out.translate(0, h);
+        out.rotate(-Math.PI / 2);
+        out.drawImage(flat, 0, 0);
+      } else {
+        out.putImageData(filled, 0, 0);
+      }
+      setCover({
+        places: [[x / across, y / down, w / across, h / down], ...boxes.slice(1)],
+        painted: target.toDataURL(),
+      });
     } catch {
       // The browser won't share the picture's pixels: the plain bar stays
     }
@@ -473,7 +524,12 @@ function NameHidden({ card, back, spell }: { card: Card; back: boolean; spell: b
 
   return (
     <div className="name-hidden">
-      <div className="name-hidden-card">
+      <div
+        ref={cardBox}
+        className="name-hidden-card"
+        // The large view's copy stands in for it as it eases back
+        style={{ visibility: standsIn(turn, large) ? 'hidden' : undefined }}
+      >
         {/* The alt text must not give the answer away. crossOrigin lets
             the picture's pixels be read, and the saved copy be used. */}
         <img
@@ -484,32 +540,27 @@ function NameHidden({ card, back, spell }: { card: Card; back: boolean; spell: b
           crossOrigin="anonymous"
           onLoad={paint}
         />
-        {places.map((place, i) => (
-          <div
-            key={i}
-            className={i ? 'name-cover in-text' : painted ? 'name-cover painted' : 'name-cover'}
-            aria-hidden="true"
-            style={{
-              left: `${place[0] * 100}%`,
-              top: `calc(${place[1] * 100}% + ${i ? TEXT_COVER_TRIM : 0}px)`,
-              width: `${place[2] * 100}%`,
-              height: `calc(${place[3] * 100}% - ${i ? 2 * TEXT_COVER_TRIM : 0}px)`,
-            }}
-          >
-            {i === 0 && <canvas ref={canvas} />}
-          </div>
-        ))}
+        <NameCovers cover={cover} />
       </div>
+      <TurningLargeView
+        card={card}
+        showingBack={back}
+        onFlip={() => {}}
+        large={large}
+        turn={turn}
+        cover={cover}
+      />
     </div>
   );
 }
 
 /**
  * Where the artwork lands on the side asked about: its art box, or for a
- * side printed sideways, its art area turned. Null for a side without
- * either.
+ * side printed sideways, its art area turned - a split card's half's
+ * alone, when one half is asked about. Null for a side without either.
  */
-function landingBox(card: Card, back: boolean): number[] | null {
+function landingBox(card: Card, back: boolean, half: number | null): number[] | null {
+  if (half !== null && isHorizontal(card, back)) return SIDEWAYS_HALF_ART_BOXES[half];
   if (isHorizontal(card, back)) return SIDEWAYS_ART_BOX;
   return (back ? card.back?.art_box : card.art_box) ?? null;
 }
@@ -519,15 +570,15 @@ function landingBox(card: Card, back: boolean): number[] | null {
  * Lesson.css): flying into the card's art, or, for a card without a known
  * place for it, shrinking towards the card's middle and fading
  */
-function artTransition(card: Card, back: boolean): string {
-  return landingBox(card, back) ? 'card-art' : 'card-art-soft';
+function artTransition(card: Card, back: boolean, half: number | null): string {
+  return landingBox(card, back, half) ? 'card-art' : 'card-art-soft';
 }
 
 /** Where on the card the artwork lands: its art, or the card's middle */
-function artTarget(card: Card, back: boolean): CSSProperties {
-  const [left, top, width, height] = landingBox(card, back) ?? [0.3, 0.3, 0.4, 0.4];
+function artTarget(card: Card, back: boolean, half: number | null): CSSProperties {
+  const [left, top, width, height] = landingBox(card, back, half) ?? [0.3, 0.3, 0.4, 0.4];
   return {
-    viewTransitionName: artTransition(card, back),
+    viewTransitionName: artTransition(card, back, half),
     '--box-left': left,
     '--box-top': top,
     '--box-width': width,

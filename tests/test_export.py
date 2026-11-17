@@ -26,6 +26,7 @@ from meta_morphis.export import (
     report_left_out,
     shown_name,
     spell_part,
+    split_halves,
     title_name_box,
     write_json,
 )
@@ -83,6 +84,7 @@ def test_build_card_single_faced() -> None:
         "horizontal": [False],
         "back": None,
         "spell": None,
+        "halves": None,
     }
     assert build_card(card) == expected
 
@@ -961,6 +963,7 @@ def test_export_format_writes_the_file(
                 "horizontal": [False],
                 "back": None,
                 "spell": None,
+                "halves": None,
             }
         ],
     }
@@ -1353,3 +1356,92 @@ def test_only_adventure_and_prepare_cards_have_a_spell() -> None:
     assert built and built["spell"] and built["spell"]["name"] == "Petty Theft"
     assert spell_part(Card.from_raw(_raw("Wear // Tear", layout="split"))) is None
     assert spell_part(Card.from_raw(_raw("Counterspell"))) is None
+
+
+def _split(name: str, faces: list[tuple[str, str, str]], **extra: Any) -> Card:
+    """A split card printed sideways, as Scryfall gives it: one picture,
+    and both halves in card_faces, as (name, mana cost, type line)"""
+    card_faces = [
+        {
+            "name": face,
+            "mana_cost": cost,
+            "type_line": kind,
+            "oracle_text": "Draw a card.",
+        }
+        for face, cost, kind in faces
+    ]
+    fields: dict[str, Any] = {
+        "lang": "en",
+        "layout": "split",
+        "released_at": "2024-09-27",
+        "set_type": "expansion",
+        "card_faces": card_faces,
+    }
+    return Card.from_raw(_raw(name, **{**fields, **extra}))
+
+
+WEAR_TEAR = [("Wear", "{1}{R}", "Instant"), ("Tear", "{W}", "Instant")]
+ROOM = [
+    ("Unholy Annex", "{2}{B}", "Enchantment — Room"),
+    ("Ritual Chamber", "{3}{B}{B}", "Enchantment — Room"),
+]
+
+
+def test_each_half_of_a_split_card_has_its_own_name_box() -> None:
+    fused = _split("Wear // Tear", WEAR_TEAR, keywords=["Fuse"])
+    room = _split(
+        "Unholy Annex // Ritual Chamber", ROOM, type_line="Enchantment — Room"
+    )
+    # The first half's bar is the lower one, each name's box below its cost
+    assert split_halves(fused) == [
+        {"name": "Wear", "name_box": [0.077, 0.5911, 0.052, 0.3089]},
+        {"name": "Tear", "name_box": [0.077, 0.0945, 0.052, 0.3455]},
+    ]
+    assert split_halves(room) == [
+        {"name": "Unholy Annex", "name_box": [0.058, 0.5899, 0.0555, 0.3051]},
+        {"name": "Ritual Chamber", "name_box": [0.058, 0.1685, 0.0555, 0.2695]},
+    ]
+    # The card has no one name to cover
+    assert build_card(fused)["name_box"] is None  # type: ignore[index]
+
+
+def test_a_split_half_is_asked_by_its_artwork_only_where_its_name_isnt_measured() -> (
+    None
+):
+    # A split card without fuse, in another language, or with the name
+    # in the other half's text
+    plain = _split("Wear // Tear", WEAR_TEAR)
+    french = _split("Wear // Tear", WEAR_TEAR, keywords=["Fuse"], lang="fr")
+    named = _split(
+        "Wear // Tear",
+        WEAR_TEAR,
+        keywords=["Fuse"],
+        card_faces=[
+            {
+                "name": "Wear",
+                "mana_cost": "{1}{R}",
+                "type_line": "Instant",
+                "oracle_text": "Draw a card.",
+            },
+            {
+                "name": "Tear",
+                "mana_cost": "{W}",
+                "type_line": "Instant",
+                "oracle_text": "Cast Wear.",
+            },
+        ],
+    )
+    assert [half["name_box"] for half in split_halves(plain) or []] == [None, None]
+    assert [half["name_box"] for half in split_halves(french) or []] == [None, None]
+    assert [half["name_box"] for half in split_halves(named) or []] == [
+        None,
+        [0.077, 0.0945, 0.052, 0.3455],
+    ]
+
+
+def test_no_halves_but_of_a_split_card_printed_sideways_in_the_modern_frame() -> None:
+    aftermath = _split("Wear // Tear", WEAR_TEAR, keywords=["Aftermath"])
+    old = _split("Wear // Tear", WEAR_TEAR, keywords=["Fuse"], frame="2003")
+    assert split_halves(aftermath) is None
+    assert split_halves(old) is None
+    assert split_halves(Card.from_raw(_raw("Counterspell"))) is None

@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { type Card, listAgeDays, visibleName } from './cards';
+import { type Card, halfArt, listAgeDays, partName, visibleName } from './cards';
 
 const NOW = new Date('2026-10-20T12:00:00Z');
 
@@ -37,4 +37,24 @@ test('visibleName keeps the full name of single-sided and split cards', () => {
   // Both halves of a split card are printed on its one side
   const room = card('Unholy Annex // Ritual Chamber', 1);
   expect(visibleName(room, false)).toBe('Unholy Annex // Ritual Chamber');
+});
+
+test("halfArt cuts either half of a split card's artwork, the same each time", () => {
+  const split = card('Wear // Tear', 1);
+  expect(halfArt(split, 0).art_from).toEqual({ picture: 'art.webp', box: [0, 0, 0.5, 1] });
+  expect(halfArt(split, 1).art_from).toEqual({ picture: 'art.webp', box: [0.5, 0, 0.5, 1] });
+  expect(halfArt(split, 1)).toBe(halfArt(split, 1));
+});
+
+test('partName names a split card by the half asked', () => {
+  const split: Card = {
+    ...card('Wear // Tear', 1),
+    halves: [
+      { name: 'Wear', name_box: null },
+      { name: 'Tear', name_box: null },
+    ],
+  };
+  expect(partName(split, false, false, 0)).toBe('Wear');
+  expect(partName(split, false, false, 1)).toBe('Tear');
+  expect(partName(split, false, false)).toBe('Wear // Tear');
 });
