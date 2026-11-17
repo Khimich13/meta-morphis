@@ -142,15 +142,14 @@ def test_find_name_covers_any_other_word_of_the_name_standing_alone() -> None:
 @pytest.mark.parametrize(
     "lines, name",
     [
-        # Run together: its box may not cover both words
+        # Run together at the name's end: its box may not cover both words
         (["Whenever Jackal,Pup is dealt damage"], "Jackal Pup"),
-        # Broken at a line's end, so "Spider-Man" isn't read as one word
-        (
-            ["You may have Superior Spider-", "Man enter as a copy"],
-            "Superior Spider-Man",
-        ),
+        # ... or at a line's end
+        (["Put Chalice.of", "the Void onto"], "Chalice of the Void"),
         # A piece of the name next to a word of it
-        (["Put Chalice.of the Void onto"], "Chalice of the Void"),
+        (["Put Chalice.of the Vod onto"], "Chalice of the Void"),
+        # The rest of the name read badly past words of it read right
+        (["an act of the gods. Anger of the Gocls"], "Anger of the Gods"),
         # A game word next to the rest of the name read badly
         (["When Goblin Mafr0n enters"], "Goblin Matron"),
         # ... or past a speck of the border read as a word
@@ -162,6 +161,39 @@ def test_find_name_gives_up_when_the_name_may_be_read_badly(
 ) -> None:
     with pytest.raises(LeftOut):
         find_name(_words(*lines), name, GAME_WORDS)
+
+
+def test_find_name_finds_a_name_broken_at_a_lines_end() -> None:
+    words = _words("You may have Superior Spider-", "Man enter as a copy")
+    assert find_name(words, "Superior Spider-Man") == [
+        [130.0, 0.0, 290.0, 15.0],
+        [0.0, 20.0, 30.0, 35.0],
+    ]
+
+
+def test_find_name_finds_a_name_run_together_before_more_of_it() -> None:
+    # The box of "Void" reaches past "Chalice.of", which may end short
+    words = _words("Put Chalice.of the Void onto")
+    assert find_name(words, "Chalice of the Void") == [[40.0, 0.0, 230.0, 15.0]]
+
+
+def test_find_name_trusts_the_name_found_next_to_a_word_of_it() -> None:
+    # An ability named after a word of the name, before the name itself
+    # As Tesseract gives it: the dashes are no words (see parse_tsv)
+    words = _words("Fire 0 Fire Magic deals 1")
+    assert find_name(words, "Fire Magic") == [
+        [70.0, 0.0, 170.0, 15.0],
+        [0.0, 0.0, 40.0, 15.0],
+    ]
+
+
+def test_find_name_passes_over_words_of_the_name_read_right() -> None:
+    # "of the" before "gods": the start of the name isn't there
+    words = _words("Anger of the Gods deals 3", "already an act of the gods.")
+    assert find_name(words, "Anger of the Gods") == [
+        [0.0, 0.0, 170.0, 15.0],
+        [220.0, 20.0, 270.0, 35.0],
+    ]
 
 
 def test_find_name_covers_a_word_that_starts_like_a_word_of_the_name() -> None:
@@ -199,8 +231,9 @@ def test_find_name_still_covers_a_word_of_the_name_in_the_oracle_text() -> None:
         [0.0, 0.0, 60.0, 15.0],
     ]
     # A piece of the name is no plain text either: "Spider" is in the
-    # Oracle text, as a creature type and in the name
-    words = _words("You may have Superior Spider-", "Man enter as a copy")
+    # Oracle text, as a creature type and in the name. Here with the
+    # rest of the name read badly, so it isn't found whole.
+    words = _words("You may have Superior Spider-", "Mon enter as a copy")
     text = frozenset({"you", "may", "have", "superior", "spider", "man", "enter"})
     with pytest.raises(LeftOut):
         find_name(words, "Superior Spider-Man", GAME_WORDS, text)
@@ -537,41 +570,59 @@ def _reading(*texts: str, confidence: float = 90) -> Any:
 def test_a_picture_is_read_again_in_gray_when_the_first_reading_gives_up(
     monkeypatch: MonkeyPatch,
 ) -> None:
-    asked: list[bool] = []
+    asked: list[str] = []
 
-    def read_words(picture: bytes, area: Any, gray: bool = False) -> Any:
-        asked.append(gray)
+    def read_words(picture: bytes, area: Any, reading: str = "color") -> Any:
+        asked.append(reading)
         # In color, words seen in the box's texture leave it unsure
-        return _reading("Masticore", "deals", confidence=90 if gray else 40)
+        sure = 90 if reading == "gray" else 40
+        return _reading("Masticore", "deals", confidence=sure)
 
     monkeypatch.setattr(name_in_text, "read_words", read_words)
     boxes = name_in_text.name_in_text(_card(oracle_text="Masticore deals"), b"png")
-    assert asked == [False, True]
+    assert asked == ["color", "gray"]
+    assert boxes is not None and len(boxes) == 1
+
+
+def test_a_picture_is_read_smoothed_when_gray_gives_up_too(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    asked: list[str] = []
+
+    def read_words(picture: bytes, area: Any, reading: str = "color") -> Any:
+        asked.append(reading)
+        # An old frame's texture, read as words in gray too
+        sure = 90 if reading == "smooth" else 50
+        return _reading("Masticore", "deals", confidence=sure)
+
+    monkeypatch.setattr(name_in_text, "read_words", read_words)
+    boxes = name_in_text.name_in_text(_card(oracle_text="Masticore deals"), b"png")
+    assert asked == ["color", "gray", "smooth"]
     assert boxes is not None and len(boxes) == 1
 
 
 def test_a_picture_is_read_once_when_the_first_reading_is_trusted(
     monkeypatch: MonkeyPatch,
 ) -> None:
-    asked: list[bool] = []
+    asked: list[str] = []
 
-    def read_words(picture: bytes, area: Any, gray: bool = False) -> Any:
-        asked.append(gray)
+    def read_words(picture: bytes, area: Any, reading: str = "color") -> Any:
+        asked.append(reading)
         return _reading("Masticore", "deals")
 
     monkeypatch.setattr(name_in_text, "read_words", read_words)
     boxes = name_in_text.name_in_text(_card(oracle_text="Masticore deals"), b"png")
-    assert asked == [False]
+    assert asked == ["color"]
     assert boxes is not None and len(boxes) == 1
 
 
-def test_a_card_is_left_out_when_both_readings_give_up(
+def test_a_card_is_left_out_when_every_reading_gives_up(
     monkeypatch: MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
         name_in_text,
         "read_words",
-        lambda picture, area, gray=False: _reading("Masticore", confidence=40),
+        lambda picture, area, reading="color": _reading("Masticore", confidence=40),
     )
     with pytest.raises(LeftOut) as left_out:
         name_in_text.name_in_text(_card(oracle_text="Masticore"), b"png")
@@ -579,21 +630,25 @@ def test_a_card_is_left_out_when_both_readings_give_up(
     assert left_out.value.args == (
         "color: its text was read only 40% sure",
         "gray: its text was read only 40% sure",
+        "smooth: its text was read only 40% sure",
     )
 
 
 @pytest.mark.skipif(
     shutil.which("tesseract") is None, reason="Tesseract is not installed"
 )
-def test_read_words_in_gray_places_words_as_the_first_reading_does() -> None:
+@pytest.mark.parametrize("reading", ["gray", "smooth"])
+def test_read_words_in_gray_places_words_as_the_first_reading_does(
+    reading: str,
+) -> None:
     picture = _picture("Masticore deals 1 damage to", "target creature.")
     area = name_in_text.areas_to_read(_card())[0]
     color, _, size = name_in_text.read_words(picture, area)
-    gray, _, gray_size = name_in_text.read_words(picture, area, gray=True)
-    assert size == gray_size == (745, 1040)
-    assert color[0].text == gray[0].text == "Masticore"
+    other, _, other_size = name_in_text.read_words(picture, area, reading)
+    assert size == other_size == (745, 1040)
+    assert color[0].text == other[0].text == "Masticore"
     for side in ("left", "top", "right", "bottom"):
-        assert abs(getattr(color[0], side) - getattr(gray[0], side)) < 4
+        assert abs(getattr(color[0], side) - getattr(other[0], side)) < 4
 
 
 def test_reminder_text_is_not_counted_among_the_words_to_read(
@@ -602,7 +657,7 @@ def test_reminder_text_is_not_counted_among_the_words_to_read(
     monkeypatch.setattr(
         name_in_text,
         "read_words",
-        lambda picture, area, gray=False: _reading("Masticore", "deals"),
+        lambda picture, area, reading="color": _reading("Masticore", "deals"),
     )
     # A printing without the reminder text has far fewer words
     reminder = "(If you discard this card, discard it into exile and so on.)"
@@ -647,7 +702,7 @@ def test_every_area_is_read_and_must_be_trusted(monkeypatch: MonkeyPatch) -> Non
     )
     sure = {"text": 90.0, "type line": 90.0}
 
-    def read_words(picture: bytes, area: Any, gray: bool = False) -> Any:
+    def read_words(picture: bytes, area: Any, reading: str = "color") -> Any:
         if area == name_in_text.LOW_TYPE_LINE:
             return _reading("Land", "Urza's", "Saga", confidence=sure["type line"])
         return _reading("Urza's", "Saga", "gains", confidence=sure["text"])
@@ -712,12 +767,12 @@ def _two_lines(type_line: list[str], text: list[str]) -> Any:
 def test_a_planeswalkers_type_must_be_read_and_covered(
     monkeypatch: MonkeyPatch,
 ) -> None:
-    reading = {"type": "Ral", "text": "Ral."}
+    shown = {"type": "Ral", "text": "Ral."}
 
-    def read_words(picture: bytes, area: Any, gray: bool = False) -> Any:
+    def read_words(picture: bytes, area: Any, reading: str = "color") -> Any:
         return _two_lines(
-            ["Legendary", "Planeswalker", reading["type"]],
-            ["Put", "a", "counter", "on", reading["text"]],
+            ["Legendary", "Planeswalker", shown["type"]],
+            ["Put", "a", "counter", "on", shown["text"]],
         )
 
     monkeypatch.setattr(name_in_text, "read_words", read_words)
@@ -726,7 +781,7 @@ def test_a_planeswalkers_type_must_be_read_and_covered(
     assert boxes is not None and len(boxes) == 2
     # Too short for find_name to know "RaI" for the name read badly:
     # left out, even with the name read right in the text
-    reading["type"] = "RaI"
+    shown["type"] = "RaI"
     with pytest.raises(LeftOut):
         name_in_text.name_in_text(_walker(), b"png", GAME_WORDS)
 
@@ -738,7 +793,7 @@ def test_a_planeswalkers_type_line_is_read_alone_when_missed(
     type_line = ["Legendary", "Planeswalker", "Ral"]
     areas: list[Any] = []
 
-    def read_words(picture: bytes, area: Any, gray: bool = False) -> Any:
+    def read_words(picture: bytes, area: Any, reading: str = "color") -> Any:
         areas.append(area)
         if area == (0.07, 0.552, 0.93, 0.627):
             return _two_lines(type_line, [])
@@ -769,7 +824,7 @@ def test_a_planeswalkers_type_is_covered_when_its_text_uses_it_too(
     monkeypatch.setattr(
         name_in_text,
         "read_words",
-        lambda picture, area, gray=False: _two_lines(
+        lambda picture, area, reading="color": _two_lines(
             ["Legendary", "Planeswalker", "Jace"], ["Then", "Jace", "draws"]
         ),
     )

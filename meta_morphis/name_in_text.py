@@ -17,6 +17,7 @@ out costs one kind of question; showing its name gives the answer away.
 """
 
 import io
+import itertools
 import logging
 import re
 import shutil
@@ -29,7 +30,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import requests
-from PIL import Image, ImageOps
+from PIL import Image, ImageFilter, ImageOps
 
 from meta_morphis import config
 from meta_morphis.models.card import Card
@@ -44,7 +45,7 @@ log = logging.getLogger(__name__)
 ReadText = Callable[[Card], list[list[float]] | None]
 
 # Raise it when the reading changes, so every printing is read again
-READER_VERSION = 10
+READER_VERSION = 11
 
 # Where to read on a card's picture, as shares of its width and height:
 # the text box, below the type line and above the artist's credit, the
@@ -97,12 +98,19 @@ PLANESWALKER_TYPE_LINE_HEIGHT = 0.075
 Area = tuple[float, float, float, float]
 # Tesseract reads small print better enlarged
 SCALE = 2
-# A picture is read up to twice: enlarged and in color first, and when
-# that leaves the card out, in grayscale at its own size. The second way
-# reads the textured text box of an old frame far better - there the
-# first sees words in the texture - and a few other cards worse, so it
-# only gets the cards the first gave up on.
-READINGS = (False, True)
+# A picture is read up to three times: enlarged and in color first; when
+# that leaves the card out, in grayscale at its own size; and when that
+# does too, in grayscale smoothed. The second way reads the textured text
+# box of an old frame far better - there the first sees words in the
+# texture - and a few other cards worse, so it only gets the cards the
+# first gave up on. The third smooths the texture away on the old frames
+# the second still can't read: Ball Lightning's and Goblin Tinkerer's in
+# Fifth Edition and Anthologies.
+READINGS = ("color", "gray", "smooth")
+# How many pixels across the smoothing takes the middle value of: enough
+# to wipe out the texture's specks and keep the letters. Tried on those
+# two cards on 2026-11-17: 3 left specks read as words.
+SMOOTH_SIZE = 5
 # Room added around each name found, as shares of the card's width and
 # height: Tesseract's boxes can end a letter short. Less on the left,
 # where a name starting a line is next to the text box's border.
@@ -308,6 +316,47 @@ def rules_words(card: Card) -> frozenset[str]:
     )
 
 
+def name_end(
+    words: list[Word], read: list[str], start: int, wanted: list[str]
+) -> int | None:
+    """Where the name, its words normalized as `wanted`, ends when it
+    starts at `start` among the words `read`, normalized: the index past
+    its last word. None when it doesn't start there.
+
+    Word by word first, as matches() allows. Then letter for letter, for
+    a name read in other pieces: broken at a line's end ("Superior
+    Spider-" and "Man") or run together ("Chalice.of" before "the Void").
+    A piece running two words together has a box of its own that may end
+    short of its last letters - "Jackal,Pup" ends inside "Pup" - so it is
+    only taken when another piece of the name follows it on its line,
+    whose box reaches past it.
+    """
+    end = start + len(wanted)
+    if end <= len(read) and all(
+        matches(read[i], part) for i, part in zip(range(start, end), wanted)
+    ):
+        return end
+    whole = "".join(wanted)
+    # Where one word of the name ends and the next starts, in `whole`
+    joins = set(itertools.accumulate(len(part) for part in wanted[:-1]))
+    so_far = ""
+    for i in range(start, len(read)):
+        runs_together = any(
+            len(so_far) < at < len(so_far) + len(read[i]) for at in joins
+        )
+        so_far += read[i]
+        done = so_far in (whole, whole + "s")
+        if runs_together and (
+            done or i + 1 == len(read) or words[i + 1].line != words[i].line
+        ):
+            return None
+        if done:
+            return i + 1
+        if not whole.startswith(so_far):
+            return None
+    return None
+
+
 def find_name(
     words: list[Word],
     name: str,
@@ -321,9 +370,9 @@ def find_name(
     A word left over that is like one of the name's, or starts like one,
     may be the name read badly. When it has a piece of the name next to
     it, or is a piece of the name itself, it may well be, and the card is
-    left out (LeftOut): "Superior" before "Spider-" and "Man", a name broken
-    at a line's end, or "Jackal,Pup" run together, whose box may be too
-    short. Standing alone, it is left as it is when it is a game word - a
+    left out (LeftOut): "Goblin" before "Mafr0n" on Goblin Matron, or
+    "Jackal,Pup" run together, whose box may be too short (see name_end).
+    Standing alone, it is left as it is when it is a game word - a
     subtype such as "Goblin" in "a Goblin card", or a word of the card's
     own rules (see rules_words), among `game_words`, normalized - which
     says nothing of which card it is. Any other is
@@ -345,11 +394,12 @@ def find_name(
         wanted = [part for part in wanted if part]
         if not wanted:
             continue
-        for start in range(len(words) - len(wanted) + 1):
-            span = range(start, start + len(wanted))
-            if used.intersection(span):
+        for start in range(len(words)):
+            end = name_end(words, read, start, wanted)
+            if end is None:
                 continue
-            if not all(matches(read[i], part) for i, part in zip(span, wanted)):
+            span = range(start, end)
+            if used.intersection(span):
                 continue
             used.update(span)
             lines: dict[tuple[str, str, str], list[float]] = {}
@@ -405,12 +455,53 @@ def find_name(
         return i
 
     def near_name(i: int) -> bool:
-        """The word at i may be a piece or a word of the name, read badly"""
-        if not 0 <= i < len(read) or len(read[i]) < 3 or of_the_text(read[i]):
+        """The word at i may be a piece or a word of the name, read badly.
+        Not when it is part of the name found: then it was read right, as
+        "Fire Magic" after the ability "Fire — 0 —" on Fire Magic."""
+        if not 0 <= i < len(read) or i in used:
+            return False
+        if len(read[i]) < 3 or of_the_text(read[i]):
             return False
         return read[i] in whole or any(
             edits(read[i], part) <= 2 for part in name_words if len(part) >= 5
         )
+
+    # The name's words in order, short ones too
+    parts = [part for part in (normalize(part) for part in name.split()) if part]
+
+    def beside_name(i: int, step: int) -> bool:
+        """The word beside the word at i, before or after it (step -1 or
+        1), may be a piece or a word of the name read badly. Words going
+        on with the name from the word at i, read right, are passed over:
+        "of the" before "gods" in "an act of the gods" on Anger of the
+        Gods. The word past them is checked against the name's word
+        expected there too: "act" isn't like "Anger", but "Gocls" after
+        "Anger of the" is like "Gods"."""
+        places: list[int | None] = [
+            at for at, part in enumerate(parts) if matches(read[i], part)
+        ]
+        for at in places or [None]:
+            j, expected = i + step, None
+            if at is not None:
+                at += step
+                while (
+                    0 <= at < len(parts)
+                    and 0 <= j < len(read)
+                    and matches(read[j], parts[at])
+                ):
+                    j, at = j + step, at + step
+                expected = parts[at] if 0 <= at < len(parts) else None
+            j = next_word(j - step, step)
+            if near_name(j):
+                return True
+            if (
+                expected
+                and 0 <= j < len(read)
+                and j not in used
+                and edits(read[j], expected) <= len(expected) // 2
+            ):
+                return True
+        return False
 
     like_name: list[Word] = []
     for i, text in enumerate(read):
@@ -422,11 +513,7 @@ def find_name(
         # Only starts like a word of the name: a piece of the name run
         # together when it is all in the name ("jackalpup"), another word
         # to cover when it isn't ("coastline")
-        if (
-            (not like and text in whole)
-            or near_name(next_word(i, -1))
-            or near_name(next_word(i, 1))
-        ):
+        if (not like and text in whole) or beside_name(i, -1) or beside_name(i, 1):
             raise LeftOut(
                 f"'{words[i].text}' is left in its text, and may be part of "
                 "the name read badly"
@@ -476,19 +563,21 @@ def parse_tsv(
 
 
 def read_words(
-    picture: bytes, area: Area, gray: bool = False
+    picture: bytes, area: Area, reading: str = "color"
 ) -> tuple[list[Word], float, tuple[int, int]]:
     """Reads an area of a card's picture: the words, how sure Tesseract
-    was of them, and the picture's size. Enlarged and in color, or with
-    `gray`, in grayscale at its own size (see READINGS)."""
+    was of them, and the picture's size. Enlarged and in color, or in
+    grayscale at its own size, smoothed for "smooth" (see READINGS)."""
     image = Image.open(io.BytesIO(picture)).convert("RGB")
     width, height = image.size
     left, top = round(width * area[0]), round(height * area[1])
     right, bottom = round(width * area[2]), round(height * area[3])
     part = image.crop((left, top, right, bottom))
-    if gray:
+    if reading != "color":
         # Stretched to run from black to white
         part = ImageOps.autocontrast(part.convert("L"))
+        if reading == "smooth":
+            part = part.filter(ImageFilter.MedianFilter(SMOOTH_SIZE))
         scale = 1
     else:
         part = part.resize(((right - left) * SCALE, (bottom - top) * SCALE))
@@ -516,23 +605,23 @@ def name_in_text(
     (see READINGS) can be trusted to have found every place it is.
     """
     reasons = []
-    for gray in READINGS:
+    for reading in READINGS:
         try:
-            return name_in_reading(card, picture, game_words, gray)
+            return name_in_reading(card, picture, game_words, reading)
         except LeftOut as e:
-            reason = f"{'gray' if gray else 'color'}: {e}"
+            reason = f"{reading}: {e}"
             log.info(f"Not covering the name of '{card.name}' - {reason}")
             reasons.append(reason)
     raise LeftOut(*reasons)
 
 
 def name_in_reading(
-    card: Card, picture: bytes, game_words: frozenset[str], gray: bool
+    card: Card, picture: bytes, game_words: frozenset[str], reading: str
 ) -> list[list[float]]:
     """One reading of the picture for name_in_text"""
     boxes: list[list[float]] = []
     for number, area in enumerate(areas_to_read(card)):
-        words, confidence, (width, height) = read_words(picture, area, gray)
+        words, confidence, (width, height) = read_words(picture, area, reading)
         if confidence < MIN_CONFIDENCE:
             raise LeftOut(f"its text was read only {confidence:.0f}% sure")
         oracle_text = REMINDER.sub("", card.raw.get("oracle_text") or "")
