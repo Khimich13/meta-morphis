@@ -66,6 +66,9 @@ class BackSide(TypedDict):
     # shows only its own name
     name_box: list[float] | None
     name_text_boxes: list[list[float]]
+    # The back's own type, as ExportCard's type: Insectile Aberration's
+    # "creature" on Delver of Secrets
+    type: str
 
 
 class SpellPart(TypedDict):
@@ -77,6 +80,8 @@ class SpellPart(TypedDict):
     # everywhere it shows: then the spell is never asked about.
     name_box: list[float] | None
     name_text_boxes: list[list[float]]
+    # Its own type, as ExportCard's type: "instant" or "sorcery"
+    type: str
 
 
 class SplitHalf(TypedDict):
@@ -89,6 +94,9 @@ class SplitHalf(TypedDict):
     # may be printed in a text box too: then the half is asked about by
     # its artwork only.
     name_box: list[float] | None
+    # Its own type, as ExportCard's type: "instant" on Wear, "Room" on a
+    # Room's door
+    type: str
 
 
 class ExportCard(TypedDict):
@@ -145,6 +153,10 @@ class ExportCard(TypedDict):
     # is None: the card has no one name to cover. None for every other
     # card, which is asked about whole.
     halves: list[SplitHalf] | None
+    # The type of what the question about the full picture asks for (see
+    # main_type): the front's on a double-faced card, the main part's on
+    # one with a spell. "Name the creature"
+    type: str
 
 
 class FormatsFile(TypedDict):
@@ -443,6 +455,46 @@ def with_text_boxes(
     return title, in_text
 
 
+# The card types a question names, first the one taken from a type line
+# with more than one: "Artifact Creature" is asked as a creature
+MAIN_TYPES = [
+    "Creature",
+    "Land",
+    "Planeswalker",
+    "Battle",
+    "Artifact",
+    "Enchantment",
+    "Instant",
+    "Sorcery",
+]
+
+
+def main_type(type_line: str) -> str:
+    """The one type a question names a card or a part of it by, from its
+    type line: "creature", "land", ... in the order of MAIN_TYPES, and
+    "Room" for a Room's door, which as an enchantment would sound wrong.
+    "card" for a type line without any of these, or none at all."""
+    types: set[str] = set()
+    subtypes: set[str] = set()
+    for part in type_line.split("//"):
+        kinds, _, subs = part.partition("—")
+        types.update(kinds.split())
+        subtypes.update(subs.split())
+    if "Room" in subtypes:
+        return "Room"
+    return next((kind.lower() for kind in MAIN_TYPES if kind in types), "card")
+
+
+def front_type(card: Card) -> str:
+    """The type the question about the front's full picture names (see
+    main_type): the first face's on a card with faces, but a split card
+    asked about whole names both halves'"""
+    faces = card.raw.get("card_faces") or []
+    if faces and card.layout != "split":
+        return main_type(faces[0].get("type_line") or "")
+    return main_type(card.type_line)
+
+
 def spell_part(card: Card, read_text: ReadText = never_read) -> SpellPart | None:
     """An adventure's or prepare card's spell, for the question about it
     alone (see name_in_text.PART_COLUMNS); None for every other card"""
@@ -459,6 +511,7 @@ def spell_part(card: Card, read_text: ReadText = never_read) -> SpellPart | None
         "name": shown_name(spell.name),
         "name_box": title,
         "name_text_boxes": in_text,
+        "type": main_type(spell.type_line),
     }
 
 
@@ -478,7 +531,13 @@ def split_halves(card: Card) -> list[SplitHalf] | None:
         box = None
         if area is not None and card.raw.get("lang") == "en" and not in_text:
             box = sideways_name_box(area, half.mana_cost, index)
-        halves.append({"name": shown_name(half.name), "name_box": box})
+        halves.append(
+            {
+                "name": shown_name(half.name),
+                "name_box": box,
+                "type": main_type(half.type_line),
+            }
+        )
     return halves
 
 
@@ -630,6 +689,7 @@ def back_side(card: Card, read_text: ReadText = never_read) -> BackSide | None:
         "art_from": art_from(back, face.name, box),
         "name_box": title,
         "name_text_boxes": in_text,
+        "type": main_type(face.type_line),
     }
 
 
@@ -670,6 +730,7 @@ def build_card(card: Card, read_text: ReadText = never_read) -> ExportCard | Non
         "back": back_side(card, read_text),
         "spell": spell_part(card, read_text),
         "halves": split_halves(card),
+        "type": front_type(card),
     }
 
 

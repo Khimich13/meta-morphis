@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { type Card, halfArt, listAgeDays, partName, visibleName } from './cards';
+import { type Card, halfArt, listAgeDays, partName, partType, visibleName } from './cards';
 
 const NOW = new Date('2026-10-20T12:00:00Z');
 
@@ -57,4 +57,48 @@ test('partName names a split card by the half asked', () => {
   expect(partName(split, false, false, 0)).toBe('Wear');
   expect(partName(split, false, false, 1)).toBe('Tear');
   expect(partName(split, false, false)).toBe('Wear // Tear');
+});
+
+test('partType gives the type of the part asked about', () => {
+  const delver: Card = {
+    ...card('Delver of Secrets // Insectile Aberration', 2),
+    type: 'creature',
+    back: { art: 'back.webp', artist: 'Some Artist', art_box: null, type: 'creature' },
+  };
+  const azcanta: Card = {
+    ...card('Search for Azcanta // Azcanta, the Sunken Ruin', 2),
+    type: 'enchantment',
+    back: { art: 'back.webp', artist: 'Some Artist', art_box: null, type: 'land' },
+  };
+  const borrower: Card = {
+    ...card('Brazen Borrower // Petty Theft', 1),
+    type: 'creature',
+    spell: { name: 'Petty Theft', name_box: null, name_text_boxes: [], type: 'instant' },
+  };
+  const room: Card = {
+    ...card('Unholy Annex // Ritual Chamber', 1),
+    type: 'enchantment',
+    halves: [
+      { name: 'Unholy Annex', name_box: null, type: 'Room' },
+      { name: 'Ritual Chamber', name_box: null, type: 'Room' },
+    ],
+  };
+  expect(partType(delver, true, false)).toBe('creature');
+  expect(partType(azcanta, false, false)).toBe('enchantment');
+  expect(partType(azcanta, true, false)).toBe('land');
+  expect(partType(borrower, false, true)).toBe('instant');
+  expect(partType(borrower, false, false)).toBe('creature');
+  expect(partType(room, false, false, 1)).toBe('Room');
+});
+
+test('partType says card in files written before types were added', () => {
+  const old: Card = {
+    ...card('Wear // Tear', 1),
+    halves: [
+      { name: 'Wear', name_box: null },
+      { name: 'Tear', name_box: null },
+    ],
+  };
+  expect(partType(card('Lightning Bolt', 1), false, false)).toBe('card');
+  expect(partType(old, false, false, 0)).toBe('card');
 });

@@ -22,6 +22,7 @@ from meta_morphis.export import (
     face_of,
     horizontal_sides,
     is_basic_land,
+    main_type,
     name_boxes,
     report_left_out,
     shown_name,
@@ -69,7 +70,7 @@ def _list_fetched(
 
 
 def test_build_card_single_faced() -> None:
-    card = Card.from_raw(_raw("Hydroblast", oracle_id="b94c0336"))
+    card = Card.from_raw(_raw("Hydroblast", oracle_id="b94c0336", type_line="Instant"))
     expected: ExportCard = {
         "oracle_id": "b94c0336",
         "name": "Hydroblast",
@@ -85,6 +86,7 @@ def test_build_card_single_faced() -> None:
         "back": None,
         "spell": None,
         "halves": None,
+        "type": "instant",
     }
     assert build_card(card) == expected
 
@@ -154,7 +156,10 @@ def test_build_card_double_faced_has_both_pictures() -> None:
         "art_from": None,
         "name_box": None,
         "name_text_boxes": [],
+        "type": "creature",
     }
+    # The question about the front's full picture names the front's type
+    assert built["type"] == "enchantment"
 
 
 def _double_faced(layout: str, back: dict[str, Any], **extra: Any) -> Card:
@@ -199,6 +204,7 @@ def test_the_back_side_has_its_own_artwork_artist_and_art_box() -> None:
         # left
         "name_box": [0.08, 0.052, 0.75, 0.051],
         "name_text_boxes": [],
+        "type": "creature",
     }
     assert back == expected
     # The back's own kind of card: a saga creature, like Summon: Esper
@@ -216,9 +222,12 @@ def test_the_back_side_has_its_own_artwork_artist_and_art_box() -> None:
     )
     assert saga and saga["art_box"] == [0.502, 0.208, 0.419, 0.548]
     assert walker and walker["art_box"] == [0.072, 0.101, 0.850, 0.451]
+    assert saga["type"] == "creature"
+    assert walker["type"] == "planeswalker"
     # A modal double-faced card's back has the usual art box too
     modal = back_side(_double_faced("modal_dfc", {"type_line": "Land"}))
     assert modal and modal["art_box"] == [0.079, 0.114, 0.840, 0.440]
+    assert modal["type"] == "land"
 
 
 def test_summon_esper_maduin_is_cut_from_its_large_picture() -> None:
@@ -964,6 +973,7 @@ def test_export_format_writes_the_file(
                 "back": None,
                 "spell": None,
                 "halves": None,
+                "type": "card",
             }
         ],
     }
@@ -1282,7 +1292,10 @@ def test_each_part_of_a_card_with_a_spell_has_its_own_name_box(
         "name": "Petty Theft",
         "name_box": spell_box,
         "name_text_boxes": [],
+        "type": "instant",
     }
+    # The main part's type, not the spell's
+    assert build_card(card)["type"] == "creature"  # type: ignore[index]
 
 
 def test_each_part_is_read_for_its_own_name() -> None:
@@ -1394,12 +1407,20 @@ def test_each_half_of_a_split_card_has_its_own_name_box() -> None:
     )
     # The first half's bar is the lower one, each name's box below its cost
     assert split_halves(fused) == [
-        {"name": "Wear", "name_box": [0.077, 0.5911, 0.052, 0.3089]},
-        {"name": "Tear", "name_box": [0.077, 0.0945, 0.052, 0.3455]},
+        {"name": "Wear", "name_box": [0.077, 0.5911, 0.052, 0.3089], "type": "instant"},
+        {"name": "Tear", "name_box": [0.077, 0.0945, 0.052, 0.3455], "type": "instant"},
     ]
     assert split_halves(room) == [
-        {"name": "Unholy Annex", "name_box": [0.058, 0.5899, 0.0555, 0.3051]},
-        {"name": "Ritual Chamber", "name_box": [0.058, 0.1685, 0.0555, 0.2695]},
+        {
+            "name": "Unholy Annex",
+            "name_box": [0.058, 0.5899, 0.0555, 0.3051],
+            "type": "Room",
+        },
+        {
+            "name": "Ritual Chamber",
+            "name_box": [0.058, 0.1685, 0.0555, 0.2695],
+            "type": "Room",
+        },
     ]
     # The card has no one name to cover
     assert build_card(fused)["name_box"] is None  # type: ignore[index]
@@ -1443,5 +1464,38 @@ def test_no_halves_but_of_a_split_card_printed_sideways_in_the_modern_frame() ->
     aftermath = _split("Wear // Tear", WEAR_TEAR, keywords=["Aftermath"])
     old = _split("Wear // Tear", WEAR_TEAR, keywords=["Fuse"], frame="2003")
     assert split_halves(aftermath) is None
+    # Asked about whole, by both halves' type
+    aftermath_card = _split(
+        "Wear // Tear",
+        WEAR_TEAR,
+        keywords=["Aftermath"],
+        type_line="Instant // Instant",
+    )
+    assert build_card(aftermath_card)["type"] == "instant"  # type: ignore[index]
     assert split_halves(old) is None
     assert split_halves(Card.from_raw(_raw("Counterspell"))) is None
+
+
+@pytest.mark.parametrize(
+    "type_line, expected",
+    [
+        ("Creature — Faerie Rogue", "creature"),
+        ("Basic Land — Island", "land"),
+        ("Legendary Planeswalker — Jace", "planeswalker"),
+        ("Battle — Siege", "battle"),
+        ("Artifact — Equipment", "artifact"),
+        ("Enchantment — Aura", "enchantment"),
+        ("Instant", "instant"),
+        ("Kindred Sorcery — Elf", "sorcery"),
+        # With more than one type, the first in MAIN_TYPES
+        ("Artifact Creature — Golem", "creature"),
+        ("Enchantment Creature — Saga Elemental", "creature"),
+        ("Artifact Land", "land"),
+        ("Instant // Sorcery", "instant"),
+        # A Room's door, not an enchantment
+        ("Enchantment — Room", "Room"),
+        ("", "card"),
+    ],
+)
+def test_main_type(type_line: str, expected: str) -> None:
+    assert main_type(type_line) == expected

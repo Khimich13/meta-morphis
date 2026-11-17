@@ -16,6 +16,7 @@ import {
   type Card,
   halfArt,
   isHorizontal,
+  partType,
   SIDEWAYS_ART_BOX,
   SIDEWAYS_HALF_ART_BOXES,
 } from '../lib/cards';
@@ -210,7 +211,9 @@ export default function Lesson({
             {/* The question over the left edge, its label over the right */}
             <div className="question-line">
               <h2 className="question">
-                {question.kind === 'picture' ? 'Which card is this?' : 'Which card has this art?'}
+                {question.kind === 'picture'
+                  ? `Name the ${partType(card, question.back, question.spell, question.half)}`
+                  : 'What is this art from?'}
               </h2>
               <QuestionLabel repeat={repeat} standing={cardStanding(record)} />
             </div>

@@ -33,6 +33,8 @@ export interface BackSide {
    */
   name_box?: [number, number, number, number] | null;
   name_text_boxes?: [number, number, number, number][];
+  /** The back's own type, as Card's type: Insectile Aberration's "creature" */
+  type?: string;
 }
 
 /**
@@ -50,6 +52,8 @@ export interface SpellPart {
    */
   name_box: [number, number, number, number] | null;
   name_text_boxes: [number, number, number, number][];
+  /** Its own type, as Card's type: "instant" or "sorcery" */
+  type?: string;
 }
 
 /**
@@ -65,6 +69,8 @@ export interface SplitHalf {
    * be covered: then the half is asked about by its artwork only.
    */
   name_box: [number, number, number, number] | null;
+  /** Its own type, as Card's type: "instant" on Wear, "Room" on a door */
+  type?: string;
 }
 
 export interface Card {
@@ -136,6 +142,14 @@ export interface Card {
    * about whole; missing in files written before it was added.
    */
   halves?: [SplitHalf, SplitHalf] | null;
+  /**
+   * The one type the question about the full picture names it by:
+   * "creature", "land", "planeswalker", "battle", "artifact",
+   * "enchantment", "instant", "sorcery", "Room" or "card". The front's
+   * on a double-faced card, the main part's on one with a spell. Missing
+   * in files written before it was added.
+   */
+  type?: string;
 }
 
 export interface CardFile {
@@ -286,4 +300,21 @@ export function partName(
   if (card.halves && half !== null) return card.halves[half].name;
   if (card.spell) return spell ? card.spell.name : card.name.split(' // ')[0];
   return visibleName(card, back);
+}
+
+/**
+ * The type of the part a question asks about, as partName picks the
+ * part, for the question about its full picture: "Name the creature".
+ * "card" in files written before types were added.
+ */
+export function partType(
+  card: Card,
+  back: boolean,
+  spell: boolean,
+  half: number | null = null,
+): string {
+  if (card.halves && half !== null) return card.halves[half].type ?? 'card';
+  if (card.spell && spell) return card.spell.type ?? 'card';
+  if (back && card.back) return card.back.type ?? 'card';
+  return card.type ?? 'card';
 }
