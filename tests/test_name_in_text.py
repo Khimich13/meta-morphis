@@ -731,6 +731,30 @@ def test_a_planeswalkers_type_must_be_read_and_covered(
         name_in_text.name_in_text(_walker(), b"png", GAME_WORDS)
 
 
+def test_a_planeswalkers_type_line_is_read_alone_when_missed(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    # A transform back's white type line, missed when read with the text
+    type_line = ["Legendary", "Planeswalker", "Ral"]
+    areas: list[Any] = []
+
+    def read_words(picture: bytes, area: Any, gray: bool = False) -> Any:
+        areas.append(area)
+        if area == (0.07, 0.552, 0.93, 0.627):
+            return _two_lines(type_line, [])
+        return _two_lines(["on", "ES"], ["Put", "a", "counter", "on", "Ral."])
+
+    monkeypatch.setattr(name_in_text, "read_words", read_words)
+    boxes = name_in_text.name_in_text(_walker(), b"png", GAME_WORDS)
+    # In the text, then in the type line read alone
+    assert boxes is not None and len(boxes) == 2
+    assert areas[-1] == (0.07, 0.552, 0.93, 0.627)
+    # Missed there too: left out
+    type_line[2] = "RaI"
+    with pytest.raises(LeftOut):
+        name_in_text.name_in_text(_walker(), b"png", GAME_WORDS)
+
+
 def test_a_planeswalkers_type_is_covered_when_its_text_uses_it_too(
     monkeypatch: MonkeyPatch,
 ) -> None:

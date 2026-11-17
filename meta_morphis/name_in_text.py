@@ -44,7 +44,7 @@ log = logging.getLogger(__name__)
 ReadText = Callable[[Card], list[list[float]] | None]
 
 # Raise it when the reading changes, so every printing is read again
-READER_VERSION = 9
+READER_VERSION = 10
 
 # Where to read on a card's picture, as shares of its width and height:
 # the text box, below the type line and above the artist's credit, the
@@ -86,6 +86,13 @@ SPELL_TEXT_TOP = 0.72
 PLANESWALKER_LONG_TEXT_LINES = 4
 PLANESWALKER_TEXT_TOP = 0.552
 PLANESWALKER_LONG_TEXT_TOP = 0.483
+# A transform card's back prints its type line in white on gold, which
+# Tesseract misses when reading it with the darker text below. When the
+# type isn't found there, the type line is read again by itself, this
+# tall from the same top, enlarged in color: that finds it on Ajani,
+# Nacatl Avenger and Tamiyo, Seasoned Scholar, where grayscale doesn't.
+# Measured on Scryfall's pictures on 2026-11-17.
+PLANESWALKER_TYPE_LINE_HEIGHT = 0.075
 # A part of the picture: its left, top, right and bottom
 Area = tuple[float, float, float, float]
 # Tesseract reads small print better enlarged
@@ -544,9 +551,19 @@ def name_in_reading(
             plain -= {walker_type}
         found = find_name(words, card.name, plain, words_of_text(card))
         if walker_type and not type_covered(words, found, walker_type):
-            raise LeftOut(
-                "its type line was not read well enough to find its type there"
+            line_words, line_confidence, _ = read_words(
+                picture, planeswalker_type_line(area)
             )
+            line_found = (
+                find_name(line_words, card.name, plain, words_of_text(card))
+                if line_confidence >= MIN_CONFIDENCE
+                else []
+            )
+            if not type_covered(line_words, line_found, walker_type):
+                raise LeftOut(
+                    "its type line was not read well enough to find its type there"
+                )
+            found += line_found
         boxes.extend(
             [
                 round(value, 4)
@@ -560,6 +577,13 @@ def name_in_reading(
             for left, top, right, bottom in found
         )
     return boxes
+
+
+def planeswalker_type_line(text_area: Area) -> Area:
+    """A planeswalker's type line by itself, at the top of the area read
+    for its text (see areas_to_read)"""
+    left, top, right, _ = text_area
+    return (left, top, right, top + PLANESWALKER_TYPE_LINE_HEIGHT)
 
 
 def type_covered(words: list[Word], boxes: list[list[float]], walker_type: str) -> bool:
