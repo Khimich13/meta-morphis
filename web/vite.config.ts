@@ -53,10 +53,12 @@ export default defineConfig({
         clientsClaim: true,
         runtimeCaching: [
           {
-            // The card files: fresh from the network when there is one,
-            // otherwise the copy saved last time. The cache name must
+            // The card files, and those of every card in data/cards/ that
+            // the player's own lists are made from: fresh from the
+            // network when there is one, otherwise the copy saved last
+            // time. The cache name must
             // match DATA_CACHE in src/lib/cards.ts, which also fills it.
-            urlPattern: /\/data\/[^/]+\.json$/,
+            urlPattern: /\/data\/(cards\/)?[^/]+\.json$/,
             handler: 'NetworkFirst',
             options: { cacheName: 'card-data', networkTimeoutSeconds: 3 },
           },

@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react';
 
-import { type Card } from '../lib/cards';
 import {
   type Added,
   addCards,
   cardNamesFrom,
-  cardsByName,
+  cardsNamed,
   type CustomList,
   DEFAULT_LIST_NAME,
-  everyCard,
+  loadCardIndex,
   newList,
 } from '../lib/customLists';
 import './AddCards.css';
@@ -28,27 +27,41 @@ interface AddCardsProps {
 const NEW = '';
 
 export default function AddCards({ lists, target, onSave, onOpen, onBack }: AddCardsProps) {
-  // Every card the app has, by every name it can be entered by; null
+  // The file of every card, by every name it can be entered by; null
   // while loading
-  const [known, setKnown] = useState<Map<string, Card> | null>(null);
+  const [index, setIndex] = useState<Map<string, string> | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
+  // While the files of the names entered load
+  const [adding, setAdding] = useState(false);
+  const [addFailed, setAddFailed] = useState(false);
   const [into, setInto] = useState(target ?? NEW);
   const [name, setName] = useState('');
   const [text, setText] = useState('');
   const [result, setResult] = useState<Added | null>(null);
   const [saveFailed, setSaveFailed] = useState(false);
 
-  // Runs once: the cards of every format, to find the names in
+  // Runs once: the index of every card, to find the names in
   useEffect(() => {
-    everyCard()
-      .then((cards) => setKnown(cardsByName(cards)))
+    loadCardIndex()
+      .then(setIndex)
       .catch(() => setLoadFailed(true));
   }, []);
 
   const names = cardNamesFrom(text);
 
-  function add() {
-    if (known === null) return;
+  async function add() {
+    if (index === null || adding) return;
+    setAdding(true);
+    setAddFailed(false);
+    let known;
+    try {
+      known = await cardsNamed(names, index);
+    } catch {
+      setAddFailed(true);
+      return;
+    } finally {
+      setAdding(false);
+    }
     const list = lists.find((each) => each.id === into) ?? newList(name);
     const added = addCards(list, names, known);
     setSaveFailed(false);
@@ -115,9 +128,17 @@ export default function AddCards({ lists, target, onSave, onOpen, onBack }: AddC
           Couldn't load the cards to look the names up in. Check the connection and try again.
         </p>
       ) : (
-        <button className="primary" disabled={known === null || names.length === 0} onClick={add}>
-          {known === null ? 'Loading cards…' : 'Add'}
+        <button
+          className="primary"
+          disabled={index === null || adding || names.length === 0}
+          onClick={() => void add()}
+        >
+          {index === null ? 'Loading cards…' : adding ? 'Adding…' : 'Add'}
         </button>
+      )}
+
+      {addFailed && (
+        <p role="status">Couldn't load the cards to add. Check the connection and try again.</p>
       )}
 
       {result !== null && (
@@ -153,7 +174,7 @@ function AddResult({
       )}
       {unknown.length > 0 && (
         <>
-          <p>Not among the app's cards yet:</p>
+          <p>No card by these names:</p>
           <ul>
             {unknown.map((name) => (
               <li key={name}>{name}</li>

@@ -5,7 +5,10 @@ import {
   addCards,
   cardNamesFrom,
   cardsByName,
+  cardsNamed,
+  type CardsFile,
   DEFAULT_LIST_NAME,
+  indexByName,
   nameKey,
   newList,
   removeCard,
@@ -55,6 +58,54 @@ test("a card's full name wins over another card's half", () => {
   const fire = card('Fire');
   const split = card('Fire // Ice');
   expect(cardsByName([split, fire]).get(nameKey('Fire'))).toBe(fire);
+});
+
+test("the index finds a card's file by its full name or by either half", () => {
+  const index = indexByName({
+    '0a': ['Brazen Borrower // Petty Theft'],
+    '1b': ['Lórien Revealed'],
+  });
+  expect(index.get(nameKey('Brazen Borrower // Petty Theft'))).toBe('0a');
+  expect(index.get(nameKey('petty theft'))).toBe('0a');
+  expect(index.get(nameKey('Lorien Revealed'))).toBe('1b');
+  expect(index.get(nameKey('Pyroblast'))).toBeUndefined();
+});
+
+test("in the index too, a card's full name wins over another card's half", () => {
+  const index = indexByName({ '0a': ['Fire // Ice'], ff: ['Fire'] });
+  expect(index.get(nameKey('Fire'))).toBe('ff');
+  expect(index.get(nameKey('Ice'))).toBe('0a');
+});
+
+test('only the files of the names entered are loaded, each once', async () => {
+  const files: Record<string, CardsFile> = {
+    '0a': { cards: [card('Counterspell'), card('Brazen Borrower // Petty Theft')] },
+    '1b': { cards: [card('Lightning Bolt')] },
+    ff: { cards: [card('Pyroblast')] },
+  };
+  const index = indexByName(
+    Object.fromEntries(Object.entries(files).map(([key, f]) => [key, f.cards.map((c) => c.name)])),
+  );
+  const loaded: string[] = [];
+  const known = await cardsNamed(
+    ['Counterspell', 'Petty Theft', 'Bolt', 'lightning bolt'],
+    index,
+    (key) => {
+      loaded.push(key);
+      return Promise.resolve(files[key]);
+    },
+  );
+  expect(loaded.sort()).toEqual(['0a', '1b']);
+  expect(known.get(nameKey('petty theft'))?.name).toBe('Brazen Borrower // Petty Theft');
+  expect(known.get(nameKey('Lightning Bolt'))?.name).toBe('Lightning Bolt');
+  expect(known.has(nameKey('Pyroblast'))).toBe(false);
+});
+
+test('a file that fails to load fails the whole lookup', async () => {
+  const index = indexByName({ '0a': ['Counterspell'] });
+  await expect(
+    cardsNamed(['Counterspell'], index, () => Promise.reject(new Error('offline'))),
+  ).rejects.toThrow('offline');
 });
 
 test('adding sorts the names into added, already there and unknown', () => {

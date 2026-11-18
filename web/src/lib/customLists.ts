@@ -1,11 +1,10 @@
 // The player's own lists of cards, made by entering card names: one card,
-// or a whole decklist pasted in. Names are found among the cards of every
-// format's lists. No React and no browser storage in here, so it can be
-// tested alone; storage.ts keeps the lists.
+// or a whole decklist pasted in. Names are found among every card, in the
+// files data/cards/ holds - see export_every_card in meta_morphis/export.py.
+// No React and no browser storage in here, so it can be tested alone;
+// storage.ts keeps the lists.
 
-import { type Card } from './cards';
-import { loadFormats } from './formats';
-import { formatCards } from './offline';
+import { type Card, loadDataFile } from './cards';
 
 export interface CustomList {
   id: string;
@@ -97,14 +96,14 @@ export interface Added {
   added: string[];
   /** Names of cards the list had already */
   already: string[];
-  /** Names that are no card the app has */
+  /** Names that are no card the app has: a typo, a joke card, a basic land */
   unknown: string[];
 }
 
 /**
- * The list with the named cards added at its end. The cards it had are
- * refreshed from `known` too, so they get any newer data the card files
- * have.
+ * The list with the named cards added at its end. The cards it had that
+ * are in `known` too are refreshed from it, so they get any newer data
+ * the card files have.
  */
 export function addCards(
   list: CustomList,
@@ -153,13 +152,57 @@ export function isCustomList(value: unknown): value is CustomList {
 }
 
 /**
- * Every card of every format's lists, each once. Fails if a list can't
- * be loaded (e.g. offline, for a format never opened).
+ * The shape of data/cards/index.json: the names of the cards in each of
+ * data/cards/<key>.json, by key - the first two characters of the cards'
+ * oracle ids
  */
-export async function everyCard(): Promise<Card[]> {
-  const { formats } = await loadFormats();
-  const lists = await Promise.all(formats.map(formatCards));
-  const byId = new Map<string, Card>();
-  for (const card of lists.flat()) byId.set(card.oracle_id, card);
-  return [...byId.values()];
+export type CardIndexFile = Record<string, string[]>;
+
+/** The shape of data/cards/<key>.json */
+export interface CardsFile {
+  cards: Card[];
+}
+
+/**
+ * The file each card is in, by every name it can be entered by, as
+ * cardsByName finds cards: a full name wins over another card's half
+ */
+export function indexByName(index: CardIndexFile): Map<string, string> {
+  const byName = new Map<string, string>();
+  for (const [key, names] of Object.entries(index)) {
+    for (const name of names) byName.set(nameKey(name), key);
+  }
+  for (const [key, names] of Object.entries(index)) {
+    for (const name of names) {
+      for (const half of name.split(' // ')) {
+        if (!byName.has(nameKey(half))) byName.set(nameKey(half), key);
+      }
+    }
+  }
+  return byName;
+}
+
+/** Loads the index of every card. Fails offline if it was never loaded. */
+export async function loadCardIndex(): Promise<Map<string, string>> {
+  return indexByName(await loadDataFile<CardIndexFile>('cards/index'));
+}
+
+/**
+ * The cards of the files the names are in, by every name they can be
+ * entered by - what addCards looks the names up in. Loads each file
+ * once. Fails if a file can't be loaded (e.g. offline, for one never
+ * loaded before), so nothing is added half.
+ */
+export async function cardsNamed(
+  names: readonly string[],
+  index: ReadonlyMap<string, string>,
+  load: (key: string) => Promise<CardsFile> = (key) => loadDataFile(`cards/${key}`),
+): Promise<Map<string, Card>> {
+  const keys = new Set<string>();
+  for (const name of names) {
+    const key = index.get(nameKey(name));
+    if (key !== undefined) keys.add(key);
+  }
+  const files = await Promise.all([...keys].map(load));
+  return cardsByName(files.flatMap((file) => file.cards));
 }
