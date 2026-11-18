@@ -45,7 +45,7 @@ log = logging.getLogger(__name__)
 ReadText = Callable[[Card], list[list[float]] | None]
 
 # Raise it when the reading changes, so every printing is read again
-READER_VERSION = 11
+READER_VERSION = 12
 
 # Where to read on a card's picture, as shares of its width and height:
 # the text box, below the type line and above the artist's credit, the
@@ -57,6 +57,21 @@ TEXT_TOP, TEXT_BOTTOM = 0.60, 0.94
 # Such a printing has its type line read too.
 SUMMON_UNTIL = "1999-04-21"
 TYPE_LINE_TOP = 0.55
+# That type line by itself, as left, top, right and bottom: see
+# summon_type_line. Read a second time a little taller, which reads some
+# Tesseract misses in the first: "Summon Bird" on Welkin Hawk. Measured on
+# Scryfall's pictures on 2026-11-18.
+SUMMON_TYPE_LINES = (
+    (0.07, TYPE_LINE_TOP, 0.93, TEXT_TOP),
+    (0.07, 0.54, 0.93, 0.605),
+)
+# Where the type starts on such a type line: "Summon", or "Creature" on
+# the printings of the time that print "Artifact Creature" or "Creature —
+# Merchant" - is_summon_printing can't tell those apart
+TYPE_STARTS = ("summon", "creature")
+# The most words read after "Summon" taken for its type: "People of the
+# Woods" has four
+SUMMON_TYPE_WORDS = 4
 # A saga has its text in a column left of its artwork, a class and a case
 # right of it: the column's left and right. The type line is below both.
 # Measured on Scryfall's pictures on 2026-11-14.
@@ -98,15 +113,25 @@ PLANESWALKER_TYPE_LINE_HEIGHT = 0.075
 Area = tuple[float, float, float, float]
 # Tesseract reads small print better enlarged
 SCALE = 2
-# A picture is read up to three times: enlarged and in color first; when
-# that leaves the card out, in grayscale at its own size; and when that
-# does too, in grayscale smoothed. The second way reads the textured text
-# box of an old frame far better - there the first sees words in the
-# texture - and a few other cards worse, so it only gets the cards the
-# first gave up on. The third smooths the texture away on the old frames
-# the second still can't read: Ball Lightning's and Goblin Tinkerer's in
-# Fifth Edition and Anthologies.
+# The ways a picture is read: enlarged and in color; in grayscale at its
+# own size; and in grayscale smoothed. Each reading misses words another
+# one sees, even when Tesseract is sure of it - "Lord Windgrace can be
+# your commander" read without "Lord" in color, "If Abu Ja'far is put" on
+# Abu Ja'far in Chronicles read as "icone" - so a picture is read in all
+# the ways of its frame, and the name covered wherever any finds it (see
+# name_in_text). Grayscale reads the textured text box of an old frame
+# far better: there color sees words in the texture. Smoothing wipes that
+# texture away on the old frames gray still can't read - Ball Lightning's
+# and Goblin Tinkerer's in Fifth Edition and Anthologies - but blurs a
+# newer frame's letters, so only old frames get it.
 READINGS = ("color", "gray", "smooth")
+NEW_FRAME_READINGS = ("color", "gray")
+# The old frames. Found on samples of every card on 2026-11-18: with the
+# first reading Tesseract was sure of, 8 of 70 old cards showed their
+# name, and 1 of about 460 newer ones (Lord Windgrace). Reading newer
+# frames in both their ways left out 1 to 3% more of them; smoothing them
+# too, a further 2 to 5%, over misread words.
+OLD_FRAMES = ("1993", "1997")
 # How many pixels across the smoothing takes the middle value of: enough
 # to wipe out the texture's specks and keep the letters. Tried on those
 # two cards on 2026-11-17: 3 left specks read as words.
@@ -126,8 +151,23 @@ MIN_CONFIDENCE = 60
 # may have missed part of the text, and the name with it. Counted without
 # reminder text, which not every printing prints.
 MIN_WORDS_READ = 0.5
+# Boxes overlapping over more than this share of the smaller one, across
+# and down, are over the same word (see add_boxes)
+SAME_PLACE = 0.5
+# How much of a word another reading took for the name read badly must be
+# covered across for that doubt to be passed over (see name_in_text)
+COVERED = 0.9
+# How many letters of a word after the name may be run together with its
+# last word and still be taken for the name: "is" in "Lu Buis"
+MAX_RUN_ON = 2
 # Reminder text, in brackets
 REMINDER = re.compile(r"\([^)]*\)")
+
+
+# A word one reading takes for the name read badly: why, and where, as a
+# box in pixels from find_name, in shares of the picture from
+# name_in_reading
+Doubt = tuple[str, list[float]]
 
 
 class LeftOut(Exception):
@@ -329,7 +369,8 @@ def name_end(
     A piece running two words together has a box of its own that may end
     short of its last letters - "Jackal,Pup" ends inside "Pup" - so it is
     only taken when another piece of the name follows it on its line,
-    whose box reaches past it.
+    whose box reaches past it. The last piece may run on into a short
+    word after the name (MAX_RUN_ON).
     """
     end = start + len(wanted)
     if end <= len(read) and all(
@@ -346,6 +387,15 @@ def name_end(
         )
         so_far += read[i]
         done = so_far in (whole, whole + "s")
+        # The name's last word run together with a short word after it:
+        # "Lu Buis" for "Lu Bu is". Its box covers that word too.
+        run_on = (
+            i > start
+            and so_far.startswith(whole)
+            and len(so_far) - len(whole) <= MAX_RUN_ON
+        )
+        if run_on and not runs_together:
+            return i + 1
         if runs_together and (
             done or i + 1 == len(read) or words[i + 1].line != words[i].line
         ):
@@ -362,6 +412,7 @@ def find_name(
     name: str,
     game_words: frozenset[str] = frozenset(),
     text_words: frozenset[str] = frozenset(),
+    doubts: list[Doubt] | None = None,
 ) -> list[list[float]]:
     """Boxes in pixels, [left, top, right, bottom], around each time the
     name is printed among the words: one box per line it runs over. The
@@ -514,10 +565,15 @@ def find_name(
         # together when it is all in the name ("jackalpup"), another word
         # to cover when it isn't ("coastline")
         if (not like and text in whole) or beside_name(i, -1) or beside_name(i, 1):
-            raise LeftOut(
+            reason = (
                 f"'{words[i].text}' is left in its text, and may be part of "
                 "the name read badly"
             )
+            if doubts is None:
+                raise LeftOut(reason)
+            word = words[i]
+            doubts.append((reason, [word.left, word.top, word.right, word.bottom]))
+            continue
         if like and all(part in plain for part in like):
             continue
         like_name.append(words[i])
@@ -601,34 +657,170 @@ def name_in_text(
 ) -> list[list[float]]:
     """Where the name is printed on the card outside its title bar, as
     [left, top, width, height] shares of the picture: an empty list when
-    it isn't. LeftOut, with each reading's reason, when neither reading
-    (see READINGS) can be trusted to have found every place it is.
+    it isn't. Every reading of its frame (frame_readings) is tried, even
+    one Tesseract is unsure of, and the name covered wherever any of them
+    finds it. LeftOut, with the reasons, when a word any reading takes for
+    the name read badly - unless it is covered anyway, where another reading
+    finds the name - or when every reading is unsure.
     """
-    reasons = []
-    for reading in READINGS:
+    found: list[list[float]] = []
+    reasons: list[str] = []
+    all_doubts: list[tuple[str, Doubt]] = []
+    trusted = False
+    for reading in frame_readings(card):
+        unsure: list[str] = []
+        doubts: list[Doubt] = []
         try:
-            return name_in_reading(card, picture, game_words, reading)
+            boxes = name_in_reading(card, picture, game_words, reading, unsure, doubts)
         except LeftOut as e:
             reason = f"{reading}: {e}"
             log.info(f"Not covering the name of '{card.name}' - {reason}")
-            reasons.append(reason)
-    raise LeftOut(*reasons)
+            raise LeftOut(reason) from None
+        add_boxes(found, boxes)
+        all_doubts += [(reading, doubt) for doubt in doubts]
+        reasons += [f"{reading}: {why}" for why in unsure]
+        trusted = trusted or not unsure
+    if is_summon_printing(card):
+        boxes = summon_type_line(card, picture, game_words)
+        add_boxes(found, boxes)
+    for reading, (why, box) in all_doubts:
+        if not covered(box, found):
+            reason = f"{reading}: {why}"
+            log.info(f"Not covering the name of '{card.name}' - {reason}")
+            raise LeftOut(reason)
+    if not trusted:
+        log.info(f"Not covering the name of '{card.name}' - {'; '.join(reasons)}")
+        raise LeftOut(*reasons)
+    return found
+
+
+def add_boxes(found: list[list[float]], boxes: list[list[float]]) -> None:
+    """Adds boxes, as [left, top, width, height], to those `found`: one
+    over the same word as another, read in another way and a little
+    wider or higher, is merged with it into one box around both"""
+    for box in boxes:
+        for i, other in enumerate(found):
+            if same_place(box, other):
+                left, top = min(box[0], other[0]), min(box[1], other[1])
+                right = max(box[0] + box[2], other[0] + other[2])
+                bottom = max(box[1] + box[3], other[1] + other[3])
+                found[i] = [
+                    round(value, 4) for value in (left, top, right - left, bottom - top)
+                ]
+                break
+        else:
+            found.append(box)
+
+
+def covered(box: list[float], found: list[list[float]]) -> bool:
+    """A box, as [left, top, width, height], is under one of those found:
+    nearly all across, most of the way down"""
+    return any(
+        min(box[0] + box[2], other[0] + other[2]) - max(box[0], other[0])
+        >= COVERED * box[2]
+        and min(box[1] + box[3], other[1] + other[3]) - max(box[1], other[1])
+        > SAME_PLACE * box[3]
+        for other in found
+    )
+
+
+def same_place(a: list[float], b: list[float]) -> bool:
+    """Two boxes overlap over most of the smaller one: across and down"""
+    across = min(a[0] + a[2], b[0] + b[2]) - max(a[0], b[0])
+    down = min(a[1] + a[3], b[1] + b[3]) - max(a[1], b[1])
+    return across > SAME_PLACE * min(a[2], b[2]) and down > SAME_PLACE * min(a[3], b[3])
+
+
+def frame_readings(card: Card) -> tuple[str, ...]:
+    """The ways a card's picture is read: all READINGS on an old frame,
+    NEW_FRAME_READINGS on any other"""
+    return READINGS if card.raw.get("frame") in OLD_FRAMES else NEW_FRAME_READINGS
+
+
+def summon_type_line(
+    card: Card, picture: bytes, game_words: frozenset[str]
+) -> list[list[float]]:
+    """Where the name is on a "Summon" type line (is_summon_printing),
+    read by itself, in each of SUMMON_TYPE_LINES and READINGS: read with
+    the text, it is often missed or run together - "Summon Lurker" on
+    Lurker, "SummonWolves" on Timber Wolves. The words after "Summon" are
+    checked as find_name checks the text, and covered wherever any reading
+    finds the name. LeftOut when no reading finds where the type starts
+    (TYPE_STARTS), or a word after it may be the name read badly."""
+    plain = game_words | rules_words(card)
+    found: list[list[float]] = []
+    read = False
+    for area in SUMMON_TYPE_LINES:
+        for reading in READINGS:
+            words, _, (width, height) = read_words(picture, area, reading)
+            after = words_after_type_start(words)
+            if after is None:
+                continue
+            read = True
+            try:
+                in_line = find_name(after, card.name, plain, words_of_text(card))
+            except LeftOut as e:
+                raise LeftOut(f"{reading}, type line: {e}") from None
+            add_boxes(found, shares(in_line, width, height))
+    if not read:
+        raise LeftOut('"Summon" was not read on its type line')
+    return found
+
+
+def words_after_type_start(words: list[Word]) -> list[Word] | None:
+    """The words after a word like one of TYPE_STARTS on its line - read
+    with up to two letters wrong, and the type run together with it split
+    off: "Stmmom People of the Woods", "SummonWolves". At most
+    SUMMON_TYPE_WORDS of them: the rest is the set symbol or the frame
+    read as words. None when no word is like one."""
+    for i, word in enumerate(words):
+        text = normalize(word.text)
+        for start in TYPE_STARTS:
+            # How much of the word is the start: the part most like it
+            lengths = range(len(start) - 1, len(start) + 3)
+            length = min(lengths, key=lambda n: edits(text[:n], start))
+            if edits(text[:length], start) > 2:
+                continue
+            after = [w for w in words[i + 1 :] if w.line == word.line]
+            if len(text) > length + 2:
+                # Run together: the type's part of the word's box
+                rest = word.text[len(word.text) * length // len(text) :]
+                left = word.left + (word.right - word.left) * length / len(text)
+                after.insert(
+                    0, Word(rest, left, word.top, word.right, word.bottom, word.line)
+                )
+            return after[:SUMMON_TYPE_WORDS]
+    return None
 
 
 def name_in_reading(
-    card: Card, picture: bytes, game_words: frozenset[str], reading: str
+    card: Card,
+    picture: bytes,
+    game_words: frozenset[str],
+    reading: str,
+    unsure: list[str] | None = None,
+    doubts: list[Doubt] | None = None,
 ) -> list[list[float]]:
-    """One reading of the picture for name_in_text"""
+    """One reading of the picture for name_in_text. A reading that may
+    have missed the name - read unsure, or too few words - is LeftOut; or,
+    given `unsure`, noted there, and its finds still given. So is a word
+    it takes for the name read badly, given `doubts` (see find_name)."""
+
+    def doubt(why: str) -> None:
+        if unsure is None:
+            raise LeftOut(why)
+        unsure.append(why)
+
     boxes: list[list[float]] = []
     for number, area in enumerate(areas_to_read(card)):
         words, confidence, (width, height) = read_words(picture, area, reading)
         if confidence < MIN_CONFIDENCE:
-            raise LeftOut(f"its text was read only {confidence:.0f}% sure")
+            doubt(f"its text was read only {confidence:.0f}% sure")
         oracle_text = REMINDER.sub("", card.raw.get("oracle_text") or "")
         oracle_words = len(oracle_text.split())
         # Only for the text itself, the first area
         if number == 0 and len(words) < oracle_words * MIN_WORDS_READ:
-            raise LeftOut(
+            doubt(
                 f"only {len(words)} words of its text were read, "
                 f"of about {oracle_words}"
             )
@@ -638,7 +830,10 @@ def name_in_reading(
         plain = game_words | rules_words(card)
         if walker_type:
             plain -= {walker_type}
-        found = find_name(words, card.name, plain, words_of_text(card))
+        in_pixels: list[Doubt] | None = None if doubts is None else []
+        found = find_name(words, card.name, plain, words_of_text(card), in_pixels)
+        if doubts is not None and in_pixels:
+            doubts += [(why, shares([box], width, height)[0]) for why, box in in_pixels]
         if walker_type and not type_covered(words, found, walker_type):
             line_words, line_confidence, _ = read_words(
                 picture, planeswalker_type_line(area)
@@ -653,19 +848,25 @@ def name_in_reading(
                     "its type line was not read well enough to find its type there"
                 )
             found += line_found
-        boxes.extend(
-            [
-                round(value, 4)
-                for value in (
-                    left / width - PAD_LEFT,
-                    top / height - PAD_Y,
-                    (right - left) / width + PAD_LEFT + PAD_RIGHT,
-                    (bottom - top) / height + 2 * PAD_Y,
-                )
-            ]
-            for left, top, right, bottom in found
-        )
+        boxes.extend(shares(found, width, height))
     return boxes
+
+
+def shares(found: list[list[float]], width: int, height: int) -> list[list[float]]:
+    """Boxes found in pixels, [left, top, right, bottom], as [left, top,
+    width, height] shares of the picture, with room around them"""
+    return [
+        [
+            round(value, 4)
+            for value in (
+                left / width - PAD_LEFT,
+                top / height - PAD_Y,
+                (right - left) / width + PAD_LEFT + PAD_RIGHT,
+                (bottom - top) / height + 2 * PAD_Y,
+            )
+        ]
+        for left, top, right, bottom in found
+    ]
 
 
 def planeswalker_type_line(text_area: Area) -> Area:

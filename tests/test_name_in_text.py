@@ -596,7 +596,7 @@ def _reading(*texts: str, confidence: float = 90) -> Any:
     return words, confidence, (745, 1040)
 
 
-def test_a_picture_is_read_again_in_gray_when_the_first_reading_gives_up(
+def test_a_new_frame_color_is_unsure_of_is_covered_by_its_gray_reading(
     monkeypatch: MonkeyPatch,
 ) -> None:
     asked: list[str] = []
@@ -613,24 +613,7 @@ def test_a_picture_is_read_again_in_gray_when_the_first_reading_gives_up(
     assert boxes is not None and len(boxes) == 1
 
 
-def test_a_picture_is_read_smoothed_when_gray_gives_up_too(
-    monkeypatch: MonkeyPatch,
-) -> None:
-    asked: list[str] = []
-
-    def read_words(picture: bytes, area: Any, reading: str = "color") -> Any:
-        asked.append(reading)
-        # An old frame's texture, read as words in gray too
-        sure = 90 if reading == "smooth" else 50
-        return _reading("Masticore", "deals", confidence=sure)
-
-    monkeypatch.setattr(name_in_text, "read_words", read_words)
-    boxes = name_in_text.name_in_text(_card(oracle_text="Masticore deals"), b"png")
-    assert asked == ["color", "gray", "smooth"]
-    assert boxes is not None and len(boxes) == 1
-
-
-def test_a_picture_is_read_once_when_the_first_reading_is_trusted(
+def test_a_new_frame_is_read_in_color_and_gray_an_old_one_smoothed_too(
     monkeypatch: MonkeyPatch,
 ) -> None:
     asked: list[str] = []
@@ -640,9 +623,16 @@ def test_a_picture_is_read_once_when_the_first_reading_is_trusted(
         return _reading("Masticore", "deals")
 
     monkeypatch.setattr(name_in_text, "read_words", read_words)
-    boxes = name_in_text.name_in_text(_card(oracle_text="Masticore deals"), b"png")
-    assert asked == ["color"]
-    assert boxes is not None and len(boxes) == 1
+    for frame, readings in [
+        ("2015", ["color", "gray"]),
+        ("1997", ["color", "gray", "smooth"]),
+    ]:
+        asked.clear()
+        card = _card(oracle_text="Masticore deals", frame=frame)
+        boxes = name_in_text.name_in_text(card, b"png")
+        assert asked == readings
+        # Found in every reading, in the same place: one box
+        assert boxes is not None and len(boxes) == 1
 
 
 def test_a_card_is_left_out_when_every_reading_gives_up(
@@ -655,11 +645,10 @@ def test_a_card_is_left_out_when_every_reading_gives_up(
     )
     with pytest.raises(LeftOut) as left_out:
         name_in_text.name_in_text(_card(oracle_text="Masticore"), b"png")
-    # Why, for each reading
+    # Why, for each reading of a new frame
     assert left_out.value.args == (
         "color: its text was read only 40% sure",
         "gray: its text was read only 40% sure",
-        "smooth: its text was read only 40% sure",
     )
 
 
@@ -920,3 +909,199 @@ def test_both_parts_text_is_printed_text() -> None:
     assert {"create", "fractal", "enters", "prepared"} <= name_in_text.words_of_text(
         spell
     )
+
+
+def test_find_name_finds_a_name_run_on_into_a_short_word() -> None:
+    # "Lu Bu is" read as "Lu Buis": its box covers "is" too
+    words = _words("Lu Buis unaffected by summoning sickness")
+    assert find_name(words, "Lu Bu, Master-at-Arms") == [[0.0, 0.0, 70.0, 15.0]]
+
+
+def test_find_name_does_not_take_a_longer_word_for_the_name() -> None:
+    # "Lu Bushes" isn't "Lu Bu": more than MAX_RUN_ON letters run on
+    assert find_name(_words("Lu Bushes"), "Lu Bu, Master-at-Arms") == []
+
+
+def test_an_old_frame_is_covered_wherever_any_reading_finds_the_name(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    asked: list[str] = []
+
+    def read_words(picture: bytes, area: Any, reading: str = "color") -> Any:
+        asked.append(reading)
+        # In color, sure of itself but missing the line with the name
+        if reading == "color":
+            return _reading("deals", "damage")
+        return _reading("Masticore", "deals")
+
+    monkeypatch.setattr(name_in_text, "read_words", read_words)
+    card = _card(oracle_text="Masticore deals", frame="1997")
+    boxes = name_in_text.name_in_text(card, b"png")
+    assert asked == ["color", "gray", "smooth"]
+    # Gray and smooth found it in the same place: one box
+    assert boxes is not None and len(boxes) == 1
+
+
+def test_an_old_frame_is_covered_when_only_smoothing_reads_it_well(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    def read_words(picture: bytes, area: Any, reading: str = "color") -> Any:
+        sure = 90 if reading == "smooth" else 40
+        return _reading("Masticore", "deals", confidence=sure)
+
+    monkeypatch.setattr(name_in_text, "read_words", read_words)
+    card = _card(oracle_text="Masticore deals", frame="1993")
+    boxes = name_in_text.name_in_text(card, b"png")
+    assert boxes is not None and len(boxes) == 1
+
+
+def test_an_old_frame_covers_what_an_unsure_reading_finds(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    def read_words(picture: bytes, area: Any, reading: str = "color") -> Any:
+        # Only color, unsure, sees the name a second time
+        if reading == "color":
+            return _reading("Masticore", "deals", "Masticore", confidence=50)
+        return _reading("Masticore", "deals")
+
+    monkeypatch.setattr(name_in_text, "read_words", read_words)
+    card = _card(oracle_text="Masticore deals", frame="1993")
+    boxes = name_in_text.name_in_text(card, b"png")
+    assert boxes is not None and len(boxes) == 2
+
+
+def test_an_old_frame_is_left_out_when_a_reading_doubts_a_word_left_in_sight(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    def read_words(picture: bytes, area: Any, reading: str = "color") -> Any:
+        # Gray, unsure, reads the name run together, its box maybe short;
+        # the others miss that line
+        if reading == "gray":
+            return _reading("Whenever", "Jackal,Pup", "is", confidence=40)
+        return _reading("Whenever", "it", "is")
+
+    monkeypatch.setattr(name_in_text, "read_words", read_words)
+    card = _card(name="Jackal Pup", oracle_text="Whenever Jackal Pup is", frame="1997")
+    with pytest.raises(LeftOut) as left_out:
+        name_in_text.name_in_text(card, b"png")
+    assert left_out.value.args[0].startswith("gray: 'Jackal,Pup' is left")
+
+
+def test_a_doubt_about_a_word_another_reading_covers_is_passed_over(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    def read_words(picture: bytes, area: Any, reading: str = "color") -> Any:
+        # Gray reads the name run together where the others read it right
+        if reading == "gray":
+            return _reading("Whenever", "Jackal,Pup", "is", confidence=40)
+        return _reading("Whenever", "Jackal", "Pup", "is")
+
+    monkeypatch.setattr(name_in_text, "read_words", read_words)
+    card = _card(name="Jackal Pup", oracle_text="Whenever Jackal Pup is", frame="1997")
+    boxes = name_in_text.name_in_text(card, b"png")
+    assert boxes is not None and len(boxes) == 1
+
+
+def test_an_old_frame_is_left_out_when_every_reading_is_unsure(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        name_in_text,
+        "read_words",
+        lambda picture, area, reading="color": _reading("Masticore", confidence=40),
+    )
+    card = _card(oracle_text="Masticore", frame="1993")
+    with pytest.raises(LeftOut) as left_out:
+        name_in_text.name_in_text(card, b"png")
+    assert left_out.value.args == (
+        "color: its text was read only 40% sure",
+        "gray: its text was read only 40% sure",
+        "smooth: its text was read only 40% sure",
+    )
+
+
+@pytest.mark.parametrize(
+    "line, after",
+    [
+        ("Summon Lurker", ["Lurker"]),
+        # Read with letters wrong
+        ("Stmmom People of the Woods", ["People", "of", "the", "Woods"]),
+        # Run together with its type
+        ("SummonWolves", ["Wolves"]),
+        # The set symbol read as words past the type
+        ("Summon People of the Woods ee 4", ["People", "of", "the", "Woods"]),
+        # A creature of the time printed without "Summon"
+        ("Creature — Merchant", ["—", "Merchant"]),
+        ("Artifact Creature", []),
+        ("Enchantment", None),
+    ],
+)
+def test_words_after_type_start(line: str, after: list[str] | None) -> None:
+    words = name_in_text.words_after_type_start(_words(line))
+    assert (None if words is None else [word.text for word in words]) == after
+
+
+def test_words_after_type_start_places_a_type_run_together_in_its_part() -> None:
+    [wolves] = name_in_text.words_after_type_start(_words("SummonWolves")) or []
+    # "SummonWolves" is 120 pixels wide: "Wolves" is its second half
+    assert (wolves.left, wolves.right) == (60.0, 120.0)
+
+
+def _summon_card(name: str, **extra: Any) -> Card:
+    return _card(
+        name=name,
+        oracle_text="Banding",
+        type_line="Creature — Wolf",
+        released_at="1995-04-01",
+        frame="1993",
+        **extra,
+    )
+
+
+def test_a_summon_type_line_is_covered_where_it_shows_the_name(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    def read_words(picture: bytes, area: Any, reading: str = "color") -> Any:
+        if area in name_in_text.SUMMON_TYPE_LINES:
+            # Only gray reads the type line
+            return _reading("Summon", "Wolves") if reading == "gray" else _reading()
+        return _reading("Banding")
+
+    monkeypatch.setattr(name_in_text, "read_words", read_words)
+    boxes = name_in_text.name_in_text(_summon_card("Timber Wolves"), b"png")
+    # "Wolves" is no game word: "wolf" is
+    assert boxes is not None and len(boxes) == 1
+
+
+def test_a_summon_type_line_with_another_type_covers_nothing(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    def read_words(picture: bytes, area: Any, reading: str = "color") -> Any:
+        if area in name_in_text.SUMMON_TYPE_LINES:
+            return _reading("Summon", "Giant")
+        return _reading("Banding")
+
+    monkeypatch.setattr(name_in_text, "read_words", read_words)
+    card = _summon_card("Tor Giant")
+    assert name_in_text.name_in_text(card, b"png", GAME_WORDS) == []
+
+
+def test_a_card_is_left_out_when_summon_is_not_read_on_its_type_line(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    def read_words(picture: bytes, area: Any, reading: str = "color") -> Any:
+        if area in name_in_text.SUMMON_TYPE_LINES:
+            return _reading("Sitbecicetovel", "Hei")
+        return _reading("Banding")
+
+    monkeypatch.setattr(name_in_text, "read_words", read_words)
+    with pytest.raises(LeftOut) as left_out:
+        name_in_text.name_in_text(_summon_card("Serra Paladin"), b"png")
+    assert left_out.value.args == ('"Summon" was not read on its type line',)
+
+
+def test_boxes_over_the_same_word_are_merged() -> None:
+    found = [[0.1, 0.6, 0.18, 0.025]]
+    # The same word read a little wider, and another word
+    name_in_text.add_boxes(found, [[0.1, 0.6, 0.19, 0.026], [0.1, 0.7, 0.18, 0.025]])
+    assert found == [[0.1, 0.6, 0.19, 0.026], [0.1, 0.7, 0.18, 0.025]]
