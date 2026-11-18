@@ -25,15 +25,20 @@ import requests
 from meta_morphis import config
 from meta_morphis.models.card import Card, oracle_id_of
 from meta_morphis.utils.http import RequestUnavailable
-from meta_morphis.utils.text import normalize_name
+from meta_morphis.utils.text import card_count, normalize_name
 
-from .artwork import choose_printing
+from .artwork import choose_printing, for_choosing
 from .client import fetch_bulk_info
 
 log = logging.getLogger(__name__)
 
 # Things in the file that aren't cards a deck can hold
 NOT_CARDS = {"token", "double_faced_token", "art_series", "emblem"}
+
+# The joke sets - Unglued, Unhinged, Unfinity and the like - and playtest
+# cards. Their frames break the rules the app covers names by, and no
+# deck for a real format holds them.
+FUNNY_SET_TYPE = "funny"
 
 # How a name on a list matched a card: its full name ("Fire // Ice"),
 # its front face (MTGGoldfish lists a double-faced card by its front),
@@ -170,6 +175,72 @@ def read_cards(path: Path, names: Iterable[str]) -> dict[str, Card]:
                 continue
             shown[oracle_id] = Card.from_raw(chosen)
         cards[key] = shown[oracle_id]
+    return cards
+
+
+def read_every_card(path: Path) -> dict[str, Card]:
+    """Every card in Scryfall's data, in the printing the app shows - see
+    artwork.py - keyed by oracle id. Left out: a card with no printing to
+    show, and one printed only in the joke sets (FUNNY_SET_TYPE).
+
+    The file is read twice. Holding all 120,000 printings whole until
+    each card's is chosen takes 2.3 GB, so the first reading keeps only
+    the fields choose_printing reads, and the second builds a Card from
+    each chosen printing alone: 650 MB at most, and 17 s (measured
+    2026-11-17).
+    """
+    printings: dict[str, list[dict[str, Any]]] = {}
+    # The cards with a printing outside the joke sets
+    serious: set[str] = set()
+    unreadable = 0
+    with gzip.open(path, "rt", encoding="utf-8") as file:
+        for line in file:
+            printing = _parse(line)
+            if printing is None:
+                unreadable += 1
+                continue
+            oracle_id = oracle_id_of(printing)
+            if not oracle_id or not _is_game_card(printing):
+                continue
+            # As in read_cards, a printing a Card can't be built from is
+            # never chosen
+            if not _to_card(printing):
+                continue
+            printings.setdefault(oracle_id, []).append(for_choosing(printing))
+            if printing.get("set_type") != FUNNY_SET_TYPE:
+                serious.add(oracle_id)
+
+    if unreadable:
+        log.warning(f"Skipped {unreadable} unreadable line(s) of Scryfall's card data")
+
+    # The id of each card's chosen printing, and the card it stands for
+    chosen: dict[str, str] = {}
+    no_printing = 0
+    for oracle_id, its_printings in printings.items():
+        if oracle_id not in serious:
+            continue
+        printing = choose_printing(its_printings)
+        if printing is None:
+            no_printing += 1
+            continue
+        chosen[printing["id"]] = oracle_id
+    jokes = len(printings) - len(serious)
+    log.info(
+        f"Found {card_count(len(chosen))} in Scryfall's data, leaving out "
+        f"{jokes} printed only in joke sets and {no_printing} with no "
+        "regular printing to show"
+    )
+    del printings
+
+    cards: dict[str, Card] = {}
+    with gzip.open(path, "rt", encoding="utf-8") as file:
+        for line in file:
+            printing = _parse(line)
+            if printing is None or printing.get("id") not in chosen:
+                continue
+            card = _to_card(printing)
+            if card:
+                cards[chosen[printing["id"]]] = card
     return cards
 
 

@@ -12,7 +12,12 @@ import requests
 from pytest import MonkeyPatch
 
 from meta_morphis.scryfall import bulk
-from meta_morphis.scryfall.bulk import bulk_file_age, read_cards, update_bulk_file
+from meta_morphis.scryfall.bulk import (
+    bulk_file_age,
+    read_cards,
+    read_every_card,
+    update_bulk_file,
+)
 from meta_morphis.utils.http import RequestUnavailable
 
 # 2026-11-17T22:06:47Z, as Unix time
@@ -201,6 +206,115 @@ def test_two_names_of_one_card_share_one_card(tmp_path: Path) -> None:
     assert (
         cards["delver of secrets"] is cards["delver of secrets // insectile aberration"]
     )
+
+
+def _read_every(tmp_path: Path, printings: list[Any]) -> dict[str, str]:
+    """The id of the printing each card got, by oracle id"""
+    path = _bulk_file(tmp_path / "cards.jsonl.gz", printings)
+    return {oracle_id: card.id for oracle_id, card in read_every_card(path).items()}
+
+
+def test_every_card_gets_its_chosen_printing(tmp_path: Path) -> None:
+    printings = [
+        _printing("Lightning Bolt", "bolt", set="m10", released_at="2009-07-17"),
+        _printing("Lightning Bolt", "bolt", set="2xm", released_at="2020-08-07"),
+        _printing("Counterspell", "counter"),
+        _printing("Goblin", "token", layout="token"),
+        _printing("Oko", "arena", games=["arena"]),
+    ]
+    assert _read_every(tmp_path, printings) == {
+        "bolt": "bolt-2xm",
+        "counter": "counter-m10",
+    }
+
+
+def test_every_card_is_chosen_as_for_a_name(tmp_path: Path) -> None:
+    # Printings that use each field choose_printing reads: the artwork
+    # on most printings, at the top or on the front face, passing over a
+    # promo, a full-art card, an etched foil, a foreign one and one
+    # without pictures, the newest, and set order on the same day
+    old_art = {"illustration_id": "old"}
+    printings = [
+        _printing("Bolt", "bolt", set="lea", released_at="1993-08-05", **old_art),
+        _printing("Bolt", "bolt", set="m10", released_at="2009-07-17", **old_art),
+        _printing("Bolt", "bolt", set="2xm", released_at="2020-08-07", **old_art),
+        _printing("Bolt", "bolt", set="sld", released_at="2020-08-07", **old_art),
+        _printing("Bolt", "bolt", set="p1", released_at="2024-01-01", promo=True),
+        _printing("Bolt", "bolt", set="p2", released_at="2024-01-01", full_art=True),
+        _printing("Bolt", "bolt", set="p3", released_at="2024-01-01", lang="ja"),
+        _printing(
+            "Bolt",
+            "bolt",
+            set="p4",
+            released_at="2024-01-01",
+            frame_effects=["etched"],
+            **old_art,
+        ),
+        _printing(
+            "Fire // Ice",
+            "fire",
+            set="apc",
+            released_at="2001-06-04",
+            illustration_id=None,
+            card_faces=[
+                {"name": "Fire", "type_line": "Instant", "illustration_id": "f"},
+                {"name": "Ice", "type_line": "Instant", "illustration_id": "i"},
+            ],
+        ),
+    ]
+    printings[-1].pop("illustration_id")
+    path = _bulk_file(tmp_path / "cards.jsonl.gz", printings)
+    for_names = read_cards(path, ["Bolt", "Fire // Ice"])
+    assert _read_every(tmp_path, printings) == {
+        "bolt": for_names["bolt"].id,
+        "fire": for_names["fire // ice"].id,
+    }
+    assert for_names["bolt"].id == "bolt-2xm"
+
+
+def test_the_card_is_built_from_the_whole_printing(tmp_path: Path) -> None:
+    path = _bulk_file(
+        tmp_path / "cards.jsonl.gz",
+        [_printing("Lightning Bolt", "bolt", oracle_text="Deal 3 damage.")],
+    )
+    card = read_every_card(path)["bolt"]
+    assert card.name == "Lightning Bolt"
+    assert card.raw["oracle_text"] == "Deal 3 damage."
+
+
+def test_a_card_printed_only_in_joke_sets_is_left_out(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO)
+    printings = [
+        _printing("Jumbo Imp", "imp", set_type="funny"),
+        # Reprinted in a real set too: kept, and may even show the
+        # joke set's printing, as the format lists would
+        _printing("Bolt", "bolt", set="unf", set_type="funny", released_at="2022"),
+        _printing("Bolt", "bolt", set="m10", released_at="2009-07-17"),
+    ]
+    assert _read_every(tmp_path, printings) == {"bolt": "bolt-unf"}
+    assert "Found 1 card in Scryfall's data, leaving out 1 printed only" in caplog.text
+
+
+def test_a_card_with_no_regular_printing_is_left_out_of_every_card(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO)
+    printings = [_printing("Promo Only", "promo", promo=True), _printing("Bolt", "b")]
+    assert _read_every(tmp_path, printings) == {"b": "b-m10"}
+    assert "and 1 with no regular printing to show" in caplog.text
+
+
+def test_a_malformed_or_unreadable_printing_is_never_chosen(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    good = _printing("Lightning Bolt", "bolt", set="m10", released_at="2009-07-17")
+    broken = _printing("Lightning Bolt", "bolt", set="2xm", released_at="2020-08-07")
+    broken["card_faces"] = None
+    printings = ['{"cut off', "[1, 2]", good, broken]
+    assert _read_every(tmp_path, printings) == {"bolt": "bolt-m10"}
+    assert "Skipped 2 unreadable line(s)" in caplog.text
 
 
 class FakeDownload:

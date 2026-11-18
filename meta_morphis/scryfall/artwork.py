@@ -39,6 +39,45 @@ def choose_printing(printings: list[dict[str, Any]]) -> dict[str, Any] | None:
     return max(in_order, key=_released)
 
 
+# The fields of a printing that choose_printing and the functions below
+# read, at its top and on each of its faces. To choose among every
+# card's printings, read_every_card keeps only these, so all of
+# Scryfall's card data fits in memory: a field read here must be added
+# here, or read_every_card chooses as if the printing lacked it.
+CHOICE_FIELDS = (
+    "id",
+    "games",
+    "lang",
+    "promo",
+    "digital",
+    "border_color",
+    "oversized",
+    "set_type",
+    "frame",
+    "frame_effects",
+    "full_art",
+    "illustration_id",
+    "image_uris",
+    "set",
+    "collector_number",
+    "released_at",
+)
+FACE_CHOICE_FIELDS = ("illustration_id", "image_uris")
+
+
+def for_choosing(printing: dict[str, Any]) -> dict[str, Any]:
+    """The printing with only the fields choose_printing reads"""
+    kept = {key: printing[key] for key in CHOICE_FIELDS if key in printing}
+    faces = printing.get("card_faces")
+    if isinstance(faces, list):
+        kept["card_faces"] = [
+            {key: face[key] for key in FACE_CHOICE_FIELDS if key in face}
+            for face in faces
+            if isinstance(face, dict)
+        ]
+    return kept
+
+
 def is_regular_printing(printing: dict[str, Any]) -> bool:
     """A printing a player could meet at a table: paper and English only,
     and none of the special versions - promos, gold-bordered and
