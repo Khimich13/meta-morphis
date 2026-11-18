@@ -17,8 +17,10 @@ from meta_morphis.export import (
     art_box,
     back_side,
     build_card,
+    build_every_card,
     build_export,
     export_all,
+    export_every_card,
     export_format,
     face_of,
     horizontal_sides,
@@ -941,6 +943,113 @@ def test_build_export_keeps_one_copy_of_each_card(
     assert "Leaving out 'Old Name' - the same card as 'New Name'" in caplog.text
 
 
+def _every(*names_and_ids: tuple[str, str], **extra: Any) -> list[Card]:
+    return [
+        Card.from_raw(_raw(name, oracle_id=oracle_id, **extra))
+        for name, oracle_id in names_and_ids
+    ]
+
+
+def test_every_card_goes_in_the_file_of_its_oracle_ids_start() -> None:
+    cards = _every(
+        ("Pyroblast", "a1-p"), ("Hydroblast", "a1-h"), ("Counterspell", "07-c")
+    )
+    files = build_every_card(cards)
+    assert {key: [c["name"] for c in cards] for key, cards in files.items()} == {
+        "07": ["Counterspell"],
+        "a1": ["Hydroblast", "Pyroblast"],
+    }
+    # In order, so the files don't reshuffle between runs
+    assert list(files) == ["07", "a1"]
+
+
+def test_every_card_leaves_out_what_the_lists_leave_out(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    cards = [
+        *_every(("Island", "00-i"), type_line="Basic Land — Island"),
+        Card.from_raw({"id": "2", "oracle_id": "00-x", "name": "No Picture"}),
+        # Not made into a file name
+        *_every(("Odd Id", "../x")),
+        *_every(("Counterspell", "00-c")),
+    ]
+    files = build_every_card(cards)
+    assert [c["name"] for c in files["00"]] == ["Counterspell"]
+    assert list(files) == ["00"]
+    assert "Leaving out 2 cards with no oracle id" in caplog.text
+    assert "No Picture, Odd Id" in caplog.text
+
+
+def test_every_card_leaves_out_a_name_of_two_cards(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    cards = _every(("Twin", "00-a"), ("twin", "01-b"), ("Single", "02-c"))
+    assert list(build_every_card(cards)) == ["02"]
+    assert "Leaving out 'Twin' - 2 cards have that name" in caplog.text
+
+
+def test_every_card_is_asked_by_the_readings_given() -> None:
+    # A name in its text box, covered where the reading found it
+    cards = _every(
+        ("Masticore", "00-m"),
+        type_line="Artifact Creature — Masticore",
+        oracle_text="Masticore deals 1 damage to target creature.",
+        lang="en",
+    )
+    assert build_every_card(cards)["00"][0]["name_box"] is None
+    read = _ReadAs([[0.1, 0.7, 0.2, 0.03]])
+    built = build_every_card(cards, read)["00"][0]
+    assert built["name_text_boxes"] == [[0.1, 0.7, 0.2, 0.03]]
+
+
+def _read_json(path: Path) -> Any:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_export_every_card_writes_the_index_and_each_file(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    monkeypatch.setattr(config, "EXPORT_MIN_EVERY_CARD", 3)
+    # From an earlier run: cards still in a file, and a file with none now
+    cards_dir = tmp_path / "cards"
+    cards_dir.mkdir()
+    (cards_dir / "a1.json").write_text('{"cards": []}', encoding="utf-8")
+    (cards_dir / "ff.json").write_text('{"cards": []}', encoding="utf-8")
+
+    cards = _every(
+        ("Pyroblast", "a1-p"), ("Hydroblast", "a1-h"), ("Counterspell", "07-c")
+    )
+    assert export_every_card(cards, tmp_path) == cards_dir / "index.json"
+
+    assert sorted(f.name for f in cards_dir.iterdir()) == [
+        "07.json",
+        "a1.json",
+        "index.json",
+    ]
+    assert _read_json(cards_dir / "index.json") == {
+        "07": ["Counterspell"],
+        "a1": ["Hydroblast", "Pyroblast"],
+    }
+    a1 = _read_json(cards_dir / "a1.json")
+    assert [card["oracle_id"] for card in a1["cards"]] == ["a1-h", "a1-p"]
+    assert a1["cards"][0] == build_card(cards[1])
+
+
+def test_export_every_card_with_too_few_cards_keeps_the_old_files(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    monkeypatch.setattr(config, "EXPORT_MIN_EVERY_CARD", 3)
+    cards_dir = tmp_path / "cards"
+    cards_dir.mkdir()
+    (cards_dir / "index.json").write_text('{"00": ["Old"]}', encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="Only 2 cards usable in Scryfall's data"):
+        export_every_card(_every(("A", "00-a"), ("B", "01-b")), tmp_path)
+
+    assert sorted(f.name for f in cards_dir.iterdir()) == ["index.json"]
+    assert _read_json(cards_dir / "index.json") == {"00": ["Old"]}
+
+
 def _on_list(*cards: Card) -> tuple[list[MetaEntry], dict[str, Card]]:
     """A list of these cards, and the cards read_cards found for it"""
     meta = [MetaEntry(name=card.name) for card in cards]
@@ -1176,13 +1285,22 @@ def test_export_all_removes_a_half_written_file_of_a_killed_run(
     # file is still there, and the finished file from the run before
     (tmp_path / "pauper.json").write_text('{"old": true}', encoding="utf-8")
     (tmp_path / "pauper.json.tmp").write_text('{"form', encoding="utf-8")
+    (tmp_path / "cards").mkdir()
+    (tmp_path / "cards" / "00.json").write_text('{"cards": []}', encoding="utf-8")
+    (tmp_path / "cards" / "00.json.tmp").write_text('{"ca', encoding="utf-8")
     _lists_and_cards(monkeypatch)
     monkeypatch.setattr("meta_morphis.export.export_format", _fake_export(("pauper",)))
 
     export_all(conn, ["pauper"], ["all"], tmp_path, BULK)
 
     # The half-written file is gone, not published; the old file stays
-    assert sorted(f.name for f in tmp_path.iterdir()) == ["formats.json", "pauper.json"]
+    assert sorted(f.name for f in tmp_path.iterdir()) == [
+        "cards",
+        "formats.json",
+        "pauper.json",
+    ]
+    # Also one of every card's files
+    assert [f.name for f in (tmp_path / "cards").iterdir()] == ["00.json"]
     assert json.loads((tmp_path / "pauper.json").read_text(encoding="utf-8")) == {
         "old": True
     }

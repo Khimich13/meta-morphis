@@ -766,13 +766,8 @@ class NameInText:
         if not picture_url:
             self.not_read[key] = (card.name, "it has no picture")
             return None
-        saved = self.results.get(key)
-        if (
-            saved
-            and saved.get("name") == card.name
-            and saved.get("picture") == picture_url
-            and saved.get("reader") == READER_VERSION
-        ):
+        saved: Any = self.results.get(key)
+        if self._is_current(saved, card, picture_url):
             boxes: list[list[float]] | None = saved["boxes"]
             return boxes
         if not self._can_read:
@@ -801,6 +796,30 @@ class NameInText:
         self.results[key] = result
         self.changed = True
         return boxes
+
+    def saved(self, card: Card) -> list[list[float]] | None:
+        """The boxes an earlier reading of the card's picture found,
+        without reading it now: None when it was never read, or read
+        before it changed. For the cards on no format's list, until
+        every card's picture has been read once (see export_every_card).
+        Not counted in summary(): those would be most cards."""
+        picture_url = (card.raw.get("image_uris") or {}).get("png")
+        saved: Any = self.results.get(saved_key(card))
+        if not picture_url or not self._is_current(saved, card, picture_url):
+            return None
+        boxes: list[list[float]] | None = saved["boxes"]
+        return boxes
+
+    @staticmethod
+    def _is_current(saved: Any, card: Card, picture_url: str) -> bool:
+        """Whether a saved reading is of this name and picture, by this
+        READER_VERSION"""
+        return bool(
+            saved
+            and saved.get("name") == card.name
+            and saved.get("picture") == picture_url
+            and saved.get("reader") == READER_VERSION
+        )
 
     def summary(self) -> list[str]:
         """Lines on the cards left out in this run, asked only by their

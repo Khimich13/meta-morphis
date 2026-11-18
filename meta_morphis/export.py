@@ -1,4 +1,5 @@
-"""Writes the card data the web app reads: one <format>.json per format.
+"""Writes the card data the web app reads: one <format>.json per format,
+and every card in cards/ - see export_every_card.
 
 Run with: uv run python -m meta_morphis.export
 """
@@ -9,6 +10,7 @@ import os
 import re
 import sqlite3
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -39,7 +41,12 @@ from meta_morphis.name_in_text import (
     printed_texts,
     short_name,
 )
-from meta_morphis.scryfall.bulk import bulk_file_age, read_cards, update_bulk_file
+from meta_morphis.scryfall.bulk import (
+    bulk_file_age,
+    read_cards,
+    read_every_card,
+    update_bulk_file,
+)
 from meta_morphis.utils.text import card_count, normalize_name
 
 log = logging.getLogger(__name__)
@@ -172,6 +179,12 @@ class ExportFile(TypedDict):
     # When the list of most played cards was last fetched from MTGGoldfish,
     # in UTC, e.g. "2026-10-17T19:18:03Z" - the app warns when it gets old
     list_updated: str
+    cards: list[ExportCard]
+
+
+class CardsFile(TypedDict):
+    # One file of every card (see export_every_card): the cards whose
+    # oracle id starts with the file's name, sorted by name
     cards: list[ExportCard]
 
 
@@ -850,6 +863,94 @@ def export_format(
     return path
 
 
+# The first two characters of an oracle id, which name its card's file.
+# Scryfall's oracle ids are UUIDs; anything else is left out rather than
+# made into a file name.
+FILE_KEY = re.compile(r"[0-9a-f]{2}")
+
+
+def build_every_card(
+    cards: Iterable[Card], read_text: ReadText = never_read
+) -> dict[str, list[ExportCard]]:
+    """Every card the app can ask about, by the file it goes in - see
+    FILE_KEY - each file's cards sorted by name. Left out, as on the
+    format lists: basic lands, and cards build_card leaves out. Also a
+    name shared by more than one card, which the app couldn't tell apart
+    when it is entered."""
+    by_name: dict[str, list[ExportCard]] = {}
+    unusable: list[str] = []
+    for card in cards:
+        if is_basic_land(card):
+            continue
+        built = build_card(card, read_text)
+        if built is None or not FILE_KEY.match(built["oracle_id"]):
+            unusable.append(card.name)
+            continue
+        by_name.setdefault(normalize_name(built["name"]), []).append(built)
+    if unusable:
+        log.warning(
+            f"Leaving out {card_count(len(unusable))} with no oracle id, picture "
+            f"or artist, or pictures of different printings: {', '.join(sorted(unusable))}"
+        )
+
+    files: dict[str, list[ExportCard]] = {}
+    for same_name in by_name.values():
+        if len(same_name) > 1:
+            log.warning(
+                f"Leaving out '{same_name[0]['name']}' - "
+                f"{len(same_name)} cards have that name"
+            )
+            continue
+        [built] = same_name
+        files.setdefault(built["oracle_id"][:2], []).append(built)
+    for file_cards in files.values():
+        file_cards.sort(key=lambda c: c["name"])
+    return dict(sorted(files.items()))
+
+
+def export_every_card(
+    cards: Iterable[Card], out_dir: Path, read_text: ReadText = never_read
+) -> Path:
+    """Writes every card to EVERY_CARD_DIR in `out_dir`, for the player's
+    own lists: index.json with the names in each file, e.g. {"00":
+    ["Abrade", ...], "01": [...]}, and the cards themselves in 00.json to
+    ff.json (CardsFile). The app looks a name up in the index and loads
+    only that card's file.
+
+    Each file is swapped in whole, the index last, so a run that stops
+    halfway leaves every file readable, and the old index names only
+    cards that are still in their file: a card's file never changes, as
+    its oracle id doesn't. Files of an earlier run that this one has no
+    cards for are removed. Fails with fewer than EXPORT_MIN_EVERY_CARD,
+    writing nothing. Returns the index's path.
+    """
+    files = build_every_card(cards, read_text)
+    count = sum(len(file_cards) for file_cards in files.values())
+    if count < config.EXPORT_MIN_EVERY_CARD:
+        raise RuntimeError(
+            f"Only {card_count(count)} usable in Scryfall's data, expected at "
+            f"least {config.EXPORT_MIN_EVERY_CARD} - not writing every card's files"
+        )
+    cards_dir = out_dir / config.EVERY_CARD_DIR
+    cards_dir.mkdir(parents=True, exist_ok=True)
+    for key, file_cards in files.items():
+        data: CardsFile = {"cards": file_cards}
+        write_json(cards_dir / f"{key}.json", data)
+    index = cards_dir / "index.json"
+    write_json(
+        index,
+        {
+            key: [card["name"] for card in file_cards]
+            for key, file_cards in files.items()
+        },
+    )
+    for old in cards_dir.glob("*.json"):
+        if old != index and old.stem not in files:
+            old.unlink()
+    log.info(f"Wrote {cards_dir}: {card_count(count)} in {len(files)} files")
+    return index
+
+
 def _check_list_age(conn: sqlite3.Connection, format_name: str) -> str:
     """When the MTGGoldfish list was last fetched, as UTC text. Fails if
     that is longer ago than EXPORT_STALE_AFTER - see config.py.
@@ -885,7 +986,7 @@ def export_all(
     # A run killed while write_json was writing - out of memory, or over
     # the time limit - leaves its half-written .tmp file, and the daily
     # run publishes this directory as it is. So clear those out first.
-    for stray in out_dir.glob("*.tmp"):
+    for stray in out_dir.rglob("*.tmp"):
         log.warning(f"Removing {stray} left by an interrupted run")
         stray.unlink()
 
@@ -987,6 +1088,17 @@ def main() -> int:
                 config.BULK_PATH,
                 read_text,
             )
+        # After the lists, so their cards' pictures were read and saved.
+        # Other cards' pictures aren't read yet: that would take hours.
+        try:
+            export_every_card(
+                read_every_card(config.BULK_PATH).values(),
+                config.EXPORT_DIR,
+                read_text.saved,
+            )
+        except Exception:
+            log.exception("Could not export every card - keeping the previous files")
+            failed.append("every card")
     finally:
         # Even after a failure: the pictures read so far took their time
         if read_text.changed:

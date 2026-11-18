@@ -12,7 +12,12 @@ what has been done is in the commit history.
   Scryfall's API or MTGGoldfish itself, so its users can never overload them.
 - **The exporter is one module,** `meta_morphis/export.py`. It writes one
   file per format and list (`pauper.json`, `pauper-lands.json`, …) and
-  `formats.json`, which lists what exists.
+  `formats.json`, which lists what exists. It also writes every card, for
+  the player's own lists, in `cards/`: an index of the names, and the
+  cards in 256 files by the first two characters of their oracle id, so a
+  phone loads only the files of the cards it adds. A card's file never
+  changes, as its oracle id doesn't. Cards printed only in joke sets are
+  left out.
 - **The data refreshes once a day** on GitHub Actions, at 19:17 UTC, about an
   hour after MTGGoldfish was seen to update its lists.
 - **Scryfall's card data comes from its file of every printing** ("Default

@@ -493,6 +493,35 @@ def test_a_printing_is_read_again_when_something_changed(
     assert NameInText({"printing": saved | change}, GAME_WORDS)(_card()) == []
 
 
+def test_saved_gives_an_earlier_reading_and_never_reads(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "meta_morphis.name_in_text.shutil.which", lambda name: "/usr/bin/tesseract"
+    )
+    downloads: list[str] = []
+    monkeypatch.setattr(name_in_text, "_download", lambda url: downloads.append(url))
+    saved = {
+        "name": "Masticore",
+        "picture": "png/printing.png?1",
+        "reader": READER_VERSION,
+        "boxes": [[0.1, 0.7, 0.2, 0.03]],
+    }
+    read = NameInText({"printing": saved}, GAME_WORDS)
+    assert read.saved(_card()) == [[0.1, 0.7, 0.2, 0.03]]
+    # Never read, or read before its picture or name or the reader changed
+    assert read.saved(_card(id="other")) is None
+    assert read.saved(_card(image_uris={"png": "png/printing.png?2"})) is None
+    assert read.saved(_card(name="Molten Masticore")) is None
+    old = NameInText({"printing": saved | {"reader": READER_VERSION - 1}}, GAME_WORDS)
+    assert old.saved(_card()) is None
+    assert read.saved(_card(image_uris={})) is None
+    assert downloads == []
+    # Not in the run's summary, which would then list most cards
+    assert not read.changed
+    assert read.summary() == []
+
+
 def test_nothing_is_saved_when_the_picture_could_not_be_read(
     monkeypatch: MonkeyPatch,
 ) -> None:

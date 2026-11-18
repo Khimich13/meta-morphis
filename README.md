@@ -41,7 +41,7 @@ like an app, and works offline once a list has been opened.
   cards, keeping them in a SQLite database, and reads each card's data
   from Scryfall's daily file of every card, downloaded only when Scryfall
   has made a newer one. Its exporter writes a JSON file for each format
-  and list. It reads
+  and list, and every card in `cards/`. It reads
   card pictures with Tesseract to find a card's name in its text box, and
   keeps what it found in `meta_morphis/name_in_text.json`, in git.
 - **`web/`** (React, TypeScript, Vite) is the app. It reads those JSON files

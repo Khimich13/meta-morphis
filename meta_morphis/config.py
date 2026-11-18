@@ -72,6 +72,11 @@ EXPORT_MIN_CARDS = 45
 # snow-covered), plus a small margin
 EXPORT_MIN_LANDS = 35
 
+# The same for the files of every card (see export_every_card): today's
+# Scryfall data gives 32,441 cards less basic lands, so fewer than this
+# means its data or the export broke
+EXPORT_MIN_EVERY_CARD = 30_000
+
 
 def min_cards(kind: str) -> int:
     """The fewest cards a list of this kind needs to be exported. A list
@@ -110,3 +115,6 @@ NAME_IN_TEXT_PATH = PROJECT_ROOT / "meta_morphis" / "name_in_text.json"
 # Web app data: one <format>.json per format, read by the app, and
 # formats.json listing the formats that have one
 EXPORT_DIR = PROJECT_ROOT / "web" / "public" / "data"
+# Every card, in EXPORT_DIR: index.json and one file per first two
+# characters of the oracle id - see export_every_card
+EVERY_CARD_DIR = "cards"
