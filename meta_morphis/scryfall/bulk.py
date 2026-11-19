@@ -42,9 +42,10 @@ FUNNY_SET_TYPE = "funny"
 
 # How a name on a list matched a card: its full name ("Fire // Ice"),
 # its front face (MTGGoldfish lists a double-faced card by its front),
-# or another face (the spell of an adventure card). The first kind that
-# matched any card decides.
-FULL_NAME, FRONT_FACE, OTHER_FACE = range(3)
+# another face (the spell of an adventure card), or the name it has on
+# Magic Online (see _mtgo_names). The first kind that matched any card
+# decides, so a card's own name always wins over another's MTGO name.
+FULL_NAME, FRONT_FACE, OTHER_FACE, MTGO_NAME = range(4)
 
 
 def update_bulk_file(path: Path) -> None:
@@ -138,25 +139,29 @@ def read_cards(path: Path, names: Iterable[str]) -> dict[str, Card]:
                 unreadable += 1
                 continue
             oracle_id = oracle_id_of(printing)
-            if not oracle_id or not _is_game_card(printing):
+            if not oracle_id:
                 continue
+            found_by = (
+                _names(printing)
+                if _is_game_card(printing)
+                else ((MTGO_NAME, name) for name in _mtgo_names(printing))
+            )
             matched = False
-            for how, name in _names(printing):
+            for how, name in found_by:
                 key = normalize_name(name)
                 if key in wanted:
-                    matches.setdefault(key, [set(), set(), set()])[how].add(oracle_id)
+                    matches.setdefault(key, [set() for _ in range(4)])[how].add(
+                        oracle_id
+                    )
                     matched = True
-            # A printing a Card can't be built from - a field missing, or
-            # the wrong shape - is left out here, so it is never chosen
-            if matched and _to_card(printing):
-                printings.setdefault(oracle_id, []).append(printing)
+            if matched:
+                _keep_printing(printing, oracle_id, printings)
 
     if unreadable:
         log.warning(f"Skipped {unreadable} unreadable line(s) of Scryfall's card data")
 
-    cards: dict[str, Card] = {}
-    # One Card for each card, however many names lead to it
-    shown: dict[str, Card] = {}
+    # The card each name stands for
+    found_ids: dict[str, str] = {}
     for key, name in wanted.items():
         found = next((ids for ids in matches.get(key, []) if ids), set())
         if not found:
@@ -167,7 +172,20 @@ def read_cards(path: Path, names: Iterable[str]) -> dict[str, Card]:
         if len(found) > 1:
             log.warning(f"Leaving out '{name}' - {len(found)} cards have that name")
             continue
-        [oracle_id] = found
+        [found_ids[key]] = found
+
+    # A card found only by its MTGO name has none of its paper printings
+    # kept: their names didn't match. The file is in no particular order,
+    # so they are read in a second pass, which takes as long as the first.
+    unkept = set(found_ids.values()) - printings.keys()
+    if unkept:
+        _read_printings_of(path, unkept, printings)
+
+    cards: dict[str, Card] = {}
+    # One Card for each card, however many names lead to it
+    shown: dict[str, Card] = {}
+    for key, oracle_id in found_ids.items():
+        name = wanted[key]
         if oracle_id not in shown:
             chosen = choose_printing(printings.get(oracle_id, []))
             if chosen is None:
@@ -275,6 +293,59 @@ def _names(printing: dict[str, Any]) -> Iterator[tuple[int, str]]:
         face_name = face.get("name") if isinstance(face, dict) else None
         if isinstance(face_name, str):
             yield (FRONT_FACE if index == 0 else OTHER_FACE), face_name
+
+
+def _mtgo_names(printing: dict[str, Any]) -> Iterator[str]:
+    """The names an English printing sold only on Magic Online has there,
+    when they differ from the card's own: MTGO sells Universes Beyond
+    cards under names of their own ("Through the Omenpaths"), so its
+    decklists call Peter Parker "Surris, Spidersilk Innovator". Scryfall
+    keeps that name as `printed_name`, of the card or of each face.
+    """
+    games = printing.get("games")
+    if (
+        printing.get("lang") != "en"
+        or not isinstance(games, list)
+        or "mtgo" not in games
+        or "paper" in games
+    ):
+        return
+    faces = printing.get("card_faces")
+    parts = [printing, *(faces if isinstance(faces, list) else [])]
+    for part in parts:
+        if not isinstance(part, dict):
+            continue
+        printed = part.get("printed_name")
+        if isinstance(printed, str) and printed != part.get("name"):
+            yield printed
+
+
+def _keep_printing(
+    printing: dict[str, Any],
+    oracle_id: str,
+    printings: dict[str, list[dict[str, Any]]],
+) -> None:
+    """Keeps a printing the app may show its card in: one of a game card
+    (_is_game_card) that a Card can be built from. One with a field
+    missing, or of the wrong shape, is left out, so it is never chosen.
+    """
+    if _is_game_card(printing) and _to_card(printing):
+        printings.setdefault(oracle_id, []).append(printing)
+
+
+def _read_printings_of(
+    path: Path, oracle_ids: set[str], printings: dict[str, list[dict[str, Any]]]
+) -> None:
+    """Keeps every printing of these cards, as read_cards keeps those of
+    the cards it found by their own names"""
+    with gzip.open(path, "rt", encoding="utf-8") as file:
+        for line in file:
+            printing = _parse(line)
+            if printing is None:
+                continue
+            oracle_id = oracle_id_of(printing)
+            if oracle_id and oracle_id in oracle_ids:
+                _keep_printing(printing, oracle_id, printings)
 
 
 def _to_card(raw: dict[str, Any]) -> Card | None:

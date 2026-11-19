@@ -189,6 +189,64 @@ def test_unreadable_lines_are_skipped(
     assert "Skipped 2 unreadable line(s)" in caplog.text
 
 
+def _on_mtgo(name: str, oracle_id: str, **extra: Any) -> dict[str, Any]:
+    """A printing sold only on Magic Online, as Through the Omenpaths'"""
+    return _printing(name, oracle_id, set="om1", games=["mtgo"], **extra)
+
+
+# Before the paper printing, and after it: the file is in no order
+@pytest.mark.parametrize("mtgo_first", [True, False])
+def test_a_card_is_found_by_its_name_on_mtgo(tmp_path: Path, mtgo_first: bool) -> None:
+    on_mtgo = _on_mtgo("Pumpkin Bombardment", "pumpkin", printed_name="Knife Trick")
+    on_paper = _printing("Pumpkin Bombardment", "pumpkin", set="spm")
+    printings = [on_mtgo, on_paper] if mtgo_first else [on_paper, on_mtgo]
+    # Shown in its paper printing
+    assert _read(tmp_path, printings, ["Knife Trick"]) == {"knife trick": "pumpkin-spm"}
+
+
+def test_a_double_faced_card_is_found_by_its_front_on_mtgo(tmp_path: Path) -> None:
+    faces = _faces("Peter Parker", "Amazing Spider-Man")
+    faces[0]["printed_name"] = "Surris, Spidersilk Innovator"
+    faces[1]["printed_name"] = "Surris, Silk-Tech Vanguard"
+    name = "Peter Parker // Amazing Spider-Man"
+    printings = [
+        _printing(name, "peter", set="spm", card_faces=_faces(*name.split(" // "))),
+        _on_mtgo(name, "peter", card_faces=faces),
+    ]
+    assert _read(tmp_path, printings, ["Surris, Spidersilk Innovator"]) == {
+        "surris, spidersilk innovator": "peter-spm"
+    }
+
+
+def test_a_cards_own_name_wins_over_a_name_on_mtgo(tmp_path: Path) -> None:
+    printings = [
+        _printing("Knife Trick", "real"),
+        _printing("Pumpkin Bombardment", "pumpkin", set="spm"),
+        _on_mtgo("Pumpkin Bombardment", "pumpkin", printed_name="Knife Trick"),
+    ]
+    assert _read(tmp_path, printings, ["Knife Trick"]) == {"knife trick": "real-m10"}
+
+
+@pytest.mark.parametrize(
+    "not_mtgos",
+    [
+        # A translated name, as on a Japanese printing
+        {"lang": "ja", "games": ["mtgo"]},
+        # Printed on paper too, as some Secret Lair cards with names of
+        # their own: MTGO's decklists don't use those
+        {"games": ["paper", "mtgo"]},
+    ],
+)
+def test_other_printed_names_are_not_names_on_mtgo(
+    tmp_path: Path, not_mtgos: dict[str, Any]
+) -> None:
+    printings = [
+        _printing("Pick Your Poison", "poison", set="spm"),
+        _printing("Pick Your Poison", "poison", printed_name="毒を選べ", **not_mtgos),
+    ]
+    assert _read(tmp_path, printings, ["毒を選べ"]) == {}
+
+
 def test_two_names_of_one_card_share_one_card(tmp_path: Path) -> None:
     path = _bulk_file(
         tmp_path / "cards.jsonl.gz",
