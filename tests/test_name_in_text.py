@@ -338,6 +338,17 @@ def _card(**extra: Any) -> Card:
     )
 
 
+def _finds(boxes: list[list[float]]) -> Any:
+    """A stand-in for name_in_text that finds these boxes, opening the
+    picture as the real one does: it is downloaded only then"""
+
+    def find(card: Card, picture: Any, game_words: frozenset[str]) -> Any:
+        picture.content()
+        return boxes
+
+    return find
+
+
 def test_a_printing_is_read_once(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(
         "meta_morphis.name_in_text.shutil.which", lambda name: "/usr/bin/tesseract"
@@ -352,7 +363,7 @@ def test_a_printing_is_read_once(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(
         name_in_text,
         "name_in_text",
-        lambda card, picture, game_words: [[0.1, 0.7, 0.2, 0.03]],
+        _finds([[0.1, 0.7, 0.2, 0.03]]),
     )
 
     read = NameInText({}, GAME_WORDS)
@@ -383,9 +394,7 @@ def test_a_back_side_is_kept_apart_from_its_front(monkeypatch: MonkeyPatch) -> N
         return b"png"
 
     monkeypatch.setattr(name_in_text, "_download", download)
-    monkeypatch.setattr(
-        name_in_text, "name_in_text", lambda card, picture, game_words: []
-    )
+    monkeypatch.setattr(name_in_text, "name_in_text", _finds([]))
     front = _card(image_uris={"png": "png/front/printing.png?1"})
     back = _card(name="Back", image_uris={"png": "png/back/printing.png?1"})
 
@@ -454,9 +463,7 @@ def test_summary_leaves_out_a_picture_read_after_failing_once(
     )
     pictures: list[bytes | None] = [None, b"png"]
     monkeypatch.setattr(name_in_text, "_download", lambda url: pictures.pop(0))
-    monkeypatch.setattr(
-        name_in_text, "name_in_text", lambda card, picture, game_words: []
-    )
+    monkeypatch.setattr(name_in_text, "name_in_text", _finds([]))
     read = NameInText({}, GAME_WORDS)
     assert read(_card()) is None
     assert read(_card()) == []
@@ -478,9 +485,7 @@ def test_a_printing_is_read_again_when_something_changed(
         "meta_morphis.name_in_text.shutil.which", lambda name: "/usr/bin/tesseract"
     )
     monkeypatch.setattr(name_in_text, "_download", lambda url: b"png")
-    monkeypatch.setattr(
-        name_in_text, "name_in_text", lambda card, picture, game_words: []
-    )
+    monkeypatch.setattr(name_in_text, "name_in_text", _finds([]))
     saved = {
         "name": "Masticore",
         "picture": "png/printing.png?1",
@@ -1105,3 +1110,107 @@ def test_boxes_over_the_same_word_are_merged() -> None:
     # The same word read a little wider, and another word
     name_in_text.add_boxes(found, [[0.1, 0.6, 0.19, 0.026], [0.1, 0.7, 0.18, 0.025]])
     assert found == [[0.1, 0.6, 0.19, 0.026], [0.1, 0.7, 0.18, 0.025]]
+
+
+def _counting_reader(monkeypatch: MonkeyPatch) -> tuple[list[str], list[str]]:
+    """Stands in for downloading and Tesseract, counting each: one word,
+    "Masticore", wherever it reads"""
+    downloads: list[str] = []
+    readings: list[str] = []
+
+    def download(url: str) -> bytes:
+        downloads.append(url)
+        return b"png"
+
+    def read_words(picture: bytes, area: Any, reading: str = "color") -> Any:
+        readings.append(reading)
+        words = [Word("Masticore", 10.0, 20.0, 90.0, 40.0, ("1", "1", "1"))]
+        return words, 91.5, (745, 1040)
+
+    monkeypatch.setattr(name_in_text, "_download", download)
+    monkeypatch.setattr(name_in_text, "read_words", read_words)
+    monkeypatch.setattr(name_in_text, "tesseract_version", lambda: "tesseract 5.3.4")
+    return downloads, readings
+
+
+AREA = (0.07, 0.6, 0.93, 0.94)
+
+
+def test_a_picture_read_before_is_not_downloaded_or_read_again(
+    monkeypatch: MonkeyPatch, tmp_path: Any
+) -> None:
+    downloads, readings = _counting_reader(monkeypatch)
+    first = name_in_text.Picture("png/printing.png?1", saved_in=tmp_path)
+    read = first.read(AREA, "gray")
+    assert downloads == ["png/printing.png?1"]
+    # On the next run, the same words from the file
+    again = name_in_text.Picture("png/printing.png?1", saved_in=tmp_path)
+    assert again.read(AREA, "gray") == read
+    assert readings == ["gray"]
+    assert downloads == ["png/printing.png?1"]
+    # Another reading of it is read, and the first one kept
+    again.read(AREA, "color")
+    assert readings == ["gray", "color"]
+    name_in_text.Picture("png/printing.png?1", saved_in=tmp_path).read(AREA, "gray")
+    assert readings == ["gray", "color"]
+    # So is another area, and a new version of the picture
+    again.read((0.07, 0.55, 0.93, 0.6), "gray")
+    name_in_text.Picture("png/printing.png?2", saved_in=tmp_path).read(AREA, "gray")
+    assert readings == ["gray", "color", "gray", "gray"]
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        ("PREPARED", name_in_text.PREPARED + 1),
+        ("SCALE", name_in_text.SCALE + 1),
+        ("SMOOTH_SIZE", name_in_text.SMOOTH_SIZE + 2),
+        ("tesseract_version", lambda: "tesseract 5.5.0"),
+    ],
+)
+def test_a_picture_is_read_again_when_its_reading_changed(
+    monkeypatch: MonkeyPatch, tmp_path: Any, change: tuple[str, Any]
+) -> None:
+    _, readings = _counting_reader(monkeypatch)
+    name_in_text.Picture("png/printing.png?1", saved_in=tmp_path).read(AREA)
+    monkeypatch.setattr(name_in_text, *change)
+    name_in_text.Picture("png/printing.png?1", saved_in=tmp_path).read(AREA)
+    assert readings == ["color", "color"]
+
+
+def test_a_picture_is_read_again_when_its_file_is_broken(
+    monkeypatch: MonkeyPatch, tmp_path: Any
+) -> None:
+    _, readings = _counting_reader(monkeypatch)
+    name_in_text.Picture("png/printing.png?1", saved_in=tmp_path).read(AREA)
+    for path in tmp_path.iterdir():
+        path.write_bytes(b"not gzip")
+    name_in_text.Picture("png/printing.png?1", saved_in=tmp_path).read(AREA)
+    assert readings == ["color", "color"]
+
+
+def test_a_picture_without_a_folder_saves_nothing(
+    monkeypatch: MonkeyPatch, tmp_path: Any
+) -> None:
+    _, readings = _counting_reader(monkeypatch)
+    for _ in range(2):
+        name_in_text.Picture("png/printing.png?1").read(AREA)
+    assert readings == ["color", "color"]
+
+
+def test_the_reader_saves_the_words_where_it_is_told(
+    monkeypatch: MonkeyPatch, tmp_path: Any
+) -> None:
+    monkeypatch.setattr(
+        "meta_morphis.name_in_text.shutil.which", lambda name: "/usr/bin/tesseract"
+    )
+    downloads, readings = _counting_reader(monkeypatch)
+    words = tmp_path / "words"
+    NameInText({}, GAME_WORDS, words)(_card())
+    assert readings
+    assert len(list(words.iterdir())) == 1
+    # READER_VERSION raised: read again, from the saved words only
+    count = len(readings)
+    NameInText({}, GAME_WORDS, words)(_card())
+    assert len(readings) == count
+    assert downloads == ["png/printing.png?1"]

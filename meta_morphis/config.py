@@ -112,6 +112,11 @@ BULK_PATH = PROJECT_ROOT / "data" / "default-cards.jsonl.gz"
 # printings missing from it.
 NAME_IN_TEXT_PATH = PROJECT_ROOT / "meta_morphis" / "name_in_text.json"
 
+# Tesseract's words on each picture read for its name, one file per
+# picture - see name_in_text.Picture. Not in git: about 4.4 KB a picture,
+# some 90 MB for every card, and rebuilt by reading the pictures again.
+WORDS_DIR = PROJECT_ROOT / "data" / "words"
+
 # Web app data: one <format>.json per format, read by the app, and
 # formats.json listing the formats that have one
 EXPORT_DIR = PROJECT_ROOT / "web" / "public" / "data"

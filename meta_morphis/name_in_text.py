@@ -16,17 +16,24 @@ run together - or when the text could not be read well. Leaving a card
 out costs one kind of question; showing its name gives the answer away.
 """
 
+import functools
+import gzip
+import hashlib
 import io
 import itertools
+import json
 import logging
+import os
 import re
 import shutil
 import statistics
 import subprocess
+import tempfile
 import time
 import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import requests
@@ -113,6 +120,10 @@ PLANESWALKER_TYPE_LINE_HEIGHT = 0.075
 Area = tuple[float, float, float, float]
 # Tesseract reads small print better enlarged
 SCALE = 2
+# Raise it when read_words or parse_tsv prepare a picture or keep its
+# words in another way, so the words saved the old way (see Picture) are
+# read again. SCALE and SMOOTH_SIZE are checked by themselves.
+PREPARED = 1
 # The ways a picture is read: enlarged and in color; in grayscale at its
 # own size; and in grayscale smoothed. Each reading misses words another
 # one sees, even when Tesseract is sure of it - "Lord Windgrace can be
@@ -652,8 +663,133 @@ def read_words(
     return words, confidence, (width, height)
 
 
+class NotDownloaded(Exception):
+    """A card's picture could not be downloaded"""
+
+
+@functools.cache
+def tesseract_version() -> str:
+    """The first line of `tesseract --version`, such as "tesseract 5.3.4" """
+    result = subprocess.run(
+        ["tesseract", "--version"], capture_output=True, check=True, timeout=60
+    )
+    return result.stdout.decode("utf-8").splitlines()[0]
+
+
+class Picture:
+    """A card's picture, for reading with Tesseract (read_words). Given
+    `saved_in`, each reading's words are saved there, by the picture's
+    link: a reading made before is taken from there, and the picture is
+    downloaded only when a reading isn't. So a change to the rules that
+    run on the words (find_name and the like) is tried on every card in
+    a minute, without downloading or reading anything.
+
+    The words are read again, rather than taken from the file, when the
+    way a part of the picture is prepared for Tesseract has changed: when
+    PREPARED, SCALE, SMOOTH_SIZE or Tesseract's version does. A new area
+    or reading is read by itself, the others are kept.
+    """
+
+    def __init__(
+        self,
+        url: str | None = None,
+        content: bytes | None = None,
+        saved_in: Path | None = None,
+    ) -> None:
+        self.url = url
+        self._content = content
+        self._path = None
+        if saved_in is not None and url:
+            name = hashlib.sha1(url.encode()).hexdigest()
+            self._path = saved_in / f"{name}.json.gz"
+        self._saved: dict[str, Any] | None = None
+
+    def content(self) -> bytes:
+        """The picture's file, downloaded the first time it is needed.
+        NotDownloaded when it can't be."""
+        if self._content is None:
+            if self.url:
+                self._content = _download(self.url)
+            if self._content is None:
+                raise NotDownloaded(self.url)
+        return self._content
+
+    def read(
+        self, area: Area, reading: str = "color"
+    ) -> tuple[list[Word], float, tuple[int, int]]:
+        """read_words of this picture: from the saved file when it was
+        read in the same way before"""
+        if self._path is None:
+            return read_words(self.content(), area, reading)
+        key = f"{reading} {' '.join(map(str, area))}"
+        if self._saved is None:
+            self._saved = self._load()
+        saved = self._saved.get(key)
+        if saved is not None:
+            words = [
+                Word(text, left, top, right, bottom, (block, paragraph, line))
+                for text, left, top, right, bottom, block, paragraph, line in saved[
+                    "words"
+                ]
+            ]
+            width, height = saved["size"]
+            return words, saved["confidence"], (width, height)
+        words, confidence, size = read_words(self.content(), area, reading)
+        self._saved[key] = {
+            "words": [
+                [w.text, w.left, w.top, w.right, w.bottom, *w.line] for w in words
+            ],
+            "confidence": confidence,
+            "size": list(size),
+        }
+        self._save(key)
+        return words, confidence, size
+
+    def _prepared(self) -> dict[str, Any]:
+        """What the saved words depend on besides the picture, area and
+        reading: when any of it changes, they are read again"""
+        return {
+            "prepared": PREPARED,
+            "scale": SCALE,
+            "smooth": SMOOTH_SIZE,
+            "tesseract": tesseract_version(),
+        }
+
+    def _load(self) -> dict[str, Any]:
+        """The readings saved for this picture: none when there is no file,
+        it can't be read, or it was made in another way"""
+        assert self._path is not None
+        try:
+            with gzip.open(self._path, "rt", encoding="utf-8") as f:
+                file = json.load(f)
+        except (OSError, ValueError):
+            return {}
+        if file.get("prepared") != self._prepared():
+            return {}
+        readings: dict[str, Any] = file.get("readings") or {}
+        return readings
+
+    def _save(self, key: str) -> None:
+        """Adds the reading under `key` to the file. Written to a file of
+        its own first and then put in place, so a run stopped halfway
+        never leaves half a file. Two cards with the same picture read at
+        the same time, such as an adventure and its spell, may each save
+        without the other's reading: that one is only read again later."""
+        assert self._path is not None and self._saved is not None
+        readings = self._load() | {key: self._saved[key]}
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        with (
+            tempfile.NamedTemporaryFile(
+                dir=self._path.parent, suffix=".tmp", delete=False
+            ) as f,
+            gzip.open(f, "wt", encoding="utf-8") as zipped,
+        ):
+            json.dump({"prepared": self._prepared(), "readings": readings}, zipped)
+        os.replace(f.name, self._path)
+
+
 def name_in_text(
-    card: Card, picture: bytes, game_words: frozenset[str] = frozenset()
+    card: Card, picture: "bytes | Picture", game_words: frozenset[str] = frozenset()
 ) -> list[list[float]]:
     """Where the name is printed on the card outside its title bar, as
     [left, top, width, height] shares of the picture: an empty list when
@@ -663,6 +799,8 @@ def name_in_text(
     the name read badly - unless it is covered anyway, where another reading
     finds the name - or when every reading is unsure.
     """
+    if isinstance(picture, bytes):
+        picture = Picture(content=picture)
     found: list[list[float]] = []
     reasons: list[str] = []
     all_doubts: list[tuple[str, Doubt]] = []
@@ -738,7 +876,7 @@ def frame_readings(card: Card) -> tuple[str, ...]:
 
 
 def summon_type_line(
-    card: Card, picture: bytes, game_words: frozenset[str]
+    card: Card, picture: "Picture", game_words: frozenset[str]
 ) -> list[list[float]]:
     """Where the name is on a "Summon" type line (is_summon_printing),
     read by itself, in each of SUMMON_TYPE_LINES and READINGS: read with
@@ -752,7 +890,7 @@ def summon_type_line(
     read = False
     for area in SUMMON_TYPE_LINES:
         for reading in READINGS:
-            words, _, (width, height) = read_words(picture, area, reading)
+            words, _, (width, height) = picture.read(area, reading)
             after = words_after_type_start(words)
             if after is None:
                 continue
@@ -795,7 +933,7 @@ def words_after_type_start(words: list[Word]) -> list[Word] | None:
 
 def name_in_reading(
     card: Card,
-    picture: bytes,
+    picture: "Picture",
     game_words: frozenset[str],
     reading: str,
     unsure: list[str] | None = None,
@@ -813,7 +951,7 @@ def name_in_reading(
 
     boxes: list[list[float]] = []
     for number, area in enumerate(areas_to_read(card)):
-        words, confidence, (width, height) = read_words(picture, area, reading)
+        words, confidence, (width, height) = picture.read(area, reading)
         if confidence < MIN_CONFIDENCE:
             doubt(f"its text was read only {confidence:.0f}% sure")
         oracle_text = REMINDER.sub("", card.raw.get("oracle_text") or "")
@@ -835,9 +973,7 @@ def name_in_reading(
         if doubts is not None and in_pixels:
             doubts += [(why, shares([box], width, height)[0]) for why, box in in_pixels]
         if walker_type and not type_covered(words, found, walker_type):
-            line_words, line_confidence, _ = read_words(
-                picture, planeswalker_type_line(area)
-            )
+            line_words, line_confidence, _ = picture.read(planeswalker_type_line(area))
             line_found = (
                 find_name(line_words, card.name, plain, words_of_text(card))
                 if line_confidence >= MIN_CONFIDENCE
@@ -917,7 +1053,9 @@ class NameInText:
     `results`, under saved_key(), for the next runs. A card left
     out has its boxes None, and why under "left_out". A printing is
     read again when its picture changes (its link carries a version), its
-    name changes, or READER_VERSION does.
+    name changes, or READER_VERSION does. Given `words_dir`, Tesseract's
+    words are saved there too, so reading again after READER_VERSION
+    changes reads nothing from the pictures that was read before.
 
     Every card left out in this run is kept in `left_out`, under
     saved_key() too, with its name and why: those saved too, and those that could not
@@ -925,8 +1063,15 @@ class NameInText:
     them.
     """
 
-    def __init__(self, results: dict[str, Any], game_words: frozenset[str]) -> None:
+    def __init__(
+        self,
+        results: dict[str, Any],
+        game_words: frozenset[str],
+        words_dir: Path | None = None,
+    ) -> None:
         self.results = results
+        # Where each picture's words are saved, if anywhere (see Picture)
+        self.words_dir = words_dir
         self.changed = False
         self.game_words = game_words
         self.left_out: dict[str, tuple[str, list[str]]] = {}
@@ -974,10 +1119,7 @@ class NameInText:
         if not self._can_read:
             self.not_read[key] = (card.name, self._why_not_read)
             return None
-        picture = _download(picture_url)
-        if picture is None:
-            self.not_read[key] = (card.name, "its picture could not be downloaded")
-            return None
+        picture = Picture(picture_url, saved_in=self.words_dir)
         result: dict[str, Any] = {
             "name": card.name,
             "picture": picture_url,
@@ -989,6 +1131,9 @@ class NameInText:
         except LeftOut as e:
             boxes = None
             result |= {"boxes": None, "left_out": list(e.args)}
+        except NotDownloaded:
+            self.not_read[key] = (card.name, "its picture could not be downloaded")
+            return None
         except (OSError, subprocess.SubprocessError) as e:
             # Not saved: tried again on the next run
             log.warning(f"Could not read the picture of '{card.name}': {e}")

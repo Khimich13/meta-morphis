@@ -1074,7 +1074,9 @@ def main() -> int:
     # Show this package's progress and warnings, one plain line each
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     read_text = NameInText(
-        load_name_in_text(config.NAME_IN_TEXT_PATH), fetch_game_words()
+        load_name_in_text(config.NAME_IN_TEXT_PATH),
+        fetch_game_words(),
+        config.WORDS_DIR,
     )
     try:
         update_bulk_file(config.BULK_PATH)
