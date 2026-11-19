@@ -1091,7 +1091,8 @@ def main() -> int:
                 read_text,
             )
         # After the lists, so their cards' pictures were read and saved.
-        # Other cards' pictures aren't read yet: that would take hours.
+        # Other cards' pictures are read by hand, by read_every_picture.py:
+        # that takes hours.
         try:
             export_every_card(
                 read_every_card(config.BULK_PATH).values(),

@@ -1214,3 +1214,22 @@ def test_the_reader_saves_the_words_where_it_is_told(
     NameInText({}, GAME_WORDS, words)(_card())
     assert len(readings) == count
     assert downloads == ["png/printing.png?1"]
+
+
+def test_is_read_only_for_a_current_reading(monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "meta_morphis.name_in_text.shutil.which", lambda name: "/usr/bin/tesseract"
+    )
+    saved = {
+        "name": "Masticore",
+        "picture": "png/printing.png?1",
+        "reader": READER_VERSION,
+        "boxes": None,
+        "left_out": ["unsure"],
+    }
+    assert NameInText({"printing": saved}, GAME_WORDS).is_read(_card())
+    assert not NameInText({}, GAME_WORDS).is_read(_card())
+    older = saved | {"reader": READER_VERSION - 1}
+    assert not NameInText({"printing": older}, GAME_WORDS).is_read(_card())
+    new_picture = _card(image_uris={"png": "png/printing.png?2"})
+    assert not NameInText({"printing": saved}, GAME_WORDS).is_read(new_picture)

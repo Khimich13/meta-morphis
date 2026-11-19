@@ -1146,8 +1146,8 @@ class NameInText:
     def saved(self, card: Card) -> list[list[float]] | None:
         """The boxes an earlier reading of the card's picture found,
         without reading it now: None when it was never read, or read
-        before it changed. For the cards on no format's list, until
-        every card's picture has been read once (see export_every_card).
+        before it changed. For the cards on no format's list, read by
+        hand with read_every_picture.py (see export_every_card).
         Not counted in summary(): those would be most cards."""
         picture_url = (card.raw.get("image_uris") or {}).get("png")
         saved: Any = self.results.get(saved_key(card))
@@ -1155,6 +1155,18 @@ class NameInText:
             return None
         boxes: list[list[float]] | None = saved["boxes"]
         return boxes
+
+    @property
+    def why_not_read(self) -> str:
+        """Why no picture can be read in this run; empty when they can"""
+        return self._why_not_read
+
+    def is_read(self, card: Card) -> bool:
+        """Whether the card's picture, as it is now, was read by this
+        READER_VERSION, its name covered or the card left out"""
+        picture_url = (card.raw.get("image_uris") or {}).get("png")
+        saved: Any = self.results.get(saved_key(card))
+        return bool(picture_url and self._is_current(saved, card, picture_url))
 
     @staticmethod
     def _is_current(saved: Any, card: Card, picture_url: str) -> bool:
