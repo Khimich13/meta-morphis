@@ -40,6 +40,7 @@ html {
    and apps installed on Android or a computer are left as they were. */
 html {
   --top-strip: 0px;
+  --bottom-room: 0px;
 }
 
 .top-strip,
@@ -51,6 +52,28 @@ html {
   @supports (-webkit-touch-callout: none) {
     html {
       --top-strip: 12px;
+    }
+
+    /* Room at the bottom for the home indicator, the bar a swipe up from
+       the screen's edge starts on. The page reaches the screen's bottom
+       edge, behind it, but without viewport-fit=cover (see index.html)
+       iOS doesn't say how far up it reaches: env(safe-area-inset-bottom)
+       is 0. Every iPhone with one (those without a home button) keeps
+       34px clear upright and 21px sideways, and its page is more than
+       twice as tall as wide upright (390x797), and over 1.82 times as
+       wide as tall sideways (750x390). An iPhone SE, with a home button
+       and no home indicator, is 375x647 and 667x375. Not iPads, which
+       keep 20px on some models. */
+    @media (max-aspect-ratio: 10/19) {
+      html {
+        --bottom-room: 34px;
+      }
+    }
+
+    @media (min-aspect-ratio: 91/50) {
+      html {
+        --bottom-room: 21px;
+      }
     }
 
     .top-strip {
@@ -122,10 +145,9 @@ body {
 .card-list {
   max-width: 1100px;
   margin: 0 auto;
-  /* The insets keep cards out from under a sideways phone's camera
-     cutout and rounded corners. The top one is the bar's. */
-  padding: 0 calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom))
-    calc(16px + env(safe-area-inset-left));
+  /* At the bottom, room for the iPhone's home indicator too
+     (--bottom-room). The top is the bar's. */
+  padding: 0 16px calc(16px + var(--bottom-room));
 }
 
 /* Back, and the list's name: laid out like the lesson's bar, and kept at
@@ -141,14 +163,14 @@ body {
   top: 0;
   /* The whole width of the screen, past the list's side padding; the
      padding keeps the arrow lined up with the cards */
-  margin: 0 calc(-16px - env(safe-area-inset-right)) 0 calc(-16px - env(safe-area-inset-left));
+  margin: 0 -16px;
   /* Above the cards, which may be turning over */
   z-index: 1;
   display: grid;
   grid-template-columns: 44px 1fr 44px;
   align-items: center;
   gap: 8px;
-  padding: 4px calc(16px + env(safe-area-inset-right)) 4px calc(16px + env(safe-area-inset-left));
+  padding: 4px 16px;
   /* Frosted glass: mostly the page's own color, with the cards behind
      blurred and their colors brightened showing faintly through */
   background: color-mix(in srgb, var(--page) 90%, transparent);
@@ -499,7 +521,7 @@ button {
   box-sizing: border-box;
   max-width: 480px;
   margin: 0 auto;
-  padding: calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
+  padding: 16px 16px calc(16px + var(--bottom-room));
   display: grid;
   gap: 16px;
 }
