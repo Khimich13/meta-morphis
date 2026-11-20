@@ -27,8 +27,10 @@ from meta_morphis.export import (
     is_basic_land,
     main_type,
     name_boxes,
+    read_new_pictures,
     report_left_out,
     shown_name,
+    sides_to_read,
     spell_part,
     split_halves,
     title_name_box,
@@ -36,7 +38,7 @@ from meta_morphis.export import (
 )
 from meta_morphis.models.card import Card
 from meta_morphis.models.meta import MetaEntry
-from meta_morphis.name_in_text import ReadText
+from meta_morphis.name_in_text import READER_VERSION, NameInText, ReadText
 from meta_morphis.utils.text import normalize_name
 
 
@@ -1713,3 +1715,86 @@ def test_no_halves_but_of_a_split_card_printed_sideways_in_the_modern_frame() ->
 )
 def test_main_type(type_line: str, expected: str) -> None:
     assert main_type(type_line) == expected
+
+
+def _with_picture(name: str, **extra: Any) -> Card:
+    """A card whose name is in its text, with a picture to read"""
+    raw = _raw(
+        name,
+        lang="en",
+        type_line="Instant",
+        oracle_text=f"{name} deals 1 damage to any target.",
+        **extra,
+    )
+    raw["image_uris"]["png"] = f"png/id-{name}.png?1"
+    return Card.from_raw(raw)
+
+
+def _reader(monkeypatch: MonkeyPatch, saved: dict[str, Any]) -> NameInText:
+    """A NameInText with Tesseract "installed", reading no picture really:
+    every one it reads has nothing to cover"""
+    monkeypatch.setattr(
+        "meta_morphis.name_in_text.shutil.which", lambda name: "/usr/bin/tesseract"
+    )
+    monkeypatch.setattr(name_in_text, "_download", lambda url: b"png")
+    monkeypatch.setattr(name_in_text, "name_in_text", lambda card, picture, words: [])
+    return NameInText(saved, frozenset({"goblin"}))
+
+
+def test_sides_to_read_are_those_that_may_show_their_name() -> None:
+    lava_dart = _with_picture("Lava Dart")
+    plain = _english("Counterspell", oracle_text="Counter target spell.")
+    assert sides_to_read([lava_dart, plain]) == {"id-Lava Dart": lava_dart}
+
+
+def test_read_new_pictures_reads_only_the_sides_not_read(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    read_before = _with_picture("Lava Dart")
+    saved = {
+        "id-Lava Dart": {
+            "name": "Lava Dart",
+            "picture": "png/id-Lava Dart.png?1",
+            "reader": READER_VERSION,
+            "boxes": [],
+        }
+    }
+    read_text = _reader(monkeypatch, saved)
+    downloads: list[str] = []
+
+    def download(url: str) -> bytes:
+        downloads.append(url)
+        return b"png"
+
+    monkeypatch.setattr(name_in_text, "_download", download)
+
+    def finds_nothing(card: Card, picture: Any, words: Any) -> list[list[float]]:
+        picture.content()
+        return []
+
+    monkeypatch.setattr(name_in_text, "name_in_text", finds_nothing)
+    new = _with_picture("Shock")
+    assert read_new_pictures([read_before, new], read_text, 60) == 0
+    assert downloads == ["png/id-Shock.png?1"]
+    assert read_text.is_read(new)
+    # All read: nothing to do
+    assert read_new_pictures([read_before, new], read_text, 60) == 0
+    assert downloads == ["png/id-Shock.png?1"]
+
+
+def test_read_new_pictures_starts_none_after_the_time_limit(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    read_text = _reader(monkeypatch, {})
+    cards = [_with_picture("Lava Dart"), _with_picture("Shock")]
+    assert read_new_pictures(cards, read_text, 0) == 2
+    assert not read_text.changed
+
+
+def test_read_new_pictures_reads_none_without_tesseract(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("meta_morphis.name_in_text.shutil.which", lambda name: None)
+    read_text = NameInText({}, frozenset({"goblin"}))
+    assert read_new_pictures([_with_picture("Lava Dart")], read_text, 60) == 1
+    assert read_text.not_read == {}

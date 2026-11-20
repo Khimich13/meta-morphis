@@ -11,6 +11,7 @@ import re
 import sqlite3
 import time
 from collections.abc import Iterable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -39,6 +40,7 @@ from meta_morphis.name_in_text import (
     part_index,
     part_of,
     printed_texts,
+    saved_key,
     short_name,
 )
 from meta_morphis.scryfall.bulk import (
@@ -1053,6 +1055,54 @@ def write_formats(out_dir: Path, formats: list[str], kinds: list[str]) -> Path:
     return path
 
 
+def sides_to_read(cards: Iterable[Card]) -> dict[str, Card]:
+    """Every side the export may read for its name in the text box, as
+    the export builds each card, by saved_key: a double-faced card's
+    sides and an adventure's spell each count by themselves"""
+    sides: dict[str, Card] = {}
+
+    def record(card: Card) -> None:
+        sides.setdefault(saved_key(card), card)
+
+    for card in cards:
+        if not is_basic_land(card):
+            build_card(card, record)
+    return sides
+
+
+def read_new_pictures(
+    cards: Iterable[Card], read_text: NameInText, time_limit: float
+) -> int:
+    """Reads the pictures of the sides not read yet by this READER_VERSION,
+    for every card and not only those on the lists: mostly a new set's
+    cards, which read_every_picture.py hasn't met. One Tesseract a core,
+    starting none after `time_limit` seconds, so a run with thousands to
+    read - after READER_VERSION was raised without reading every card
+    again - still ends in time. The results aren't committed, so the next
+    run reads the same sides again, but from Tesseract's words saved in
+    WORDS_DIR, which the daily run keeps. Returns how many sides are
+    still not read."""
+    sides = sides_to_read(cards)
+    to_read = [card for _, card in sorted(sides.items()) if not read_text.is_read(card)]
+    if not to_read or read_text.why_not_read:
+        return len(to_read)
+    log.info(f"Reading the pictures of {len(to_read)} sides not read yet")
+    # Tesseract runs on several threads by itself: with many at a time
+    # they crowd each other out (see read_every_picture.py)
+    os.environ["OMP_THREAD_LIMIT"] = "1"
+    deadline = time.monotonic() + time_limit
+
+    def read(card: Card) -> None:
+        if time.monotonic() < deadline:
+            read_text(card)
+
+    with ThreadPoolExecutor(os.cpu_count() or 4) as pool:
+        list(pool.map(read, to_read))
+    left = sum(not read_text.is_read(card) for card in to_read)
+    log.info(f"Read {len(to_read) - left} of them, {left} left")
+    return left
+
+
 def report_left_out(summary: list[str]) -> None:
     """Logs the cards whose name in the text box couldn't be covered
     (NameInText.summary), and on GitHub Actions also puts them on the
@@ -1078,6 +1128,7 @@ def main() -> int:
         fetch_game_words(),
         config.WORDS_DIR,
     )
+    not_read = 0
     try:
         update_bulk_file(config.BULK_PATH)
         with get_connection() as conn:
@@ -1091,14 +1142,14 @@ def main() -> int:
                 read_text,
             )
         # After the lists, so their cards' pictures were read and saved.
-        # Other cards' pictures are read by hand, by read_every_picture.py:
-        # that takes hours.
+        # Every card's picture is read by hand, by read_every_picture.py,
+        # which takes hours; here only those it hasn't read, for a while.
         try:
-            export_every_card(
-                read_every_card(config.BULK_PATH).values(),
-                config.EXPORT_DIR,
-                read_text.saved,
+            cards = list(read_every_card(config.BULK_PATH).values())
+            not_read = read_new_pictures(
+                cards, read_text, config.NEW_PICTURES_TIME_LIMIT
             )
+            export_every_card(cards, config.EXPORT_DIR, read_text.saved)
         except Exception:
             log.exception("Could not export every card - keeping the previous files")
             failed.append("every card")
@@ -1108,7 +1159,15 @@ def main() -> int:
             write_json(
                 config.NAME_IN_TEXT_PATH, dict(sorted(read_text.results.items()))
             )
-        report_left_out(read_text.summary())
+        summary = read_text.summary()
+        if not_read:
+            sides = "side" if not_read == 1 else "sides"
+            summary.append(
+                f"Picture not read yet on {not_read} {sides} of cards on no "
+                "list, asked only by the artwork: run read_every_picture.py "
+                "and commit name_in_text.json"
+            )
+        report_left_out(summary)
 
     old_data = _bulk_file_is_old(config.BULK_PATH)
     if failed:

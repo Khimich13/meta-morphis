@@ -2,9 +2,11 @@
 not only the cards on a format's list, so every card added to a player's
 own list can be asked by its full picture with the name covered.
 
-The export reads only the cards on the lists: reading every card takes
-an hour or more, too long for the daily run. So this is run by hand, and
-name_in_text.json committed afterwards. Run it with:
+The export reads the cards on the lists, and other cards not read yet
+for NEW_PICTURES_TIME_LIMIT only: reading every card takes an hour or
+more, too long for the daily run, which doesn't commit what it reads
+either. So this is run by hand, and name_in_text.json committed
+afterwards. Run it with:
 
     uv run python -m meta_morphis.read_every_picture
 
@@ -21,9 +23,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from meta_morphis import config
-from meta_morphis.export import build_card, is_basic_land, load_name_in_text, write_json
-from meta_morphis.models.card import Card
-from meta_morphis.name_in_text import NameInText, fetch_game_words, saved_key
+from meta_morphis.export import load_name_in_text, sides_to_read, write_json
+from meta_morphis.name_in_text import NameInText, fetch_game_words
 from meta_morphis.scryfall.bulk import read_every_card
 from meta_morphis.utils.text import card_count
 
@@ -33,21 +34,6 @@ log = logging.getLogger(__name__)
 SAVE_EVERY = 60
 # How often the progress is logged, in sides read
 LOG_EVERY = 100
-
-
-def sides_to_read(cards: list[Card]) -> dict[str, Card]:
-    """Every side the export may read for its name in the text box, as
-    the export builds each card, by saved_key: a double-faced card's
-    sides and an adventure's spell each count by themselves"""
-    sides: dict[str, Card] = {}
-
-    def record(card: Card) -> None:
-        sides.setdefault(saved_key(card), card)
-
-    for card in cards:
-        if not is_basic_land(card):
-            build_card(card, record)
-    return sides
 
 
 def save(read_text: NameInText) -> None:

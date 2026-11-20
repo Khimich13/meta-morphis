@@ -112,6 +112,12 @@ BULK_PATH = PROJECT_ROOT / "data" / "default-cards.jsonl.gz"
 # printings missing from it.
 NAME_IN_TEXT_PATH = PROJECT_ROOT / "meta_morphis" / "name_in_text.json"
 
+# How long the export reads the pictures of cards on no list that
+# read_every_picture.py hasn't read, a new set's mostly, in seconds: a
+# set's few hundred take minutes, and thousands, after READER_VERSION
+# was raised without reading every card again, can't hold up the run
+NEW_PICTURES_TIME_LIMIT = 15 * 60
+
 # Tesseract's words on each picture read for its name, one file per
 # picture - see name_in_text.Picture. Not in git: about 4.4 KB a picture,
 # some 90 MB for every card, and rebuilt by reading the pictures again.

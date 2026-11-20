@@ -70,7 +70,8 @@ It reads the pictures of printings not yet in
 `meta_morphis/name_in_text.json` and adds them there: commit the file, so
 the daily run doesn't read them again.
 
-The export reads only the pictures of cards on a format's list. To read
+The export reads the pictures of cards on a format's list, and of other
+cards not read yet for at most 15 minutes, which covers a new set. To read
 every other card's too, so cards on a player's own list are asked by their
 full picture with the name covered (about 2 hours on 12 cores; stop it with
 Ctrl+C at any time, and run it again to go on):
