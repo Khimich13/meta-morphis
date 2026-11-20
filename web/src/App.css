@@ -42,7 +42,8 @@ html {
   --top-strip: 0px;
 }
 
-.top-strip {
+.top-strip,
+.view-strip {
   display: none;
 }
 
@@ -65,21 +66,34 @@ html {
       background: var(--page);
     }
 
-    /* Above the layer that dims the page for the large view (body::after,
-       see LargeView.css), so dimmed by hand: the page's color under its
-       85% black. Fades with it; back at once on closing, as the view
-       closes at once. Not hidden like the card list's bar: the strip is
-       what keeps the blur away. */
-    html:has(.enlarged[open]) .top-strip {
-      background: color-mix(in srgb, var(--page) 15%, #000);
-      transition: background-color 0.4s ease-out;
+    /* The large view's own strip (see LargeView.tsx). The view is
+       see-through and above everything, the page's strip included, so
+       with the view open iOS found no color at the top: the status bar,
+       whose color iOS takes from there, stayed the page's light color
+       above the dimmed view. This one, in the view, has the color the
+       page's strip shows through it: the page's color under the 85% black
+       that dims the page (body::after, see LargeView.css), and under the
+       view's own darkening as the card zooms in (--zoom-fade). It fades in
+       with the view, over the page's strip, just as the dimming fades in
+       over the rest of the page. Tried on an iPhone with iOS 27, November
+       2026, in a test page: the status bar followed with the strip, not
+       without. */
+    .view-strip {
+      display: block;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: var(--top-strip);
+      /* Above the card, as the page's strip is above the page's cards;
+         below the close button, which comes later in the view */
+      z-index: 1;
+      background: color-mix(
+        in srgb,
+        #000 calc(var(--zoom-fade, 0) * 100%),
+        color-mix(in srgb, var(--page) 15%, #000)
+      );
     }
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  html:has(.enlarged[open]) .top-strip {
-    transition: none;
   }
 }
 

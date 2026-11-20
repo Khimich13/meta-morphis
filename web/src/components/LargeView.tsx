@@ -107,6 +107,11 @@ export default function LargeView({
         if (!(event.target as Element).closest('.card-picture, button')) closeByHand();
       }}
     >
+      {/* Keeps the status bar's color with the view in the iPhone's
+          home-screen app (see .view-strip in App.css). It takes taps, like
+          the page's own strip, which counted only then; a tap on it counts
+          as outside the card. */}
+      <div className="view-strip" aria-hidden="true" />
       <button className="close" aria-label="Close" onClick={onClose}>
         ✕
       </button>
