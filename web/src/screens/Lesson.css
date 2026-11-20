@@ -21,9 +21,9 @@
 }
 
 /* The home-screen app has no browser bars, and its viewport units can't be
-   trusted. On an iPhone, November 2026: dvh switched by 47px, the status
-   bar's height, as the phone was turned, so the card jumped after turning
-   it upright (iOS 26 and 27); lvh counts the status bar, which the page
+   trusted. On an iPhone, November 2026: dvh was 47px too tall, the status
+   bar's height, for about 0.3s after the phone turned upright (iOS 26 and
+   27), and the lesson with it; lvh counts the status bar, which the page
    now starts below (see index.html), so it came out 47px too tall
    (iOS 27). The page's own height is right from the first frame of a turn
    (see usePageSize in LargeView.tsx), so the lesson takes it: 100% of

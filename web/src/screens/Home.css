@@ -15,6 +15,17 @@
   text-align: center;
 }
 
+/* In the home-screen app, the page's own height, as in a lesson: there
+   dvh and lvh can't be trusted (see Lesson.css) */
+@media (display-mode: standalone) {
+  html:has(.home),
+  html:has(.home) body,
+  html:has(.home) #app,
+  .home {
+    height: 100%;
+  }
+}
+
 .home p,
 .home h1 {
   margin: 0;
