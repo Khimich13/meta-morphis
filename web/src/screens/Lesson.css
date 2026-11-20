@@ -2,7 +2,8 @@
    except .picture, which takes whatever height is left. */
 .lesson {
   box-sizing: border-box;
-  /* dvh: the height actually visible, as the browser's own bars come and go */
+  /* dvh: the height actually visible, as the browser's own bars come and
+     go. The home-screen app has its own rule below. */
   height: 100dvh;
   max-width: 480px;
   margin: 0 auto;
@@ -10,20 +11,29 @@
   flex-direction: column;
   gap: 12px;
   /* Clear of the iPhone notch and home indicator in the installed app.
-     Little at the top: every pixel there is height the card can use. */
-  padding: calc(4px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
+     Little at the top: every pixel there is height the card can use. In
+     the iPhone's app, also clear of the strip that keeps iOS's blur away
+     (--top-strip, see App.css). */
+  padding: calc(4px + env(safe-area-inset-top) + var(--top-strip)) 16px
+    calc(16px + env(safe-area-inset-bottom));
   /* Last resort on very short screens: scroll rather than cut anything off */
   overflow-y: auto;
 }
 
-/* The installed app has no browser bars, so the whole screen is lvh. Its
-   dvh can't be trusted there: on an iPhone (iOS 26, November 2026) it
-   switched between the screen's height and 47px less, the status bar's
-   height, as the phone was turned, and the lesson then ended short of the
-   bottom with empty space below the buttons. lvh stayed right. */
+/* The home-screen app has no browser bars, and its viewport units can't be
+   trusted. On an iPhone, November 2026: dvh switched by 47px, the status
+   bar's height, as the phone was turned, so the card jumped after turning
+   it upright (iOS 26 and 27); lvh counts the status bar, which the page
+   now starts below (see index.html), so it came out 47px too tall
+   (iOS 27). The page's own height is right from the first frame of a turn
+   (see usePageSize in LargeView.tsx), so the lesson takes it: 100% of
+   #app, of body, of the page, while a lesson is showing. */
 @media (display-mode: standalone) {
+  html:has(.lesson),
+  html:has(.lesson) body,
+  html:has(.lesson) #app,
   .lesson {
-    height: 100lvh;
+    height: 100%;
   }
 }
 

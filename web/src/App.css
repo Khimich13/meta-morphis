@@ -22,6 +22,67 @@ html {
   }
 }
 
+/* In the home-screen app, iOS 27 blurs the top of the screen even with
+   nothing scrolling, about 37px deep. It leaves it out while something
+   pinned to the top edge (fixed or sticky) has a color there, but only
+   with the status bar not "black-translucent" (see index.html). So in the
+   app, a 12px strip of the page's own color stays at the top: over room
+   the screens leave empty anyway, and under the card list's bar, which
+   counts too. Tried on an iPhone with iOS 27, November 2026, in a test
+   page with the same tags: sharp with the strip, blurred without.
+
+   iOS seems to find it by what a tap near the top would land on, so it
+   is a real element in index.html that takes taps. As body::before with
+   pointer-events: none, the titles under it stayed blurred, while the
+   card list's bar, which takes taps, kept its screen sharp.
+
+   Only in the iPhone's app (-webkit-touch-callout is iOS's own); Safari
+   and apps installed on Android or a computer are left as they were. */
+html {
+  --top-strip: 0px;
+}
+
+.top-strip {
+  display: none;
+}
+
+@media (display-mode: standalone) {
+  @supports (-webkit-touch-callout: none) {
+    html {
+      --top-strip: 12px;
+    }
+
+    .top-strip {
+      display: block;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: var(--top-strip);
+      /* Above the cards, which may be turning over; below the card list's
+         bar, which comes later in the page with the same z-index */
+      z-index: 1;
+      background: var(--page);
+    }
+
+    /* Above the layer that dims the page for the large view (body::after,
+       see LargeView.css), so dimmed by hand: the page's color under its
+       85% black. Fades with it; back at once on closing, as the view
+       closes at once. Not hidden like the card list's bar: the strip is
+       what keeps the blur away. */
+    html:has(.enlarged[open]) .top-strip {
+      background: color-mix(in srgb, var(--page) 15%, #000);
+      transition: background-color 0.4s ease-out;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:has(.enlarged[open]) .top-strip {
+    transition: none;
+  }
+}
+
 body {
   margin: 0;
 }
@@ -51,29 +112,22 @@ body {
      cutout and rounded corners. The top one is the bar's. */
   padding: 0 calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom))
     calc(16px + env(safe-area-inset-left));
-  /* How far down the bar floats: just under the time and battery, up
-     into the spare room the phone leaves below them. Safari keeps pinned
-     things below the status bar anyway; there, the small gap keeps it from
-     painting its own band behind the time and battery (see below). Tried
-     on an iPhone with iOS 26: 5px is the least that works. */
-  --bar-top: max(5px, env(safe-area-inset-top) - 10px);
 }
 
 /* Back, and the list's name: laid out like the lesson's bar, and kept at
    the top while the cards scroll under it. Its background lets them show
    through, blurred so the name stays readable over any art.
 
-   In Safari it floats a little below the top edge. iOS 26
-   Safari paints its own solid band behind the time and battery when a
-   pinned bar with a background touches the top edge, even a see-through
-   one; with the bar clear of the edge, it shows the cards there. */
+   It touches the top edge everywhere. In Safari, iOS 27 then paints its
+   own solid band behind the time and battery, in the bar's color. With
+   the bar floating a little lower instead, the cards scrolled into the
+   gap above it and showed again there. */
 .card-list-bar {
   position: sticky;
-  top: var(--bar-top);
+  top: 0;
   /* The whole width of the screen, past the list's side padding; the
      padding keeps the arrow lined up with the cards */
-  margin: var(--bar-top) calc(-16px - env(safe-area-inset-right)) 0
-    calc(-16px - env(safe-area-inset-left));
+  margin: 0 calc(-16px - env(safe-area-inset-right)) 0 calc(-16px - env(safe-area-inset-left));
   /* Above the cards, which may be turning over */
   z-index: 1;
   display: grid;
@@ -81,8 +135,6 @@ body {
   align-items: center;
   gap: 8px;
   padding: 4px calc(16px + env(safe-area-inset-right)) 4px calc(16px + env(safe-area-inset-left));
-  /* Rounded at the top only: the bottom edge runs straight across */
-  border-radius: 20px 20px 0 0;
   /* Frosted glass: mostly the page's own color, with the cards behind
      blurred and their colors brightened showing faintly through */
   background: color-mix(in srgb, var(--page) 90%, transparent);
@@ -106,35 +158,6 @@ body {
   mask-image: linear-gradient(black, transparent);
   /* Only a look: taps go through to the cards */
   pointer-events: none;
-}
-
-/* Opened from the home screen, the app draws the page behind the time and
-   battery itself, unlike Safari. There the bar reaches up behind them, so
-   they sit on the same blurred background as the list's name. */
-@media (display-mode: standalone) {
-  .card-list {
-    --bar-top: 0px;
-  }
-
-  .card-list-bar {
-    /* The back button and the name up into the spare room the phone
-       leaves below the time and battery */
-    padding-top: max(4px, env(safe-area-inset-top) - 4px);
-    border-radius: 0;
-  }
-}
-
-/* On a laptop or desktop, with a mouse or trackpad, there is no Safari
-   band to dodge, so the bar sits flush against the top edge. Phones and
-   tablets without a pointer keep the gap above. */
-@media (hover: hover) and (pointer: fine) {
-  .card-list {
-    --bar-top: 0px;
-  }
-
-  .card-list-bar {
-    border-radius: 0;
-  }
 }
 
 /* Hidden behind the large view. Above the cards (z-index), it was above
@@ -212,7 +235,7 @@ html:has(.enlarged[open]) .card-list-bar {
   text-align: center;
   /* Scrolled into view below the bar, not under it - see useBarHeight in
      screens/CardList.tsx */
-  scroll-margin-top: calc(var(--bar-top) + var(--bar-height, 0px));
+  scroll-margin-top: var(--bar-height, 0px);
 }
 
 /* A shorter record (a new card has labels only) sits right above its

@@ -2,7 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- No viewport-fit=cover: with the solid status bar (see below), the
+         page has nothing to draw behind it, and iOS 27 moved its 47px
+         between the top safe-area inset and the page's scroll as the phone
+         turned, so the full-size card flicked by that much at the end of
+         a turn back upright (iPhone, November 2026). Without it, iOS
+         leaves plain bands beside the notch in landscape. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MetaMorphis</title>
     <meta
       name="description"
@@ -13,9 +19,13 @@
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <!-- iPhones take the home-screen icon from here -->
     <link rel="apple-touch-icon" href="apple-touch-icon-180x180.png" />
-    <!-- Draw the home-screen app behind the clock and battery, with white
-         status-bar text. iOS 26 does this anyway; iOS 18 needs this line. -->
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- The home-screen app gets a solid status bar (white, or dark in Dark
+         Mode) and the page starts below it. Not "black-translucent", which
+         draws the page behind the clock and battery: with it, iOS 27
+         blurs the top of the screen with no way around it (see the strip
+         in src/App.css). iOS reads this only when the icon is added, so
+         an installed app needs removing and adding again. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <style>
       /* Hidden unless the media rule below applies */
       #rotate-notice {
@@ -59,6 +69,11 @@
       <p aria-hidden="true">↻</p>
       <p>Turn your phone upright to use MetaMorphis.</p>
     </div>
+    <!-- Keeps iOS 27's blur off the top of the home-screen app (see
+         .top-strip in src/App.css). A real element that takes taps, not a
+         pseudo-element, so iOS finds it: the one that let taps through
+         didn't count. -->
+    <div class="top-strip" aria-hidden="true"></div>
     <div id="app"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
