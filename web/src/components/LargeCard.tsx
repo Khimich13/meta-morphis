@@ -95,6 +95,11 @@ export interface TurnedFrom {
  * then the view closes
  */
 export interface TurnBack {
+  /**
+   * The card begins to ease into the view after the turn that opened it:
+   * the page dims with it (see .arrived in LargeView.css)
+   */
+  onArrived: () => void;
   /** Where the card on the page is now, upright, to ease into */
   place: () => TurnedFrom | null;
   /** The easing back starts: the card on the page hides */
@@ -408,7 +413,10 @@ function EaseNewSize({ turnedFrom, turnBack }: { turnedFrom?: TurnedFrom; turnBa
     const startFromTurn = () => {
       if (turnedFrom === undefined || startedFromTurn || width === 0) return;
       startedFromTurn = true;
-      if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        turnBack?.onArrived();
+        return;
+      }
       const landscape = areaWidth > areaHeight;
       const quarter = content.classList.contains('horizontal') && landscape ? -90 : 0;
       // The area's middle, where the card is, moved onto the card's old middle
@@ -498,9 +506,9 @@ function EaseNewSize({ turnedFrom, turnBack }: { turnedFrom?: TurnedFrom; turnBa
         copy.setAttribute('aria-hidden', 'true');
         Object.assign(copy.style, {
           // In the page, which is the box it's placed in while the view is
-          // open (see LargeView.css), above the dimming
+          // open (see LargeView.css), above the dimming (.page-dim, z-index 2)
           position: 'absolute',
-          zIndex: '1',
+          zIndex: '3',
           left: `${card.left + scrollX}px`,
           top: `${top}px`,
           width: `${card.width}px`,
@@ -528,6 +536,9 @@ function EaseNewSize({ turnedFrom, turnBack }: { turnedFrom?: TurnedFrom; turnBa
       let done = 0;
       let last = performance.now();
       const step = (now: number) => {
+        // Its first frame, after the view's own: the page dims with the
+        // glide into the view, from the page's own color
+        if (done === 0 && !goingBack) turnBack?.onArrived();
         const passed = Math.min(Math.max(now - last, 0), EASE_STEP);
         last = now;
         done = Math.min(done + passed, EASE_TIME);

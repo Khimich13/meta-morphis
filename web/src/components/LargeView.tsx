@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { createPortal } from 'react-dom';
 
 import { isLandscape, useLandscapeAllowed } from '../lib/landscape';
 import type { Direction } from '../lib/swipe';
@@ -83,56 +84,68 @@ export default function LargeView({
   usePageSize(dialog);
 
   return (
-    <dialog
-      ref={dialog}
-      tabIndex={-1}
-      className={['enlarged', zoomed && 'zoomed', uprightToClose && 'upright-to-close', className]
-        .filter(Boolean)
-        .join(' ')}
-      // Esc: close it the same way as the other ways, through history
-      onCancel={(event) => {
-        event.preventDefault();
-        closeByHand();
-      }}
-      onKeyDown={(event) => {
-        if (onMove === undefined || zoomed) return;
-        if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
-        // Instead of the browser's own small scroll step
-        event.preventDefault();
-        onMove(event.key === 'ArrowRight' ? 'next' : 'previous');
-      }}
-      // A tap anywhere but on the card or a button counts as outside it
-      onClick={(event) => {
-        if (performance.now() - openedAt.current < 400) return;
-        if (!(event.target as Element).closest('.card-picture, button')) closeByHand();
-      }}
-    >
-      {/* Keeps the status bar's color with the view in the iPhone's
+    <>
+      <dialog
+        ref={dialog}
+        tabIndex={-1}
+        className={['enlarged', zoomed && 'zoomed', uprightToClose && 'upright-to-close', className]
+          .filter(Boolean)
+          .join(' ')}
+        // Esc: close it the same way as the other ways, through history
+        onCancel={(event) => {
+          event.preventDefault();
+          closeByHand();
+        }}
+        onKeyDown={(event) => {
+          if (onMove === undefined || zoomed) return;
+          if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+          // Instead of the browser's own small scroll step
+          event.preventDefault();
+          onMove(event.key === 'ArrowRight' ? 'next' : 'previous');
+        }}
+        // A tap anywhere but on the card or a button counts as outside it
+        onClick={(event) => {
+          if (performance.now() - openedAt.current < 400) return;
+          if (!(event.target as Element).closest('.card-picture, button')) closeByHand();
+        }}
+      >
+        {/* Keeps the status bar's color with the view in the iPhone's
           home-screen app (see .view-strip in App.css). It takes taps, like
           the page's own strip, which counted only then; a tap on it counts
           as outside the card. */}
-      <div className="view-strip" aria-hidden="true" />
-      <button className="close" aria-label="Close" onClick={onClose}>
-        ✕
-      </button>
-      {onMove !== undefined && hasPrevious && (
-        <button
-          className="move previous"
-          aria-label="Previous card"
-          onClick={() => onMove('previous')}
-        >
-          ‹
+        <div className="view-strip" aria-hidden="true" />
+        {/* Keep the bands iOS leaves beside the notch on a sideways iPhone
+          dimmed with the view (see .side-strip in App.css) */}
+        <div className="side-strip left" aria-hidden="true" />
+        <div className="side-strip right" aria-hidden="true" />
+        <button className="close" aria-label="Close" onClick={onClose}>
+          ✕
         </button>
+        {onMove !== undefined && hasPrevious && (
+          <button
+            className="move previous"
+            aria-label="Previous card"
+            onClick={() => onMove('previous')}
+          >
+            ‹
+          </button>
+        )}
+        <ZoomedContext value={setZoomed}>{children}</ZoomedContext>
+        {/* Only on a sideways phone, see LargeView.css */}
+        {uprightToClose && <p className="upright-hint">↻ Turn your phone upright to continue</p>}
+        {onMove !== undefined && hasNext && (
+          <button className="move next" aria-label="Next card" onClick={() => onMove('next')}>
+            ›
+          </button>
+        )}
+      </dialog>
+      {/* The layer that dims the page, at the page's end, with the view's
+          classes (see .page-dim in LargeView.css) */}
+      {createPortal(
+        <div className={['page-dim', className].filter(Boolean).join(' ')} aria-hidden="true" />,
+        document.body,
       )}
-      <ZoomedContext value={setZoomed}>{children}</ZoomedContext>
-      {/* Only on a sideways phone, see LargeView.css */}
-      {uprightToClose && <p className="upright-hint">↻ Turn your phone upright to continue</p>}
-      {onMove !== undefined && hasNext && (
-        <button className="move next" aria-label="Next card" onClick={() => onMove('next')}>
-          ›
-        </button>
-      )}
-    </dialog>
+    </>
   );
 }
 

@@ -47,7 +47,7 @@
 }
 
 /* The page under the view is dimmed by a layer of the page itself, over
-   all of it (body::after), not by the view's backdrop, which stays clear.
+   all of it (.page-dim), not by the view's backdrop, which stays clear.
    The backdrop covers only the screen, and as a phone turns, the page is
    drawn for a moment in a frame larger than the new screen: past the
    backdrop's edge, it showed undimmed. A layer of the page is drawn
@@ -65,14 +65,59 @@ html:has(.enlarged[open]) {
   background: color-mix(in srgb, #000 85%, var(--page));
 }
 
-/* Opened by turning the phone (see useOpenOnTurn in CardPicture.tsx):
-   darkening with the layer below, so that as the phone turns, the edges
-   beyond the page match the page. Only then: an iPhone app tints the
-   strip behind its clock with this color while the page can scroll, as
-   the card list's can, and it took the color as the fade began, so the
-   strip stayed the page's usual color above the dimmed view. */
-html:has(.enlarged.opened-by-turn[open]) {
-  transition: background-color 0.4s ease-out;
+/* Opened by turning the phone (see useOpenOnTurn in CardPicture.tsx),
+   or by a tap in the card list (see CardList.tsx): everything dims
+   together (.dims-late), as the card begins to move into the view
+   (.arrived) - the glide from the card's place on the page, frame by
+   frame, or the card list's growing in. Not from the view's first
+   frame, so that the dimming has the page's own color to fade from.
+
+   As an iPhone turns, it draws the page, the edges beyond it (this
+   background), the view's strips (see .side-strip in App.css) and the
+   bands beside the notch, which take their color from those strips,
+   each at its own moment: each fading on its own during the turn, they
+   showed four different grays (iPhone, iOS 27, November 2026).
+
+   The dimming layer follows --dimming (see App.css), as the strips do,
+   so that they change in the same frames: a fade of its own opacity is
+   run apart from the page's other changes. So do this background, whose
+   own fade went through other grays (browsers fade from a plain color
+   to a mixed one in another color space), and the hint, whose white
+   letters wait for the dark. */
+html {
+  --dimming: 0;
+}
+
+html:has(.enlarged.dims-late[open]) {
+  background: color-mix(in srgb, #000 calc(var(--dimming) * 85%), var(--page));
+}
+
+.page-dim.dims-late,
+.enlarged.dims-late .view-strip,
+.enlarged.dims-late .side-strip,
+.enlarged.dims-late .upright-hint {
+  --dimming: 0;
+}
+
+html:has(.enlarged.arrived[open]),
+.page-dim.arrived,
+.enlarged.arrived .view-strip,
+.enlarged.arrived .side-strip,
+.enlarged.arrived .upright-hint {
+  --dimming: 1;
+}
+
+.page-dim.dims-late,
+.enlarged.dims-late .upright-hint {
+  opacity: var(--dimming);
+}
+
+html:has(.enlarged.dims-late[open]),
+.page-dim.dims-late,
+.enlarged.dims-late .view-strip,
+.enlarged.dims-late .side-strip,
+.enlarged.dims-late .upright-hint {
+  transition: --dimming 0.4s ease-out;
 }
 
 html:has(.enlarged[open]) body {
@@ -83,11 +128,27 @@ html:has(.enlarged[open]) #app {
   background: var(--page);
 }
 
-/* Fades in with the view (see @starting-style below); gone at once on closing */
-html:has(.enlarged[open]) body::after {
-  content: '';
+/* The layer that dims the page, which the view puts at the end of the
+   page while it is open (see LargeView.tsx). A real element, with the
+   view's own classes, rather than body::after under html:has() rules,
+   as it was: following --dimming that way, it stayed dark as the page
+   brightened back (.leaving) on an iPhone (iOS 27, November 2026), while
+   the real strips, given the view's classes directly, brightened. Fades
+   in with the view (see @starting-style below); gone at once on
+   closing.
+
+   Below only the card's copy that moves as the phone turns (see
+   EaseNewSize in LargeCard.tsx). Above everything the page keeps over
+   its cards (z-index 1): the
+   page's strip at the top (see .top-strip in App.css) and the card
+   list's and the lesson's bars. Below it, they dim with the page.
+   Above it, they showed undimmed at first, through the view as it
+   faded in: the top of the page lagged behind the status bar, which
+   iOS colors from the view's strip, already dimming with the page. */
+.page-dim {
   position: absolute;
   inset: 0;
+  z-index: 2;
   background: rgb(0 0 0 / 85%);
   pointer-events: none;
   transition: opacity 0.4s ease-out;
@@ -108,7 +169,7 @@ html:has(.enlarged[open]) body::after {
 
 @starting-style {
   .enlarged[open],
-  html:has(.enlarged[open]) body::after {
+  .page-dim {
     opacity: 0;
   }
 
@@ -227,8 +288,12 @@ html:has(.enlarged[open]) body::after {
 
 @media (prefers-reduced-motion: reduce) {
   .enlarged[open],
-  html:has(.enlarged.opened-by-turn[open]),
-  html:has(.enlarged[open]) body::after,
+  html:has(.enlarged.dims-late[open]),
+  .page-dim,
+  .page-dim.dims-late,
+  .enlarged.dims-late .view-strip,
+  .enlarged.dims-late .side-strip,
+  .enlarged.dims-late .upright-hint,
   .enlarged[open] > .zoom-area {
     transition: none;
   }
@@ -311,15 +376,23 @@ html:has(.enlarged[open]) body::after {
   visibility: hidden;
 }
 
-html:has(.enlarged.leaving[open]) body::after {
-  opacity: 0;
-  transition: opacity 0.3s ease-in-out;
+/* All but the view's strip at the top, which brightens with the page:
+   the status bar takes its color from there (see .view-strip in
+   App.css). Hidden at once with the rest, it left the page's own strip
+   there, light, and iOS turned the status bar light over the still dark
+   page. No taps on it: the view is closing. */
+.enlarged.leaving .view-strip {
+  visibility: visible;
+  pointer-events: none;
 }
 
-/* The edges beyond the page too (see above) */
-html:has(.enlarged.leaving[open]) {
-  background: var(--page);
-  transition: background-color 0.3s ease-in-out;
+/* Everything brightens together, as it dimmed (see .dims-late above):
+   the page, the edges beyond it, and the strip at the top */
+html:has(.enlarged.leaving[open]),
+.page-dim.leaving,
+.enlarged.leaving .view-strip {
+  --dimming: 0;
+  transition: --dimming 0.3s ease-in-out;
 }
 
 /* A lesson's sideways answer card, opened by turning the phone (see

@@ -69,10 +69,15 @@ export default function CardList({ selection, listName, cards, progress, onBack 
   const large = useLargeView();
   const [index, setIndex] = useState(0);
   const row = useRef<HTMLDivElement>(null);
+  // Whether the row has begun to grow in, which then dims the page
+  // with it (see .dims-late in LargeView.css). With no motion, it shows
+  // at once.
+  const [arrived, setArrived] = useState(false);
   const openLarge = large.open;
   const open = useCallback(
     (position: number) => {
       setIndex(position);
+      setArrived(matchMedia('(prefers-reduced-motion: reduce)').matches);
       openLarge();
     },
     [openLarge],
@@ -150,13 +155,20 @@ export default function CardList({ selection, listName, cards, progress, onBack 
         <LargeView
           onClose={large.close}
           onMove={move}
+          className={arrived ? 'dims-late arrived' : 'dims-late'}
           hasPrevious={index > 0}
           hasNext={index < cards.length - 1}
         >
           <p className="position" aria-live="polite">
             {index + 1} / {cards.length}
           </p>
-          <CardRow rowRef={row} startAt={index} onSettle={setIndex} count={cards.length}>
+          <CardRow
+            rowRef={row}
+            startAt={index}
+            onSettle={setIndex}
+            onGrowStart={() => setArrived(true)}
+            count={cards.length}
+          >
             {cards.map((card, position) => (
               <div className="card-slide" key={card.oracle_id}>
                 {/* Only the cards near the one in view hold a picture; the
@@ -349,12 +361,15 @@ function CardRow({
   rowRef,
   startAt,
   onSettle,
+  onGrowStart,
   count,
   children,
 }: {
   rowRef: RefObject<HTMLDivElement | null>;
   startAt: number;
   onSettle: (position: number) => void;
+  /** It begins to grow in, as the view opens (card-grow in LargeView.css) */
+  onGrowStart: () => void;
   count: number;
   children: ReactNode;
 }) {
@@ -387,6 +402,10 @@ function CardRow({
     <div
       className="card-row"
       ref={rowRef}
+      onAnimationStart={(event) => {
+        // Not an animation of something inside it, as a card turning over
+        if (event.target === event.currentTarget) onGrowStart();
+      }}
       onScroll={(event) => {
         const element = event.currentTarget;
         // Scrolled by the change of width, not by the player

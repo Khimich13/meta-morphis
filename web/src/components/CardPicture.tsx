@@ -132,7 +132,11 @@ export function TurningLargeView({
       onClose={large.close}
       uprightToClose={turn.followsPhone}
       // For the page's and the view's rules (see Lesson.css and LargeView.css)
-      className={[turn.turnedFrom && 'opened-by-turn', turn.goingBack === 'landed' && 'leaving']
+      className={[
+        turn.turnedFrom && 'opened-by-turn dims-late',
+        turn.arrived && turn.goingBack !== 'landed' && 'arrived',
+        turn.goingBack === 'landed' && 'leaving',
+      ]
         .filter(Boolean)
         .join(' ')}
     >
@@ -227,8 +231,9 @@ export function PlainCardPicture({
  *
  * Gives where the card was when the turn opened the view, if it did, and
  * how turning back closes the view; how far the card is on its way back;
- * how to open the view by tapping, which forgets the turn; and whether
- * the view follows the phone.
+ * whether it has begun to ease into the view, which dims the page; how to
+ * open the view by tapping, which forgets the turn; and whether the view
+ * follows the phone.
  */
 export function useOpenOnTurn(
   enabled: boolean,
@@ -238,11 +243,15 @@ export function useOpenOnTurn(
   turnedFrom: TurnedFrom | undefined;
   turnBack: TurnBack | undefined;
   goingBack: GoingBack;
+  arrived: boolean;
   openByTap: () => void;
   followsPhone: boolean;
 } {
   const [turnedFrom, setTurnedFrom] = useState<TurnedFrom | undefined>(undefined);
   const [goingBack, setGoingBack] = useState<GoingBack>(false);
+  // Whether the card has begun to ease into the view the turn opened,
+  // which dims the page with it (see .arrived in LargeView.css)
+  const [arrived, setArrived] = useState(false);
   // The same every time: the large view keeps the one it opened with
   const turnBack = useMemo<TurnBack>(
     () => ({
@@ -251,6 +260,7 @@ export function useOpenOnTurn(
       // starts out from the view
       onStart: () => flushSync(() => setGoingBack('easing')),
       onDone: () => setGoingBack('landed'),
+      onArrived: () => setArrived(true),
     }),
     [picture],
   );
@@ -294,6 +304,7 @@ export function useOpenOnTurn(
       flushSync(() => {
         setTurnedFrom(from);
         setGoingBack(false);
+        setArrived(false);
         open();
       });
     });
@@ -311,6 +322,7 @@ export function useOpenOnTurn(
     // Only a view the turn opened closes by turning back
     turnBack: turnedFrom === undefined ? undefined : turnBack,
     goingBack,
+    arrived,
     openByTap,
     followsPhone: active,
   };

@@ -44,8 +44,20 @@ html {
 }
 
 .top-strip,
-.view-strip {
+.view-strip,
+.side-strip {
   display: none;
+}
+
+/* How far the page is dimmed under the large view, for the parts that
+   follow it frame by frame (the strips below; and see LargeView.css):
+   from 0, the page's own color, to 1, dimmed. A registered number, so
+   that it can fade. Not inherited: each part fades its own, with the
+   same timing. */
+@property --dimming {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
 }
 
 @media (display-mode: standalone) {
@@ -95,12 +107,14 @@ html {
        whose color iOS takes from there, stayed the page's light color
        above the dimmed view. This one, in the view, has the color the
        page's strip shows through it: the page's color under the 85% black
-       that dims the page (body::after, see LargeView.css), and under the
+       that dims the page (.page-dim, see LargeView.css), and under the
        view's own darkening as the card zooms in (--zoom-fade). It fades in
        with the view, over the page's strip, just as the dimming fades in
        over the rest of the page. Tried on an iPhone with iOS 27, November
        2026, in a test page: the status bar followed with the strip, not
-       without. */
+       without. Around a turn of the phone that opens or closes the view,
+       its own color changes with the page's dimming instead (--dimming,
+       see LargeView.css). */
     .view-strip {
       display: block;
       position: fixed;
@@ -114,9 +128,75 @@ html {
       background: color-mix(
         in srgb,
         #000 calc(var(--zoom-fade, 0) * 100%),
-        color-mix(in srgb, var(--page) 15%, #000)
+        color-mix(in srgb, #000 calc(var(--dimming) * 85%), var(--page))
       );
     }
+
+    /* The large view's strips down the left and right edges, for an
+       iPhone turned sideways. There iOS leaves a plain band beside the
+       notch on each side (see index.html) and colors it the way it
+       colors the status bar: from what is pinned (fixed) at that edge of
+       the screen. The view, see-through and as large as the screen, gave
+       no color of its own, so iOS kept the color the page had as the
+       view opened, and never read it again. For a view that a turn
+       opened, that was the page's light color, before the dimming
+       faded in: a light band on each side of the dimmed view.
+
+       iOS reads a strip's color again each time the strip is drawn, so
+       these fade from the page's color to the dimmed one (--dimming)
+       with the dimming (.page-dim, see LargeView.css), and the bands
+       follow. As .view-strip, they darken further as the card zooms in.
+       iOS passes over strips 10px wide or less, so these are 12px. It
+       finds them even though taps go through them. Hidden while
+       upright, where there are no bands, but they still fade there:
+       the phone may turn later, with the view open.
+
+       As read in WebKit's source (LocalFrameView::fixedContainerEdges),
+       November 2026. */
+    .side-strip {
+      display: block;
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      width: 12px;
+      /* Above the card, as .view-strip */
+      z-index: 1;
+      visibility: hidden;
+      pointer-events: none;
+      background: color-mix(
+        in srgb,
+        #000 calc(var(--zoom-fade, 0) * 100%),
+        color-mix(in srgb, #000 calc(var(--dimming) * 85%), var(--page))
+      );
+      transition: --dimming 0.4s ease-out;
+    }
+
+    .side-strip.left {
+      left: 0;
+    }
+
+    .side-strip.right {
+      right: 0;
+    }
+
+    @media (orientation: landscape) {
+      .side-strip {
+        visibility: inherit;
+      }
+    }
+  }
+}
+
+/* The side strips start from the page's own color as the view opens */
+@starting-style {
+  .side-strip {
+    --dimming: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .side-strip {
+    transition: none;
   }
 }
 
@@ -196,10 +276,10 @@ body {
   pointer-events: none;
 }
 
-/* Hidden behind the large view. Above the cards (z-index), it was above
-   the layer that dims the page too (body::after, see LargeView.css), and
-   showed undimmed behind the close button and the card count. Hidden
-   rather than removed, so the list doesn't shift under the view.
+/* Hidden behind the large view: even dimmed (.page-dim, see
+   LargeView.css), its title showed behind the close button and the card
+   count. Hidden rather than removed, so the list doesn't shift under
+   the view.
 
    It fades out as the view fades in, and is hidden (no taps) once faded.
    Back at once on closing, as the view closes at once: the transition is
