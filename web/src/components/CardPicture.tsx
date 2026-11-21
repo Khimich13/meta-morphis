@@ -130,6 +130,7 @@ export function TurningLargeView({
   return (
     <LargeView
       onClose={large.close}
+      closing={large.closing}
       uprightToClose={turn.followsPhone}
       // For the page's and the view's rules (see Lesson.css and LargeView.css)
       className={[
@@ -238,7 +239,7 @@ export function PlainCardPicture({
 export function useOpenOnTurn(
   enabled: boolean,
   picture: RefObject<HTMLDivElement | null>,
-  { isOpen, open, close }: { isOpen: boolean; open: () => void; close: () => void },
+  { isOpen, open, closeAtOnce }: { isOpen: boolean; open: () => void; closeAtOnce: () => void },
 ): {
   turnedFrom: TurnedFrom | undefined;
   turnBack: TurnBack | undefined;
@@ -269,9 +270,10 @@ export function useOpenOnTurn(
   useEffect(() => {
     if (goingBack !== 'landed' || !isOpen) return;
     const fading = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : FADE_IN_TIME;
-    const timer = setTimeout(close, fading);
+    // At once: the page has already brightened
+    const timer = setTimeout(closeAtOnce, fading);
     return () => clearTimeout(timer);
-  }, [goingBack, isOpen, close]);
+  }, [goingBack, isOpen, closeAtOnce]);
   const active = enabled && matchMedia('(pointer: coarse)').matches;
   const landscape = useLandscape();
   useLandscapeAllowed(active && (!landscape || isOpen));

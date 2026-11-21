@@ -40,6 +40,8 @@ interface LargeViewProps {
   uprightToClose?: boolean;
   /** More classes for the view, for the rules of the page it's on */
   className?: string;
+  /** Fading out as it closes (see useLargeView): no taps meanwhile */
+  closing?: boolean;
 }
 
 export default function LargeView({
@@ -50,7 +52,10 @@ export default function LargeView({
   hasNext,
   uprightToClose = false,
   className,
+  closing = false,
 }: LargeViewProps) {
+  // Also on the layer that dims the page
+  const classes = [className, closing && 'closing'].filter(Boolean).join(' ');
   // Closing by hand is off while sideways, see uprightToClose
   const closeByHand = () => {
     if (!(uprightToClose && isLandscape())) onClose();
@@ -88,7 +93,7 @@ export default function LargeView({
       <dialog
         ref={dialog}
         tabIndex={-1}
-        className={['enlarged', zoomed && 'zoomed', uprightToClose && 'upright-to-close', className]
+        className={['enlarged', zoomed && 'zoomed', uprightToClose && 'upright-to-close', classes]
           .filter(Boolean)
           .join(' ')}
         // Esc: close it the same way as the other ways, through history
@@ -142,7 +147,7 @@ export default function LargeView({
       {/* The layer that dims the page, at the page's end, with the view's
           classes (see .page-dim in LargeView.css) */}
       {createPortal(
-        <div className={['page-dim', className].filter(Boolean).join(' ')} aria-hidden="true" />,
+        <div className={['page-dim', classes].filter(Boolean).join(' ')} aria-hidden="true" />,
         document.body,
       )}
     </>

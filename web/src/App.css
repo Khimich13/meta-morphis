@@ -282,9 +282,10 @@ body {
    the view.
 
    It fades out as the view fades in, and is hidden (no taps) once faded.
-   Back at once on closing, as the view closes at once: the transition is
-   only here, so leaving this rule has none. */
-html:has(.enlarged[open]) .card-list-bar {
+   Back at once as the view starts closing, under the page's dimming,
+   brightening with the page: the transition is only here, so leaving
+   this rule has none. */
+html:has(.enlarged[open]:not(.closing)) .card-list-bar {
   opacity: 0;
   visibility: hidden;
   transition:
@@ -293,7 +294,7 @@ html:has(.enlarged[open]) .card-list-bar {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html:has(.enlarged[open]) .card-list-bar {
+  html:has(.enlarged[open]:not(.closing)) .card-list-bar {
     transition: none;
   }
 }

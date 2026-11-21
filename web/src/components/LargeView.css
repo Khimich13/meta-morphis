@@ -62,7 +62,8 @@
 }
 
 html:has(.enlarged[open]) {
-  background: color-mix(in srgb, #000 85%, var(--page));
+  --dimming: 1;
+  background: color-mix(in srgb, #000 calc(var(--dimming) * 85%), var(--page));
 }
 
 /* Opened by turning the phone (see useOpenOnTurn in CardPicture.tsx),
@@ -88,10 +89,7 @@ html {
   --dimming: 0;
 }
 
-html:has(.enlarged.dims-late[open]) {
-  background: color-mix(in srgb, #000 calc(var(--dimming) * 85%), var(--page));
-}
-
+html:has(.enlarged.dims-late[open]),
 .page-dim.dims-late,
 .enlarged.dims-late .view-strip,
 .enlarged.dims-late .side-strip,
@@ -393,6 +391,36 @@ html:has(.enlarged.leaving[open]),
 .enlarged.leaving .view-strip {
   --dimming: 0;
   transition: --dimming 0.3s ease-in-out;
+}
+
+/* Closing by hand (see useLargeView in largeView.ts): the opening
+   reversed. The view fades out as its card shrinks back to 90%, while
+   the page, the edges beyond it and the view's strips brighten together
+   (see .dims-late above). No taps meanwhile: the view is closing. Not
+   for a view that the phone's turn closes, which has brightened the
+   page already (.leaving). */
+.enlarged.closing[open] {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.enlarged.closing[open] > .zoom-area,
+.enlarged.closing .card-row {
+  transform: scale(0.9);
+  transition: transform 0.3s ease-in-out;
+}
+
+html:has(.enlarged.closing[open]),
+.page-dim.closing,
+.enlarged.closing .view-strip,
+.enlarged.closing .side-strip {
+  --dimming: 0;
+  transition: --dimming 0.3s ease-in-out;
+}
+
+.page-dim.closing {
+  opacity: var(--dimming);
 }
 
 /* A lesson's sideways answer card, opened by turning the phone (see

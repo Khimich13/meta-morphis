@@ -113,14 +113,16 @@ export default function CardList({ selection, listName, cards, progress, onBack 
   usePinchColumns(grid, columns, chooseColumns, open);
 
   // Closing the large view: the list shows the card last looked at
-  // there, which may be far from the one opened
+  // there, which may be far from the one opened. As it starts to close,
+  // so the list is in place as the view fades out.
+  const shown = large.isOpen && !large.closing;
   const wasOpen = useRef(false);
   useEffect(() => {
-    if (wasOpen.current && !large.isOpen && grid.current !== null) {
+    if (wasOpen.current && !shown && grid.current !== null) {
       showInList(grid.current, index);
     }
-    wasOpen.current = large.isOpen;
-  }, [large.isOpen, index]);
+    wasOpen.current = shown;
+  }, [shown, index]);
 
   // The arrow keys and the buttons for a mouse: scroll to the neighbor
   function move(direction: Direction) {
@@ -154,6 +156,7 @@ export default function CardList({ selection, listName, cards, progress, onBack 
       {large.isOpen && (
         <LargeView
           onClose={large.close}
+          closing={large.closing}
           onMove={move}
           className={arrived ? 'dims-late arrived' : 'dims-late'}
           hasPrevious={index > 0}

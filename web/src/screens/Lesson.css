@@ -302,8 +302,10 @@
 
 /* Behind any large view: the lesson's top bar, hidden too. The view's
    own ✕ is at the top right, right over the bar's card number, and the
-   bar's ✕ and number showed through the dimming around it. */
-.lesson:has(.enlarged[open]:not(.leaving)) > .lesson-bar {
+   bar's ✕ and number showed through the dimming around it. Back as the
+   page brightens: the view closing (.closing), or its card back in its
+   place (.leaving). */
+.lesson:has(.enlarged[open]:not(.leaving, .closing)) > .lesson-bar {
   visibility: hidden;
 }
 
