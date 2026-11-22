@@ -74,6 +74,22 @@ what has been done is in the commit history.
   title bar is measured. The cost is covered a little wider than
   measured, and the 1997 frame's symbols were measured again for it:
   see COST_AREAS in `export.py`.
+- **A creature can be asked its power and toughness too,** the same
+  way: as often as each of the other kinds, sharing the card's one
+  level, its full picture with the two painted over in their box at the
+  bottom right, and four answers to choose from. The answers are the
+  corners of a square: the card's own, the power one more or one less,
+  the toughness one more or one less, and both - a 2/2 offers 2/2, 3/2,
+  2/3 and 3/3, or another square around it. Each shares a number with
+  two others, so none stands out; answers all around the card's own
+  would give it away as the one in the middle. Never below 0, and a
+  toughness of 0 only on a card that has it. Asked for now only of a
+  card with one side, or an adventure's or prepare card's main part, in
+  the modern or 2003 frame, whose box was measured (see
+  POWER_TOUGHNESS_BOXES in `export.py`), and only when both are whole
+  numbers - not Tarmogoyf's */1+*. The older frames print them on the
+  frame itself, with no box to paint them over with. A spacecraft
+  prints them in its text box, and isn't asked.
 - **A double-faced card is asked by either side,** half the time each:
   by its back's artwork, as by its front's, and a transform or modal
   double-faced card's by its back's full picture too. The answers name

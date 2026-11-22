@@ -81,6 +81,15 @@ export interface CostPart {
   box: [number, number, number, number];
 }
 
+/** A card's power and toughness, for the question about them */
+export interface PowerToughness {
+  /** As printed, always whole numbers: "2" and "3" on a 2/3 */
+  power: string;
+  toughness: string;
+  /** Where they sit in the box at the bottom right of the front picture, like name_box */
+  box: [number, number, number, number];
+}
+
 export interface Card {
   oracle_id: string;
   name: string;
@@ -165,6 +174,13 @@ export interface Card {
    * files written before it was added.
    */
   cost?: CostPart | null;
+  /**
+   * The power and toughness, which a question may cover on the full card
+   * to ask what they are: only on a card with one side whose box for
+   * them is measured, and only when both are whole numbers. Null on
+   * every other card, missing in files written before it was added.
+   */
+  power_toughness?: PowerToughness | null;
 }
 
 export interface CardFile {

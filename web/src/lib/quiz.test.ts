@@ -139,6 +139,69 @@ test('a question about the cost offers its cost and three near ones', () => {
   }
 });
 
+function creature(power: string, toughness: string): Card {
+  return {
+    ...COSTED,
+    power_toughness: { power, toughness, box: [0.8, 0.9, 0.118, 0.0368] },
+  };
+}
+
+function askPowerToughness(card: Card, seed: number) {
+  return makeQuestion(card, CARDS, seeded(seed), {
+    kind: 'powerToughness',
+    back: false,
+    spell: false,
+    half: null,
+  });
+}
+
+test('a card whose power and toughness can be hidden is asked about them too', () => {
+  const card = creature('2', '2');
+  const kinds = new Set(SEEDS.map((seed) => makeQuestion(card, CARDS, seeded(seed)).kind));
+  expect(kinds).toEqual(new Set(['artwork', 'picture', 'cost', 'powerToughness']));
+});
+
+test('a question about the power and toughness offers the corners of a square', () => {
+  const squares = new Set<string>();
+  for (const seed of SEEDS) {
+    const card = creature('2', '2');
+    const question = askPowerToughness(card, seed);
+    const answers = question.options.map((option) => option.name);
+    expect(answers).toHaveLength(OPTION_COUNT);
+    expect(answers).toContain('2/2');
+    // One power and one toughness next to the card's own, every pairing
+    const powers = [...new Set(answers.map((answer) => answer.split('/')[0]))].sort();
+    const toughnesses = [...new Set(answers.map((answer) => answer.split('/')[1]))].sort();
+    expect([
+      ['1', '2'],
+      ['2', '3'],
+    ]).toContainEqual(powers);
+    expect([
+      ['1', '2'],
+      ['2', '3'],
+    ]).toContainEqual(toughnesses);
+    expect(new Set(answers).size).toBe(OPTION_COUNT);
+    squares.add([...answers].sort().join(' '));
+    // Every answer is the card itself: only the numbers are right or wrong
+    const right = question.options.filter((option) => isCorrect(question, option));
+    expect(right.map((option) => option.name)).toEqual(['2/2']);
+    for (const option of question.options) expect(option.card).toBe(card);
+  }
+  // Each of the four squares around it
+  expect(squares.size).toBe(4);
+});
+
+test('the power and toughness offered never go below 0, nor toughness to 0 on a card without it', () => {
+  for (const seed of SEEDS) {
+    const birds = askPowerToughness(creature('0', '1'), seed).options.map((option) => option.name);
+    expect(birds.sort()).toEqual(['0/1', '0/2', '1/1', '1/2']);
+    const ballista = askPowerToughness(creature('0', '0'), seed).options.map(
+      (option) => option.name,
+    );
+    expect(ballista.sort()).toEqual(['0/0', '0/1', '1/0', '1/1']);
+  }
+});
+
 function doubleFaced(n: number): Card {
   return {
     ...card(n),

@@ -39,6 +39,7 @@ import {
   isFirstTry,
   type Option,
   type Question,
+  type QuestionKind,
   type Segment,
   segments,
   startLesson,
@@ -229,7 +230,9 @@ export default function Lesson({
                   ? `Name the ${partType(card, question.back, question.spell, question.half)}`
                   : question.kind === 'cost'
                     ? 'Name the cost'
-                    : 'What is this art from?'}
+                    : question.kind === 'powerToughness'
+                      ? 'Power and toughness?'
+                      : 'What is this art from?'}
               </h2>
               <QuestionLabel repeat={repeat} standing={cardStanding(record)} />
             </div>
@@ -240,7 +243,7 @@ export default function Lesson({
                 back={question.back}
                 spell={question.spell}
                 half={question.half}
-                cost={question.kind === 'cost'}
+                kind={question.kind}
               />
             ) : (
               /* A figure ties the credit to the artwork, for screen readers too */
@@ -272,7 +275,7 @@ export default function Lesson({
       ) : (
         <>
           {/* After a question about the full card, the covered card turns
-              into this one (see Lesson.css), uncovering the name or cost */}
+              into this one (see Lesson.css), uncovering what it asked for */}
           <div
             ref={pictureBox}
             className={question.kind !== 'artwork' ? 'picture after-picture' : 'picture'}
@@ -351,7 +354,7 @@ function OptionButton({ children, onPick }: { children: ReactNode; onPick: () =>
   );
 }
 
-/** What an answer shows: a card's name, or a cost's symbols */
+/** What an answer shows: a card's name, a cost's symbols, or a power and toughness */
 function AnswerLabel({ question, option }: { question: Question; option: Option }) {
   return question.kind === 'cost' ? <ManaCost cost={option.name} /> : option.name;
 }
@@ -444,8 +447,9 @@ function Artwork({
  * card's back, with its own name hidden, and `spell` the card with its
  * spell's name hidden instead of its own, and `half` a split card with
  * that half's name hidden. A name printed sideways is painted along its
- * own line, as it reads. `cost` paints over the mana cost in the title
- * bar instead, the same way, and leaves the name in sight.
+ * own line, as it reads. `kind` "cost" paints over the mana cost in the
+ * title bar instead, the same way, and "powerToughness" the power and
+ * toughness in their box, both leaving the name in sight.
  *
  * A card printed sideways opens in the large view when the phone turns
  * sideways, the right way up and its name still hidden, as the answer
@@ -456,14 +460,17 @@ function NameHidden({
   back,
   spell,
   half,
-  cost,
+  kind,
 }: {
   card: Card;
   back: boolean;
   spell: boolean;
   half: number | null;
-  /** Covers the mana cost instead of the name, for a question about it */
-  cost: boolean;
+  /**
+   * What the question asks for, which is covered: the name ("picture"),
+   * the mana cost, or the power and toughness
+   */
+  kind: Exclude<QuestionKind, 'artwork'>;
 }) {
   const side =
     half !== null && card.halves
@@ -474,12 +481,14 @@ function NameHidden({
           ? card.back
           : card;
   const boxes =
-    cost && card.cost
+    kind === 'cost' && card.cost
       ? [card.cost.box]
-      : [
-          side.name_box ?? [0, 0, 0, 0],
-          ...(('name_text_boxes' in side && side.name_text_boxes) || []),
-        ];
+      : kind === 'powerToughness' && card.power_toughness
+        ? [card.power_toughness.box]
+        : [
+            side.name_box ?? [0, 0, 0, 0],
+            ...(('name_text_boxes' in side && side.name_text_boxes) || []),
+          ];
   const sideways = isHorizontal(card, back);
   const picture = useRef<HTMLImageElement>(null);
   const cardBox = useRef<HTMLDivElement>(null);
@@ -522,7 +531,7 @@ function NameHidden({
       const pixels = context.getImageData(0, 0, around.width, around.height).data;
       // A mana cost ends where the title bar does
       const filled = new ImageData(
-        fillName(pixels, around.width, reach, Math.random, cost),
+        fillName(pixels, around.width, reach, Math.random, kind === 'cost'),
         along,
         crosswise,
       );
@@ -576,7 +585,13 @@ function NameHidden({
           ref={picture}
           className="card-side"
           src={card.images[back ? 1 : 0]}
-          alt={cost ? 'Card with its mana cost hidden' : 'Card with its name hidden'}
+          alt={
+            kind === 'cost'
+              ? 'Card with its mana cost hidden'
+              : kind === 'powerToughness'
+                ? 'Card with its power and toughness hidden'
+                : 'Card with its name hidden'
+          }
           crossOrigin="anonymous"
           onLoad={paint}
         />

@@ -2,7 +2,7 @@
 // question offers, and whether an answer is right. No React in here,
 // so it can be tested without a browser.
 
-import { type Card, partName, partType } from './cards';
+import { type Card, partName, partType, type PowerToughness } from './cards';
 import { nearCosts } from './manaCost';
 import { isDue, type Progress } from './progress';
 
@@ -19,8 +19,10 @@ export const NEW_PER_LESSON = 3;
  *             or a split card's half's (see half)
  *   cost    - the full card with its mana cost covered (see cost in
  *             cards.ts), asking what it costs
+ *   powerToughness - the full card with its power and toughness covered
+ *             (see power_toughness in cards.ts), asking what they are
  */
-export type QuestionKind = 'artwork' | 'picture' | 'cost';
+export type QuestionKind = 'artwork' | 'picture' | 'cost' | 'powerToughness';
 
 /** An answer to choose from */
 export interface Option {
@@ -31,7 +33,8 @@ export interface Option {
    * answer - so a back side's name never tells the answer apart. The
    * same for a card with a spell: its spell's name or its main part's,
    * and a split card: one half's. For a question about the cost, a cost
-   * as Scryfall writes it, "{1}{U}{U}", and `card` is the card asked
+   * as Scryfall writes it, "{1}{U}{U}", and for one about the power and
+   * toughness, both as printed, "2/3": then `card` is the card asked
    * about on every answer.
    */
   name: string;
@@ -83,7 +86,8 @@ export function shuffle<T>(items: readonly T[], random: Random = Math.random): T
  * cards being learned, then from each of `moreCards` in turn: the
  * format's other cards, then every format's. Only when all of those run
  * out of that type do cards of other types fill in. A question about the
- * cost offers costs instead (see costOptions).
+ * cost offers costs instead (see costOptions), and one about the power
+ * and toughness offers those (see powerToughnessOptions).
  */
 export function makeQuestion(
   card: Card,
@@ -95,8 +99,9 @@ export function makeQuestion(
   // Either side, half the time each, for a card with a back to ask about,
   // either part, for a card with a spell whose name can be hidden, and
   // either half of a split card. Any kind it can be asked by, as often
-  // each: by the picture on a side or half whose name can be hidden, and
-  // by its cost on a card whose cost can be - a spell only by the
+  // each: by the picture on a side or half whose name can be hidden, by
+  // its cost on a card whose cost can be, and by its power and toughness
+  // on a card whose power and toughness can be - a spell only by the
   // picture: the artwork is the main part's.
   const back = same?.back ?? (card.back ? random() < 0.5 : false);
   const spell = same?.spell ?? (card.spell?.name_box ? random() < 0.5 : false);
@@ -113,6 +118,7 @@ export function makeQuestion(
         ...(nameBox ? ['picture' as const] : []),
         'artwork',
         ...(card.cost ? ['cost' as const] : []),
+        ...(card.power_toughness ? ['powerToughness' as const] : []),
       ];
   const kind =
     same?.kind ?? (kinds.length > 1 ? kinds[Math.floor(random() * kinds.length)] : kinds[0]);
@@ -124,6 +130,16 @@ export function makeQuestion(
       spell,
       half,
       options: costOptions(card, card.cost.mana_cost, random),
+    };
+  }
+  if (kind === 'powerToughness' && card.power_toughness) {
+    return {
+      card,
+      kind,
+      back,
+      spell,
+      half,
+      options: powerToughnessOptions(card, card.power_toughness, random),
     };
   }
   const right = { card, name: partName(card, back, spell, half) };
@@ -181,6 +197,33 @@ function costOptions(card: Card, cost: string, random: Random): Option[] {
     .flatMap((step) => shuffle(step, random))
     .slice(0, OPTION_COUNT - 1);
   return shuffle([cost, ...wrong], random).map((name) => ({ card, name }));
+}
+
+/**
+ * The answers to a question about the card's power and toughness, in
+ * the order shown: the four corners of a square, its own one of them -
+ * with the power one more or one less, the toughness one more or one
+ * less, and both. A 2/2 offers 2/2, 3/2, 2/3 and 3/3, or 1/2, 2/2, 1/3
+ * and 2/3, and so on. Each answer shares a number with two others, so
+ * none stands out; answers all around the card's own (2/2 among 1/2,
+ * 3/2 and 2/3) would give it away as the one in the middle. Never below
+ * 0, and a toughness of 0 only on a card that has it.
+ */
+function powerToughnessOptions(
+  card: Card,
+  { power, toughness }: PowerToughness,
+  random: Random,
+): Option[] {
+  const [p, t] = [Number(power), Number(toughness)];
+  const powers = [p, p === 0 || random() < 0.5 ? p + 1 : p - 1];
+  const toughnesses = [t, t <= 1 || random() < 0.5 ? t + 1 : t - 1];
+  const square = powers.flatMap((a) => toughnesses.map((b) => `${a}/${b}`));
+  return shuffle(square, random).map((name) => ({ card, name }));
+}
+
+/** Power and toughness as cards print them: "2/3" */
+function printedPowerToughness({ power, toughness }: PowerToughness): string {
+  return `${power}/${toughness}`;
 }
 
 /** Either half of a split card, half the time each */
@@ -254,9 +297,16 @@ export function chooseLessonCards(
   return shuffle(chosen, random);
 }
 
-/** The card itself was picked - or, for a question about the cost, its cost */
+/**
+ * The card itself was picked - or, for a question about the cost, its
+ * cost, and about the power and toughness, its own
+ */
 export function isCorrect(question: Question, picked: Option): boolean {
-  if (question.kind === 'cost') return picked.name === question.card.cost?.mana_cost;
+  const { cost, power_toughness: powerToughness } = question.card;
+  if (question.kind === 'cost') return picked.name === cost?.mana_cost;
+  if (question.kind === 'powerToughness') {
+    return !!powerToughness && picked.name === printedPowerToughness(powerToughness);
+  }
   return picked.card.oracle_id === question.card.oracle_id;
 }
 

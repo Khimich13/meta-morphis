@@ -179,7 +179,8 @@
 
 /* The full card is upright: as wide as fits in the height left */
 .picture-question .question-line,
-.cost-question .question-line {
+.cost-question .question-line,
+.powerToughness-question .question-line {
   width: min(100cqw, (100cqh - var(--line) - 8px) * 488 / 680);
 }
 
@@ -233,9 +234,10 @@
   border-radius: 5px;
 }
 
-/* A picture question's card with its name covered, or a cost
-   question's with its cost (NameHidden in Lesson.tsx): as large as fits
-   in the space left, at the top, like the full card after answering. */
+/* A picture question's card with its name covered, a cost question's
+   with its cost, or a power and toughness question's with those
+   (NameHidden in Lesson.tsx): as large as fits in the space left, at
+   the top, like the full card after answering. */
 .name-hidden {
   flex: 1;
   min-height: 160px;

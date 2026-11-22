@@ -28,6 +28,7 @@ from meta_morphis.export import (
     is_basic_land,
     main_type,
     name_boxes,
+    power_toughness,
     read_new_pictures,
     report_left_out,
     shown_name,
@@ -95,6 +96,7 @@ def test_build_card_single_faced() -> None:
         "halves": None,
         "type": "instant",
         "cost": None,
+        "power_toughness": None,
     }
     assert build_card(card) == expected
 
@@ -912,6 +914,72 @@ def test_no_cost_without_one_or_with_more_than_one_or_in_a_frame_not_measured() 
         assert cost_part(card) is None, card.name
 
 
+def _creature(name: str, power: str, toughness: str, **extra: Any) -> Card:
+    return Card.from_raw(
+        _raw(
+            name,
+            type_line="Creature — Bird Horror",
+            power=power,
+            toughness=toughness,
+            **extra,
+        )
+    )
+
+
+def test_power_and_toughness_in_their_frames_box() -> None:
+    strix = _creature("Baleful Strix", "1", "1")
+    assert power_toughness(strix) == {
+        "power": "1",
+        "toughness": "1",
+        "box": [0.8, 0.9, 0.118, 0.0368],
+    }
+    mongrel = _creature("Wild Mongrel", "2", "2", frame="2003")
+    assert power_toughness(mongrel) == {
+        "power": "2",
+        "toughness": "2",
+        "box": [0.765, 0.902, 0.138, 0.036],
+    }
+
+
+def test_an_adventures_power_and_toughness_are_its_main_parts() -> None:
+    giant = Card.from_raw(
+        _raw(
+            "Bonecrusher Giant // Stomp",
+            layout="adventure",
+            card_faces=[
+                {
+                    "name": "Bonecrusher Giant",
+                    "type_line": "Creature — Giant",
+                    "power": "4",
+                    "toughness": "3",
+                },
+                {"name": "Stomp", "type_line": "Instant — Adventure"},
+            ],
+        )
+    )
+    built = power_toughness(giant)
+    assert built is not None
+    assert (built["power"], built["toughness"]) == ("4", "3")
+
+
+def test_no_power_and_toughness_asked_unless_whole_numbers_in_a_measured_box() -> None:
+    goyf = _creature("Tarmogoyf", "*", "1+*")
+    rumbler = _creature("Char-Rumbler", "-1", "3")
+    old = _creature("Hypnotic Specter", "2", "2", frame="1997")
+    spacecraft = Card.from_raw(
+        _raw(
+            "Uthros Scanship",
+            type_line="Artifact — Spacecraft",
+            power="4",
+            toughness="4",
+        )
+    )
+    transform = _double_faced("transform", {"power": "3", "toughness": "2"})
+    instant = _english("Counterspell")
+    for card in [goyf, rumbler, old, spacecraft, transform, instant]:
+        assert power_toughness(card) is None, card.name
+
+
 def test_horizontal_sides() -> None:
     upright = Card.from_raw(_raw("Counterspell"))
     split = Card.from_raw(_raw("Wear // Tear", layout="split", keywords=["Fuse"]))
@@ -1163,6 +1231,7 @@ def test_export_format_writes_the_file(
                 "halves": None,
                 "type": "card",
                 "cost": None,
+                "power_toughness": None,
             }
         ],
     }

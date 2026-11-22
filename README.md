@@ -6,9 +6,10 @@ in short quiz lessons.
 Pick a format (Pauper, Premodern, Pioneer, Standard or Modern) and a list
 (all its most played cards, or just its creatures, spells or lands). Each
 question shows a card's artwork, or the whole card with its name covered,
-and asks which card it is - or the whole card with its mana cost covered,
-and asks what it costs. Cards you miss come back sooner, and cards you
-know come back later, so lessons spend their time where it's needed.
+and asks which card it is - or the whole card with its mana cost, or a
+creature's power and toughness, covered, and asks what they are. Cards
+you miss come back sooner, and cards you know come back later, so
+lessons spend their time where it's needed.
 
 It runs in the browser on phones and computers, installs to the home screen
 like an app, and works offline once a list has been opened.

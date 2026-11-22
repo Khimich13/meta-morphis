@@ -101,6 +101,17 @@ class CostPart(TypedDict):
     box: list[float]
 
 
+class PowerToughness(TypedDict):
+    # As printed, always whole numbers (see power_toughness): "2" and "3"
+    # on a 2/3
+    power: str
+    toughness: str
+    # Where they sit in the box at the bottom right of the front picture,
+    # as [left, top, width, height]: the app paints over them to ask
+    # what they are
+    box: list[float]
+
+
 class SplitHalf(TypedDict):
     # The half's name: Wear on Wear // Tear
     name: str
@@ -177,6 +188,9 @@ class ExportCard(TypedDict):
     # The mana cost, for the question about it (see cost_part). None for
     # a card not asked about its cost.
     cost: CostPart | None
+    # The power and toughness, for the question about them (see
+    # power_toughness). None for a card not asked about them.
+    power_toughness: PowerToughness | None
 
 
 class FormatsFile(TypedDict):
@@ -696,6 +710,45 @@ def cost_part(card: Card) -> CostPart | None:
     return {"mana_cost": card.mana_cost, "box": [round(value, 4) for value in box]}
 
 
+# Where the power and toughness sit in the box at the bottom right of
+# each kind of card front, as shares of the card's width and height:
+# left, top, width, height. Inside the box's light middle, which the app
+# paints over them with, and wide enough for two digits on each side
+# (Emrakul, the Promised End's 13/13). Chosen on 2026-11-22 by painting
+# over them on the 202 cards in these frames on the lists then and 192
+# more drawn at random from every card: the box sits up to 0.003 higher
+# or lower from one scan to the next. The older frames print them on
+# the frame itself, with no box around them, and aren't measured.
+POWER_TOUGHNESS_BOXES = {
+    "2003": (0.765, 0.902, 0.138, 0.036),
+    "2015": (0.8, 0.9, 0.118, 0.0368),
+}
+# Layouts with one side and one power and toughness, in that box: an
+# adventure's or prepare card's are its main part's
+POWER_TOUGHNESS_LAYOUTS = {"normal", "adventure", "prepare"}
+WHOLE_NUMBER = re.compile(r"[0-9]+")
+
+
+def power_toughness(card: Card) -> PowerToughness | None:
+    """The card's power and toughness, and where they sit, for the
+    question about them: asked only of a card with one side (see
+    POWER_TOUGHNESS_LAYOUTS) in a frame whose box is measured, and only
+    when both are whole numbers - not Tarmogoyf's */1+*. None for any
+    other card, and for a spacecraft, which prints them in its text box
+    beside a station ability."""
+    box = POWER_TOUGHNESS_BOXES.get(card.frame or "")
+    faces = card.gameplay_faces()
+    if box is None or card.layout not in POWER_TOUGHNESS_LAYOUTS or not faces:
+        return None
+    front = faces[0]
+    if "Spacecraft" in front.type_line:
+        return None
+    power, toughness = front.power or "", front.toughness or ""
+    if not (WHOLE_NUMBER.fullmatch(power) and WHOLE_NUMBER.fullmatch(toughness)):
+        return None
+    return {"power": power, "toughness": toughness, "box": list(box)}
+
+
 def horizontal_sides(card: Card) -> list[bool]:
     """Which sides are printed sideways: both halves of a split card
     (Fire // Ice, the Rooms), and a battle's front. An aftermath card is
@@ -813,6 +866,7 @@ def build_card(card: Card, read_text: ReadText = never_read) -> ExportCard | Non
         "halves": split_halves(card),
         "type": front_type(card),
         "cost": cost_part(card),
+        "power_toughness": power_toughness(card),
     }
 
 
