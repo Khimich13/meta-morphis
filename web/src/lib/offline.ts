@@ -1,24 +1,38 @@
-// Saves every card picture of the chosen list on the device, so
-// lessons work without a connection. Pictures of other formats' cards
-// are deleted, but those of the format's other lists stay, so switching
-// lists offline still shows them.
+// Saves every card picture of the chosen list on the device, and the
+// mana symbols its questions show, so lessons work without a
+// connection. Pictures of other formats' cards are deleted, but those
+// of the format's other lists stay, so switching lists offline still
+// shows them.
 // The service worker (set up in vite.config.ts) serves pictures from
 // this same cache.
 
 import { type ArtFrom, type Card, loadCards } from './cards';
 import { type FormatsFile, listFile, listsOf, loadFormats } from './formats';
+import { nearCosts, symbols, symbolUrl } from './manaCost';
+import { OPTION_COUNT } from './quiz';
 
 /** Must match the cacheName for card pictures in vite.config.ts */
 export const PICTURE_CACHE = 'card-pictures';
 
-/** Every picture the app can show for these cards, each listed once */
+/**
+ * Every picture the app can show for these cards, each listed once: the
+ * mana symbols of every answer a question about a card's cost can offer
+ * too
+ */
 export function pictureUrls(cards: readonly Card[]): string[] {
   const urls = cards.flatMap((card) => [
     ...card.images,
     ...artworkUrls(card),
     ...(card.back ? artworkUrls(card.back) : []),
+    ...(card.cost ? symbolUrls(card.cost.mana_cost) : []),
   ]);
   return [...new Set(urls)];
+}
+
+/** The symbols of a cost and of every wrong cost near it (see costOptions in quiz.ts) */
+function symbolUrls(cost: string): string[] {
+  const costs = [cost, ...nearCosts(cost, OPTION_COUNT - 1).flat()];
+  return costs.flatMap(symbols).map(symbolUrl);
 }
 
 /** A side's artwork, and the picture the app cuts it from, if any */

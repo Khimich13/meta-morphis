@@ -54,6 +54,12 @@ export function fillName(
   aroundWidth: number,
   reach: number,
   random: Random = Math.random,
+  /**
+   * The area ends where the title bar does, as a mana cost does: its
+   * right side then takes the colors of its left, not those past the
+   * bar's end - a title bar is about the same color all along
+   */
+  atBarEnd = false,
 ): Uint8ClampedArray<ArrayBuffer> {
   const width = aroundWidth - 2 * reach;
   const height = around.length / 4 / aroundWidth - 2;
@@ -82,7 +88,7 @@ export function fillName(
       ),
     );
   const left = side(reach - 1, -1);
-  const right = side(reach + width, 1);
+  const right = atBarEnd ? left : side(reach + width, 1);
 
   // How grainy the bar is: how far its pixels just above and below the
   // area stray, on average, from the smoothed colors there - leaving out

@@ -19,6 +19,7 @@ from meta_morphis.export import (
     build_card,
     build_every_card,
     build_export,
+    cost_part,
     export_all,
     export_every_card,
     export_format,
@@ -93,6 +94,7 @@ def test_build_card_single_faced() -> None:
         "spell": None,
         "halves": None,
         "type": "instant",
+        "cost": None,
     }
     assert build_card(card) == expected
 
@@ -846,6 +848,70 @@ def test_no_name_box_for_more_than_one_name_another_language_or_frame() -> None:
     assert title_name_box(future) is None
 
 
+def test_the_cost_box_runs_from_its_first_symbol_to_the_bars_end() -> None:
+    # Three symbols of 0.0515 before 0.928, 0.01 more on the left for the
+    # shadow and 0.004 on the right for the rim
+    card = _english("Lórien Revealed", mana_cost="{3}{U}{U}")
+    assert cost_part(card) == {
+        "mana_cost": "{3}{U}{U}",
+        "box": [0.7635, 0.052, 0.1685, 0.051],
+    }
+
+
+def test_a_planeswalkers_cost_box_is_higher_and_thinner() -> None:
+    # Three symbols of 0.0485 before 0.921, and the same room around
+    walker = Card.from_raw(
+        _raw(
+            "Teferi, Time Raveler",
+            mana_cost="{1}{W}{U}",
+            type_line="Legendary Planeswalker — Teferi",
+        )
+    )
+    assert cost_part(walker) == {
+        "mana_cost": "{1}{W}{U}",
+        "box": [0.7655, 0.042, 0.1595, 0.04],
+    }
+
+
+def test_a_cost_of_zero_is_asked_about() -> None:
+    ornithopter = _english("Ornithopter", mana_cost="{0}")
+    assert cost_part(ornithopter) == {
+        "mana_cost": "{0}",
+        "box": [0.8665, 0.052, 0.0655, 0.051],
+    }
+
+
+def test_the_1997_frames_cost_has_its_own_measures() -> None:
+    # Three symbols of 0.052 before 0.926 - not the name's 0.046 and 0.918
+    card = _english("Hypnotic Specter", mana_cost="{1}{B}{B}", frame="1997")
+    assert cost_part(card) == {
+        "mana_cost": "{1}{B}{B}",
+        "box": [0.76, 0.048, 0.17, 0.046],
+    }
+    assert title_name_box(card) == [0.085, 0.048, 0.675, 0.046]
+
+
+def test_no_cost_without_one_or_with_more_than_one_or_in_a_frame_not_measured() -> None:
+    land = _english("Ice Tunnel")
+    adventure = _english(
+        "Bonecrusher Giant // Stomp", mana_cost="{2}{R}", layout="adventure"
+    )
+    transform = _english(
+        "Delver of Secrets // Insectile Aberration", mana_cost="{U}", layout="transform"
+    )
+    future = _english("Future Card", mana_cost="{U}", frame="future")
+    old_walker = Card.from_raw(
+        _raw(
+            "Garruk Wildspeaker",
+            mana_cost="{2}{G}{G}",
+            frame="2003",
+            type_line="Legendary Planeswalker — Garruk",
+        )
+    )
+    for card in [land, adventure, transform, future, old_walker]:
+        assert cost_part(card) is None, card.name
+
+
 def test_horizontal_sides() -> None:
     upright = Card.from_raw(_raw("Counterspell"))
     split = Card.from_raw(_raw("Wear // Tear", layout="split", keywords=["Fuse"]))
@@ -1096,6 +1162,7 @@ def test_export_format_writes_the_file(
                 "spell": None,
                 "halves": None,
                 "type": "card",
+                "cost": None,
             }
         ],
     }

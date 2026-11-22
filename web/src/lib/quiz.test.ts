@@ -62,7 +62,7 @@ test('a question has four different options and exactly one is correct', () => {
     expect(question.options).toHaveLength(OPTION_COUNT);
     const ids = question.options.map((option) => option.card.oracle_id);
     expect(new Set(ids).size).toBe(OPTION_COUNT);
-    const correct = question.options.filter((option) => isCorrect(question, option.card));
+    const correct = question.options.filter((option) => isCorrect(question, option));
     expect(correct.map((option) => option.card)).toEqual([question.card]);
     // A card with one side is named in full
     for (const option of question.options) expect(option.name).toBe(option.card.name);
@@ -92,6 +92,51 @@ test('a card whose name can be hidden is asked both ways', () => {
 test('a card whose name can not be hidden is asked by its artwork only', () => {
   const kinds = new Set(SEEDS.map((seed) => makeQuestion(CARDS[0], CARDS, seeded(seed)).kind));
   expect(kinds).toEqual(new Set(['artwork']));
+});
+
+const COSTED: Card = {
+  ...CARDS[0],
+  name_box: [0.06, 0.045, 0.88, 0.058],
+  cost: { mana_cost: '{1}{U}{U}', box: [0.75, 0.052, 0.18, 0.051] },
+};
+
+test('a card whose cost can be hidden is asked about it too', () => {
+  const kinds = new Set(SEEDS.map((seed) => makeQuestion(COSTED, CARDS, seeded(seed)).kind));
+  expect(kinds).toEqual(new Set(['artwork', 'picture', 'cost']));
+  // Without a name box, by its artwork or its cost
+  const unnamed = { ...COSTED, name_box: null };
+  const others = new Set(SEEDS.map((seed) => makeQuestion(unnamed, CARDS, seeded(seed)).kind));
+  expect(others).toEqual(new Set(['artwork', 'cost']));
+});
+
+test('a question about the cost offers its cost and three near ones', () => {
+  for (const seed of SEEDS) {
+    const question = makeQuestion(COSTED, CARDS, seeded(seed), {
+      kind: 'cost',
+      back: false,
+      spell: false,
+      half: null,
+    });
+    const costs = question.options.map((option) => option.name);
+    expect(new Set(costs).size).toBe(OPTION_COUNT);
+    expect(costs).toContain('{1}{U}{U}');
+    // One change away, keeping the blue
+    for (const cost of costs) {
+      expect([
+        '{1}{U}{U}',
+        '{2}{U}{U}',
+        '{U}{U}',
+        '{1}{U}{U}{U}',
+        '{1}{U}',
+        '{2}{U}',
+        '{U}{U}{U}',
+      ]).toContain(cost);
+    }
+    // Every answer is the card itself: only the cost is right or wrong
+    const right = question.options.filter((option) => isCorrect(question, option));
+    expect(right.map((option) => option.name)).toEqual(['{1}{U}{U}']);
+    for (const option of question.options) expect(option.card).toBe(COSTED);
+  }
 });
 
 function doubleFaced(n: number): Card {
@@ -410,8 +455,8 @@ test('with few cards seen, the lesson is filled with new ones', () => {
 
 test('isCorrect compares cards by id', () => {
   const question = makeQuestion(CARDS[0], CARDS, seeded(1));
-  expect(isCorrect(question, { ...CARDS[0] })).toBe(true);
-  expect(isCorrect(question, CARDS[1])).toBe(false);
+  expect(isCorrect(question, { card: { ...CARDS[0] }, name: 'Card 0' })).toBe(true);
+  expect(isCorrect(question, { card: CARDS[1], name: 'Card 0' })).toBe(false);
 });
 
 function onScreen(lesson: LessonState): Card {

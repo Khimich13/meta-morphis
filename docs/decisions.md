@@ -42,7 +42,7 @@ what has been done is in the commit history.
   answer makes a card wait longer before it is asked again, a wrong one moves
   it back a step and brings it back the next day. Only a card's first answer
   each day counts.
-- **Two kinds of question:** a card's artwork alone, or its full picture with
+- **Two kinds of question about the name:** a card's artwork alone, or its full picture with
   the name painted over by the title bar around it, the mana cost still
   showing, and painted over in the text box too. The second is asked only
   about a card with one name on one side, in English. A saga, class or
@@ -62,6 +62,18 @@ what has been done is in the commit history.
   after an icon. An adventure or a prepare card does, by
   each part: see below. A card that can be asked both ways gets
   either, half the time each.
+- **A card can be asked its mana cost too,** a third kind of question,
+  as often as each of the others, and sharing the card's one level with
+  them: its full picture with the cost painted over the same way and
+  the name in sight, and four costs to choose from, drawn with
+  Scryfall's symbol pictures. The wrong ones are near the right one:
+  one generic mana more or less, one more or one fewer of a symbol it
+  has, or one swapped for a generic mana or the other way round. Every
+  kind of symbol stays at least once: the frame shows the colors. Asked
+  for now only of a card with one side and one cost, in a frame whose
+  title bar is measured. The cost is covered a little wider than
+  measured, and the 1997 frame's symbols were measured again for it:
+  see COST_AREAS in `export.py`.
 - **A double-faced card is asked by either side,** half the time each:
   by its back's artwork, as by its front's, and a transform or modal
   double-faced card's by its back's full picture too. The answers name

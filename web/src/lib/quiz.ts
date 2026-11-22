@@ -3,6 +3,7 @@
 // so it can be tested without a browser.
 
 import { type Card, partName, partType } from './cards';
+import { nearCosts } from './manaCost';
 import { isDue, type Progress } from './progress';
 
 export const LESSON_LENGTH = 10;
@@ -16,8 +17,10 @@ export const NEW_PER_LESSON = 3;
  *   picture - the full card, the side asked about, with its name covered
  *             (see name_box in cards.ts), or a spell's alone (see spell),
  *             or a split card's half's (see half)
+ *   cost    - the full card with its mana cost covered (see cost in
+ *             cards.ts), asking what it costs
  */
-export type QuestionKind = 'artwork' | 'picture';
+export type QuestionKind = 'artwork' | 'picture' | 'cost';
 
 /** An answer to choose from */
 export interface Option {
@@ -27,7 +30,9 @@ export interface Option {
    * the side asked about for the card itself, a random one for a wrong
    * answer - so a back side's name never tells the answer apart. The
    * same for a card with a spell: its spell's name or its main part's,
-   * and a split card: one half's.
+   * and a split card: one half's. For a question about the cost, a cost
+   * as Scryfall writes it, "{1}{U}{U}", and `card` is the card asked
+   * about on every answer.
    */
   name: string;
 }
@@ -77,7 +82,8 @@ export function shuffle<T>(items: readonly T[], random: Random = Math.random): T
  * epithet" among three plain names. They come from `allCards` first, the
  * cards being learned, then from each of `moreCards` in turn: the
  * format's other cards, then every format's. Only when all of those run
- * out of that type do cards of other types fill in.
+ * out of that type do cards of other types fill in. A question about the
+ * cost offers costs instead (see costOptions).
  */
 export function makeQuestion(
   card: Card,
@@ -88,9 +94,10 @@ export function makeQuestion(
 ): Question {
   // Either side, half the time each, for a card with a back to ask about,
   // either part, for a card with a spell whose name can be hidden, and
-  // either half of a split card. Either kind, half the time each, on a
-  // side or half whose name can be hidden - a spell only by the picture:
-  // the artwork is the main part's.
+  // either half of a split card. Any kind it can be asked by, as often
+  // each: by the picture on a side or half whose name can be hidden, and
+  // by its cost on a card whose cost can be - a spell only by the
+  // picture: the artwork is the main part's.
   const back = same?.back ?? (card.back ? random() < 0.5 : false);
   const spell = same?.spell ?? (card.spell?.name_box ? random() < 0.5 : false);
   const half = same?.half ?? (card.halves ? pickHalf(random) : null);
@@ -100,8 +107,25 @@ export function makeQuestion(
       : back
         ? card.back?.name_box
         : card.name_box;
-  const kind: QuestionKind =
-    same?.kind ?? (spell || (nameBox && random() < 0.5) ? 'picture' : 'artwork');
+  const kinds: QuestionKind[] = spell
+    ? ['picture']
+    : [
+        ...(nameBox ? ['picture' as const] : []),
+        'artwork',
+        ...(card.cost ? ['cost' as const] : []),
+      ];
+  const kind =
+    same?.kind ?? (kinds.length > 1 ? kinds[Math.floor(random() * kinds.length)] : kinds[0]);
+  if (kind === 'cost' && card.cost) {
+    return {
+      card,
+      kind,
+      back,
+      spell,
+      half,
+      options: costOptions(card, card.cost.mana_cost, random),
+    };
+  }
   const right = { card, name: partName(card, back, spell, half) };
   const wrong = wrongOptions(
     card,
@@ -145,6 +169,18 @@ function wrongOptions(
   }
   const filler = others.map((other) => ({ card: other, name: wrongName(other, random) }));
   return [...matching, ...filler].slice(0, OPTION_COUNT - 1);
+}
+
+/**
+ * The answers to a question about the card's cost, in the order shown:
+ * its own and OPTION_COUNT - 1 wrong ones near it (see nearCosts), the
+ * nearest first, at random among those as near as each other
+ */
+function costOptions(card: Card, cost: string, random: Random): Option[] {
+  const wrong = nearCosts(cost, OPTION_COUNT - 1)
+    .flatMap((step) => shuffle(step, random))
+    .slice(0, OPTION_COUNT - 1);
+  return shuffle([cost, ...wrong], random).map((name) => ({ card, name }));
 }
 
 /** Either half of a split card, half the time each */
@@ -218,8 +254,10 @@ export function chooseLessonCards(
   return shuffle(chosen, random);
 }
 
-export function isCorrect(question: Question, picked: Card): boolean {
-  return picked.oracle_id === question.card.oracle_id;
+/** The card itself was picked - or, for a question about the cost, its cost */
+export function isCorrect(question: Question, picked: Option): boolean {
+  if (question.kind === 'cost') return picked.name === question.card.cost?.mana_cost;
+  return picked.card.oracle_id === question.card.oracle_id;
 }
 
 /**

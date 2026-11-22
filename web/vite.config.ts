@@ -63,10 +63,10 @@ export default defineConfig({
             options: { cacheName: 'card-data', networkTimeoutSeconds: 3 },
           },
           {
-            // Card pictures: the saved copy if there is one. The cache
-            // name must match PICTURE_CACHE in src/lib/offline.ts, which
-            // fills this cache ahead of time.
-            urlPattern: /^https:\/\/cards\.scryfall\.io\//,
+            // Card pictures and mana symbols: the saved copy if there is
+            // one. The cache name must match PICTURE_CACHE in
+            // src/lib/offline.ts, which fills this cache ahead of time.
+            urlPattern: /^https:\/\/(cards|svgs)\.scryfall\.io\//,
             handler: 'CacheFirst',
             options: {
               cacheName: 'card-pictures',

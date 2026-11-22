@@ -73,6 +73,14 @@ export interface SplitHalf {
   type?: string;
 }
 
+/** A card's mana cost, for the question about it */
+export interface CostPart {
+  /** As Scryfall writes it: "{1}{U}{U}" */
+  mana_cost: string;
+  /** Where it sits in the title bar on the front picture, like name_box */
+  box: [number, number, number, number];
+}
+
 export interface Card {
   oracle_id: string;
   name: string;
@@ -150,6 +158,13 @@ export interface Card {
    * in files written before it was added.
    */
   type?: string;
+  /**
+   * The mana cost, which a question may cover on the full card to ask
+   * what it costs: only on a card with one side and one cost, in a frame
+   * whose title bar is measured. Null on every other card, missing in
+   * files written before it was added.
+   */
+  cost?: CostPart | null;
 }
 
 export interface CardFile {

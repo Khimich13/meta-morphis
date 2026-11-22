@@ -1,5 +1,6 @@
 import {
   type CSSProperties,
+  type ReactNode,
   type RefObject,
   useEffect,
   useLayoutEffect,
@@ -9,6 +10,7 @@ import {
 import { flushSync } from 'react-dom';
 
 import CardPicture, { standsIn, TurningLargeView, useOpenOnTurn } from '../components/CardPicture';
+import ManaCost from '../components/ManaCost';
 import NameCovers, { type NameCover } from '../components/NameCovers';
 import StandingLabel, { type PipChange } from '../components/StandingLabel';
 import {
@@ -36,6 +38,7 @@ import {
   isFinished,
   isFirstTry,
   type Option,
+  type Question,
   type Segment,
   segments,
   startLesson,
@@ -100,10 +103,10 @@ export default function Lesson({
       // Saved progress counts the first answer to each card only: a right
       // answer on a repeat comes straight after seeing the answer
       if (isFirstTry(lesson, question.card)) {
-        onAnswer(question.card, isCorrect(question, option.card));
+        onAnswer(question.card, isCorrect(question, option));
       }
     };
-    const correct = isCorrect(question, option.card);
+    const correct = isCorrect(question, option);
     // At once, before any animation: the sound answers the tap itself
     if (soundsOn) playAnswerSound(correct);
     if (prefersLessMotion()) {
@@ -143,7 +146,7 @@ export default function Lesson({
     if (picked === null) return;
     const after = afterAnswer(
       lesson,
-      isCorrect(lesson.queue[0], picked.card),
+      isCorrect(lesson.queue[0], picked),
       cards,
       Math.random,
       moreCards,
@@ -188,7 +191,7 @@ export default function Lesson({
   // Read from the saved progress, so after an answer it includes it
   const record = progress.cards[card.oracle_id];
   // Whether the question on screen was answered right; null while choosing
-  const answer = picked === null ? null : isCorrect(question, picked.card);
+  const answer = picked === null ? null : isCorrect(question, picked);
   // The side or half asked about: its artwork, and where on its picture it lands
   const back = question.back && card.back ? card.back : null;
   const art = question.half !== null ? halfArt(card, question.half) : (back ?? card);
@@ -224,17 +227,20 @@ export default function Lesson({
               <h2 className="question">
                 {question.kind === 'picture'
                   ? `Name the ${partType(card, question.back, question.spell, question.half)}`
-                  : 'What is this art from?'}
+                  : question.kind === 'cost'
+                    ? 'Name the cost'
+                    : 'What is this art from?'}
               </h2>
               <QuestionLabel repeat={repeat} standing={cardStanding(record)} />
             </div>
-            {question.kind === 'picture' ? (
+            {question.kind !== 'artwork' ? (
               <NameHidden
-                key={`${card.oracle_id}-${question.back}-${question.spell}-${question.half}`}
+                key={`${card.oracle_id}-${question.kind}-${question.back}-${question.spell}-${question.half}`}
                 card={card}
                 back={question.back}
                 spell={question.spell}
                 half={question.half}
+                cost={question.kind === 'cost'}
               />
             ) : (
               /* A figure ties the credit to the artwork, for screen readers too */
@@ -254,19 +260,22 @@ export default function Lesson({
           </div>
           <ul className="options">
             {question.options.map((option) => (
-              <li key={option.card.oracle_id}>
-                <OptionButton name={option.name} onPick={() => pick(option)} />
+              // The answers to a question about the cost are all the same card
+              <li key={`${option.card.oracle_id}-${option.name}`}>
+                <OptionButton onPick={() => pick(option)}>
+                  <AnswerLabel question={question} option={option} />
+                </OptionButton>
               </li>
             ))}
           </ul>
         </>
       ) : (
         <>
-          {/* After a picture question, the covered card turns into this
-              one (see Lesson.css), uncovering the name */}
+          {/* After a question about the full card, the covered card turns
+              into this one (see Lesson.css), uncovering the name or cost */}
           <div
             ref={pictureBox}
-            className={question.kind === 'picture' ? 'picture after-picture' : 'picture'}
+            className={question.kind !== 'artwork' ? 'picture after-picture' : 'picture'}
           >
             {/* One side at a time, which a double-faced card can turn over:
                 first the side asked about. The full card shows its own
@@ -288,7 +297,7 @@ export default function Lesson({
             )}
           </div>
           <Feedback
-            card={card}
+            question={question}
             picked={picked}
             before={before}
             record={record}
@@ -302,12 +311,12 @@ export default function Lesson({
 }
 
 /**
- * An answer button, its name always on one line: a name too long for the
- * button gets text just small enough to fit. Measured before the button is
- * first shown, and again whenever its width changes, as when the phone
- * turns.
+ * An answer button, its name or cost always on one line: one too long
+ * for the button gets text just small enough to fit. Measured before the
+ * button is first shown, and again whenever its width changes, as when
+ * the phone turns.
  */
-function OptionButton({ name, onPick }: { name: string; onPick: () => void }) {
+function OptionButton({ children, onPick }: { children: ReactNode; onPick: () => void }) {
   const button = useRef<HTMLButtonElement>(null);
   const text = useRef<HTMLSpanElement>(null);
 
@@ -337,9 +346,14 @@ function OptionButton({ name, onPick }: { name: string; onPick: () => void }) {
 
   return (
     <button ref={button} onClick={onPick}>
-      <span ref={text}>{name}</span>
+      <span ref={text}>{children}</span>
     </button>
   );
+}
+
+/** What an answer shows: a card's name, or a cost's symbols */
+function AnswerLabel({ question, option }: { question: Question; option: Option }) {
+  return question.kind === 'cost' ? <ManaCost cost={option.name} /> : option.name;
 }
 
 /**
@@ -430,7 +444,8 @@ function Artwork({
  * card's back, with its own name hidden, and `spell` the card with its
  * spell's name hidden instead of its own, and `half` a split card with
  * that half's name hidden. A name printed sideways is painted along its
- * own line, as it reads.
+ * own line, as it reads. `cost` paints over the mana cost in the title
+ * bar instead, the same way, and leaves the name in sight.
  *
  * A card printed sideways opens in the large view when the phone turns
  * sideways, the right way up and its name still hidden, as the answer
@@ -441,11 +456,14 @@ function NameHidden({
   back,
   spell,
   half,
+  cost,
 }: {
   card: Card;
   back: boolean;
   spell: boolean;
   half: number | null;
+  /** Covers the mana cost instead of the name, for a question about it */
+  cost: boolean;
 }) {
   const side =
     half !== null && card.halves
@@ -455,10 +473,13 @@ function NameHidden({
         : back && card.back
           ? card.back
           : card;
-  const boxes = [
-    side.name_box ?? [0, 0, 0, 0],
-    ...(('name_text_boxes' in side && side.name_text_boxes) || []),
-  ];
+  const boxes =
+    cost && card.cost
+      ? [card.cost.box]
+      : [
+          side.name_box ?? [0, 0, 0, 0],
+          ...(('name_text_boxes' in side && side.name_text_boxes) || []),
+        ];
   const sideways = isHorizontal(card, back);
   const picture = useRef<HTMLImageElement>(null);
   const cardBox = useRef<HTMLDivElement>(null);
@@ -499,7 +520,12 @@ function NameHidden({
         : [around.width, around.height];
       context.drawImage(image, fromX, fromY, fromW, fromH, 0, 0, fromW, fromH);
       const pixels = context.getImageData(0, 0, around.width, around.height).data;
-      const filled = new ImageData(fillName(pixels, around.width, reach), along, crosswise);
+      // A mana cost ends where the title bar does
+      const filled = new ImageData(
+        fillName(pixels, around.width, reach, Math.random, cost),
+        along,
+        crosswise,
+      );
       // The paint, kept as a picture: the large view lays it over its own
       // copy of the card too
       const target = document.createElement('canvas');
@@ -550,7 +576,7 @@ function NameHidden({
           ref={picture}
           className="card-side"
           src={card.images[back ? 1 : 0]}
-          alt="Card with its name hidden"
+          alt={cost ? 'Card with its mana cost hidden' : 'Card with its name hidden'}
           crossOrigin="anonymous"
           onLoad={paint}
         />
@@ -723,7 +749,7 @@ function pipChange(before: Before, after: CardProgress | undefined, correct: boo
 }
 
 interface FeedbackProps {
-  card: Card;
+  question: Question;
   picked: Option;
   /** The card's record before this answer */
   before: Before | null;
@@ -755,16 +781,21 @@ function useCardWidth(box: RefObject<HTMLDivElement | null>, shown: boolean): nu
   return width;
 }
 
-function Feedback({ card, picked, before, record, cardWidth, onContinue }: FeedbackProps) {
-  const correct = picked.card.oracle_id === card.oracle_id;
+function Feedback({ question, picked, before, record, cardWidth, onContinue }: FeedbackProps) {
+  const correct = isCorrect(question, picked);
   const change: PipChange | null = before === null ? null : pipChange(before, record, correct);
   // This answer made the card mastered: the moment to celebrate
   const justMastered = change === 'up' && cardStanding(record) === 'mastered';
   const toGo = MASTERED_LEVEL - shownLevel(record);
   // Already answered today: practice, the pips stay as they were
   const practice = before !== null && !before.counted && record !== undefined;
-  let line = '';
-  if (!correct) line = `You picked ${picked.name}`;
+  let line: ReactNode = '';
+  if (!correct)
+    line = (
+      <>
+        You picked <AnswerLabel question={question} option={picked} />
+      </>
+    );
   else if (justMastered) line = '⭐ Mastered!';
   else if (change === 'up' && toGo > 0)
     line = `${toGo} more ${toGo === 1 ? 'day' : 'days'} to Mastered`;

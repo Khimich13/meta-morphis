@@ -1,0 +1,13 @@
+/* A mana cost's symbols in a row (ManaCost.tsx), each a little larger
+   than the text, as on a card. Sized before the pictures arrive, so a
+   button holding them is measured right (OptionButton in Lesson.tsx). */
+.mana-cost {
+  display: inline-flex;
+  gap: 0.12em;
+  vertical-align: middle;
+}
+
+.mana-symbol {
+  width: 1.2em;
+  height: 1.2em;
+}

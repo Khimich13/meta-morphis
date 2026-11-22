@@ -71,3 +71,15 @@ test('print next to the area is not taken for grain', () => {
   const pixels = grays(fillName(around(printed), 31, 3), 25).flat();
   expect(pixels.every((gray) => gray === 200)).toBe(true);
 });
+
+test("at the bar's end, what lies past it is left out", () => {
+  // A plain bar with something light right of the area, as the rim of
+  // the last mana symbol, or the bar's own rounded end
+  const bar = Array.from({ length: 4 }, () => Array(11).fill(120));
+  for (const row of [1, 2]) bar[row].fill(250, 8);
+  const plain = grays(fillName(around(bar), 11, 3, NO_GRAIN, true), 5).flat();
+  expect(plain.every((gray) => gray === 120)).toBe(true);
+  // Without it, the light shows at the right
+  const streaked = grays(fillName(around(bar), 11, 3, NO_GRAIN), 5);
+  expect(streaked[0][4]).toBeGreaterThan(200);
+});

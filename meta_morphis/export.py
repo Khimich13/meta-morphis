@@ -12,7 +12,7 @@ import sqlite3
 import time
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, TypedDict
@@ -93,6 +93,14 @@ class SpellPart(TypedDict):
     type: str
 
 
+class CostPart(TypedDict):
+    # The mana cost, as Scryfall writes it: "{1}{U}{U}"
+    mana_cost: str
+    # Where it sits in the title bar on the front picture, as [left, top,
+    # width, height]: the app paints over it to ask what the card costs
+    box: list[float]
+
+
 class SplitHalf(TypedDict):
     # The half's name: Wear on Wear // Tear
     name: str
@@ -166,6 +174,9 @@ class ExportCard(TypedDict):
     # main_type): the front's on a double-faced card, the main part's on
     # one with a spell. "Name the creature"
     type: str
+    # The mana cost, for the question about it (see cost_part). None for
+    # a card not asked about its cost.
+    cost: CostPart | None
 
 
 class FormatsFile(TypedDict):
@@ -611,8 +622,7 @@ def title_name_box(
     one_name = card.layout in ONE_NAME_LAYOUTS or part_index(card) == 0
     if not one_name or raw.get("lang") != "en":
         return None
-    areas = PLANESWALKER_NAME_AREAS if "Planeswalker" in card.type_line else NAME_AREAS
-    area = areas.get(card.frame or "")
+    area = title_area(card)
     if area is None:
         return None
     left = max(
@@ -632,10 +642,58 @@ def box_before_cost(
 ) -> list[float]:
     """The name's box in a title bar, from `left` up to just before the
     mana cost, or before an icon starting at `name_right`"""
-    symbols = len(re.findall(r"\{[^}]*\}", mana_cost or ""))
-    cost_left = area.cost_right - symbols * area.symbol
-    right = (cost_left if name_right is None else name_right) - NAME_GAP
+    right = (
+        cost_left(area, mana_cost) if name_right is None else name_right
+    ) - NAME_GAP
     return [round(value, 4) for value in (left, area.top, right - left, area.height)]
+
+
+def title_area(card: Card) -> NameArea | None:
+    """The measures of the card's title bar, or None for a frame not
+    measured"""
+    areas = PLANESWALKER_NAME_AREAS if "Planeswalker" in card.type_line else NAME_AREAS
+    return areas.get(card.frame or "")
+
+
+def cost_left(area: NameArea, mana_cost: str | None) -> float:
+    """Where the mana cost starts in a title bar: its symbols, one beside
+    the other, end at the bar's `cost_right`"""
+    symbols = len(re.findall(r"\{[^}]*\}", mana_cost or ""))
+    return area.cost_right - symbols * area.symbol
+
+
+# Room added to each side of the mana cost's measured box, as shares of
+# the card's width: a symbol's shadow falls to its left, and its rim may
+# end a little past the measure, as scans differ. Chosen on 2026-11-22
+# by painting over the cost of 118 cards on the lists, in every frame.
+COST_LEFT_PAD = 0.01
+COST_RIGHT_PAD = 0.004
+# The 1997 frame's mana symbols, measured again for covering them on
+# 2026-11-22, on the 48 cards of that frame on the lists then: 0.052 of
+# the card's width apart, not NAME_AREAS' 0.046, and the last one's rim
+# ends at 0.926, not 0.918. NAME_AREAS is near enough to end a name
+# before them, not to cover them: the first of three symbols started
+# up to 0.018 further left.
+COST_AREAS = {"1997": replace(NAME_AREAS["1997"], cost_right=0.926, symbol=0.052)}
+
+
+def cost_part(card: Card) -> CostPart | None:
+    """The card's mana cost and where it sits in its title bar, for the
+    question about the cost: asked, for now, only of a card with one
+    side and one cost (see ONE_NAME_LAYOUTS) in a frame whose title bar
+    is measured. None for any other card, and for one without a cost:
+    a land, or a card cast only by suspend."""
+    if card.layout not in ONE_NAME_LAYOUTS or not card.mana_cost:
+        return None
+    area = title_area(card)
+    if area is None:
+        return None
+    # No planeswalker is measured in the frames of COST_AREAS
+    area = COST_AREAS.get(card.frame or "", area)
+    left = cost_left(area, card.mana_cost) - COST_LEFT_PAD
+    right = area.cost_right + COST_RIGHT_PAD
+    box = (left, area.top, right - left, area.height)
+    return {"mana_cost": card.mana_cost, "box": [round(value, 4) for value in box]}
 
 
 def horizontal_sides(card: Card) -> list[bool]:
@@ -754,6 +812,7 @@ def build_card(card: Card, read_text: ReadText = never_read) -> ExportCard | Non
         "spell": spell_part(card, read_text),
         "halves": split_halves(card),
         "type": front_type(card),
+        "cost": cost_part(card),
     }
 
 
