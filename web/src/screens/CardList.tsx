@@ -7,6 +7,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from 'react';
@@ -112,10 +113,12 @@ export default function CardList({ selection, listName, cards, progress, onBack 
   }, []);
   usePinchColumns(grid, columns, chooseColumns, open);
 
+  const shown = large.isOpen && !large.closing;
+  useScrollHeld(shown);
+
   // Closing the large view: the list shows the card last looked at
   // there, which may be far from the one opened. As it starts to close,
   // so the list is in place as the view fades out.
-  const shown = large.isOpen && !large.closing;
   const wasOpen = useRef(false);
   useEffect(() => {
     if (wasOpen.current && !shown && grid.current !== null) {
@@ -244,6 +247,42 @@ const CardGrid = memo(function CardGrid({
   );
 });
 
+/** The class on the page's root while useScrollHeld holds it at the top */
+const SCROLL_HELD = 'scroll-held';
+
+function scrollHeld(): boolean {
+  return document.documentElement.classList.contains(SCROLL_HELD);
+}
+
+/**
+ * Holds the page at the top while the large view is open, with the list
+ * moved up by as much as it was scrolled, so nothing moves on the screen
+ * (see .scroll-held in App.css). Back as it was as the view starts
+ * closing, in the same frame.
+ *
+ * As an iPhone turns, it scrolls the page by the status bar's height,
+ * 47px, so the page stays put on the glass: the status bar shows upright
+ * and hides sideways. The turning card's copy is in the page (see
+ * EaseNewSize in LargeCard.tsx), so it moved with that scroll for a frame,
+ * down and back up, before it was put back. A page at the top, with
+ * nothing to scroll, isn't scrolled: a short list turned smoothly.
+ */
+function useScrollHeld(holding: boolean) {
+  useLayoutEffect(() => {
+    if (!holding) return;
+    const root = document.documentElement;
+    const scrolled = window.scrollY;
+    root.style.setProperty('--held-scroll', `${scrolled}px`);
+    root.classList.add(SCROLL_HELD);
+    window.scrollTo(0, 0);
+    return () => {
+      root.classList.remove(SCROLL_HELD);
+      root.style.removeProperty('--held-scroll');
+      window.scrollTo(0, scrolled);
+    };
+  }, [holding]);
+}
+
 /** How long after a change of size the browser may still be laying the page out, in ms */
 const RESIZE_LAYOUT_TIME = 500;
 
@@ -282,8 +321,10 @@ function useKeepPlaceOnResize(grid: RefObject<HTMLElement | null>, largeViewOpen
     let top: Element | null = null;
 
     const remember = () => {
-      // Not while a new size is being laid out: those scrolls aren't the player's
-      if (grid.current === null || resizing()) return;
+      // Not while a new size is being laid out, nor while the large view
+      // holds the page at the top (see useScrollHeld): those scrolls
+      // aren't the player's
+      if (grid.current === null || resizing() || scrollHeld()) return;
       if (window.scrollY < 1) {
         top = null;
         return;

@@ -230,6 +230,19 @@ body {
   padding: 0 16px calc(16px + var(--bottom-room));
 }
 
+/* Held at the top while the large view is open (see useScrollHeld in
+   CardList.tsx): the app's box is only as tall as the screen, so the
+   page has nothing to scroll, and the list is moved up by as much as it
+   was scrolled, to stay where it was on the screen */
+html.scroll-held #app {
+  height: 100dvh;
+  overflow: clip;
+}
+
+html.scroll-held .card-list {
+  translate: 0 calc(-1 * var(--held-scroll));
+}
+
 /* Back, and the list's name: laid out like the lesson's bar, and kept at
    the top while the cards scroll under it. Its background lets them show
    through, blurred so the name stays readable over any art.
