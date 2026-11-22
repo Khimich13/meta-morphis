@@ -34,6 +34,22 @@ GOLDFISH_HEADERS = {
 GOLDFISH_REFRESH_RATE = 20 * 60 * 60
 GOLDFISH_BAD_ROWS_LIMIT = 10
 
+# Magic Online's decklists, from fbettega's archive on GitHub - see
+# meta/decklists.py. Its files are listed through GitHub's API, which
+# allows 60 calls an hour without a login and 1,000 with the workflow's
+# GITHUB_TOKEN, and downloaded from raw.githubusercontent.com, which
+# doesn't count against that limit.
+DECKLISTS_API_URL = "https://api.github.com/repos/fbettega/MTG_decklistcache/"
+DECKLISTS_RAW_URL = "https://raw.githubusercontent.com/fbettega/MTG_decklistcache/main/"
+# The archive's folder of MTGO events: <yyyy>/<mm>/<dd>/<format>-....json
+DECKLISTS_FOLDER = "Tournaments/MTGO"
+# How many days of events are counted, today included
+DECKLISTS_DAYS = 30
+DECKLISTS_HEADERS = {
+    "User-Agent": "meta-morphis (https://github.com/Khimich13/meta-morphis)",
+    "Accept": "application/vnd.github+json",
+}
+
 # Scryfall
 # Scryfall's file of every printing, one card per line - see
 # scryfall/bulk.py. This address says where today's file is; the file
@@ -105,6 +121,10 @@ DB_PATH = Path(os.environ.get("META_MORPHIS_DB") or PROJECT_ROOT / "data" / "car
 # The last downloaded copy of Scryfall's card data, next to the database,
 # so the daily run keeps it between runs too
 BULK_PATH = PROJECT_ROOT / "data" / "default-cards.jsonl.gz"
+
+# The downloaded decklists of the last DECKLISTS_DAYS days, in the
+# archive's <yyyy>/<mm>/<dd> folders, kept between runs like the above
+DECKLISTS_DIR = PROJECT_ROOT / "data" / "decklists"
 
 # Where each printing's name was found in its text box, read from its
 # picture - see name_in_text.py. Kept in git, unlike the database: the
