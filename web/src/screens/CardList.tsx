@@ -19,7 +19,7 @@ import { type Card, formatLabel } from '../lib/cards';
 import { LIST_LABELS, type Selection } from '../lib/formats';
 import { isLandscape, useLandscape, useLandscapeAllowed } from '../lib/landscape';
 import { useLargeView } from '../lib/largeView';
-import { useFewestColumns, usePinchColumns } from '../lib/pinch';
+import { useColumnLimits, usePinchColumns } from '../lib/pinch';
 import type { Progress } from '../lib/progress';
 import { loadColumns, saveColumns } from '../lib/storage';
 import { type Direction, step } from '../lib/swipe';
@@ -99,11 +99,12 @@ export default function CardList({ selection, listName, cards, progress, onBack 
     upright: loadColumns(false),
     sideways: loadColumns(true),
   }));
-  // Never fewer than show a whole card on the screen: a choice made on
-  // another screen, or before this limit, may be below it
-  const fewest = useFewestColumns(grid);
+  // Never fewer than show a whole card on the screen, nor more than are
+  // worth having for this many cards: a choice made on another screen,
+  // or for a longer list, may be past them. It stays saved for the next.
+  const { fewest, most } = useColumnLimits(grid, cards.length);
   const choice = landscape ? chosen.sideways : chosen.upright;
-  const columns = choice === null ? null : Math.max(choice, fewest);
+  const columns = choice === null ? null : Math.min(Math.max(choice, fewest), most);
   const chooseColumns = useCallback((count: number) => {
     const sideways = isLandscape();
     setChosen((before) =>

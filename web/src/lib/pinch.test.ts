@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { columnsAfterPinch, fewestColumns, mostColumns } from './pinch';
+import { columnsAfterPinch, fewestColumns, mostColumns, usefulColumns } from './pinch';
 
 test('spreading the fingers makes fewer, bigger cards', () => {
   expect(columnsAfterPinch(2, 2, 1, 4)).toBe(1);
@@ -35,4 +35,16 @@ test('fewestColumns: as few as still fit a whole card on the screen', () => {
   expect(fewestColumns(1200, 800)).toBe(1);
   // A screen too low for even the smallest cards: as many as fit
   expect(fewestColumns(358, 50)).toBe(6);
+});
+
+test('usefulColumns: no smaller cards once every card is on the screen', () => {
+  // A phone upright, 700px below the bar, records 20px tall:
+  // 2 per row fit 4 cards (two rows of about 270px)
+  expect(usefulColumns(4, 358, 700, 20, 1, 6)).toBe(2);
+  // 8 cards need 3 per row
+  expect(usefulColumns(8, 358, 700, 20, 1, 6)).toBe(3);
+  // A long list: as many as fit in a row
+  expect(usefulColumns(100, 358, 700, 20, 1, 6)).toBe(6);
+  // Never fewer than the fewest: a phone sideways
+  expect(usefulColumns(2, 718, 360, 20, 3, 6)).toBe(3);
 });

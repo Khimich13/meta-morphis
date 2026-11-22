@@ -70,16 +70,75 @@ export function fewestColumns(rowWidth: number, screenHeight: number): number {
   return most;
 }
 
+/** The space between rows of cards, and between a card's record and its picture (App.css) */
+const ROW_GAP = 16;
+const RECORD_GAP = 6;
+
 /**
- * The fewest cards per row for the grid (see fewestColumns), kept up to
- * date as the window changes size or the phone turns
+ * The most cards per row worth pinching in to: the fewest at which every
+ * card is already on the screen at once, since smaller cards then show
+ * nothing more. A long list gets up to `most`. `room` is the screen's
+ * height below the bar; `recordHeight` the height of the line above each
+ * card.
  */
-export function useFewestColumns(grid: RefObject<HTMLElement | null>): number {
-  const [fewest, setFewest] = useState(1);
+export function usefulColumns(
+  count: number,
+  rowWidth: number,
+  room: number,
+  recordHeight: number,
+  fewest: number,
+  most: number,
+): number {
+  for (let columns = fewest; columns < most; columns++) {
+    const rows = Math.ceil(count / columns);
+    const rowHeight = recordHeight + RECORD_GAP + cardWidth(rowWidth, columns) * CARD_SHAPE;
+    // A pixel to spare, for rounding
+    if (rows * rowHeight + (rows - 1) * ROW_GAP <= room + 1) return columns;
+  }
+  return most;
+}
+
+/** How far the element is from the top of the page, whatever is scrolled or moved */
+function pageTop(element: HTMLElement): number {
+  let top = 0;
+  for (let at: Element | null = element; at instanceof HTMLElement; at = at.offsetParent) {
+    top += at.offsetTop;
+  }
+  return top;
+}
+
+/** The fewest and the most cards a pinch may leave in a row of the grid */
+export function columnLimits(grid: HTMLElement): { fewest: number; most: number } {
+  const width = grid.clientWidth;
+  const fewest = fewestColumns(width, window.innerHeight);
+  // The screen's height below the bar and above the room left under the list
+  const below =
+    parseFloat(getComputedStyle(grid).marginBottom) +
+    parseFloat(getComputedStyle(grid.parentElement ?? grid).paddingBottom);
+  const room = window.innerHeight - pageTop(grid) - below;
+  const record = grid.querySelector<HTMLElement>('.card-progress')?.offsetHeight ?? 0;
+  const count = grid.children.length;
+  const most = usefulColumns(count, width, room, record, fewest, mostColumns(width));
+  return { fewest, most };
+}
+
+/**
+ * The fewest and most cards per row for the grid (see columnLimits), kept
+ * up to date as the window changes size, the phone turns, or the cards change
+ */
+export function useColumnLimits(
+  grid: RefObject<HTMLElement | null>,
+  count: number,
+): { fewest: number; most: number } {
+  const [limits, setLimits] = useState({ fewest: 1, most: MAX_COLUMNS });
   useLayoutEffect(() => {
     const element = grid.current;
     if (element === null) return;
-    const update = () => setFewest(fewestColumns(element.clientWidth, window.innerHeight));
+    const update = () =>
+      setLimits((before) => {
+        const after = columnLimits(element);
+        return after.fewest === before.fewest && after.most === before.most ? before : after;
+      });
     update();
     const observer = new ResizeObserver(update);
     observer.observe(element);
@@ -88,8 +147,8 @@ export function useFewestColumns(grid: RefObject<HTMLElement | null>): number {
       observer.disconnect();
       window.removeEventListener('resize', update);
     };
-  }, [grid]);
-  return fewest;
+  }, [grid, count]);
+  return limits;
 }
 
 /** How far apart the fingers must spread, at the fewest cards per row, to open the card */
@@ -209,7 +268,7 @@ export function usePinchColumns(
       );
       const card = under?.closest('.card-grid > li');
       const spread = distance(event.touches) / start.spread;
-      const fewest = fewestColumns(element.clientWidth, window.innerHeight);
+      const { fewest, most } = columnLimits(element);
       // Already the fewest per row and spreading further: open that card,
       // like zooming into a photo
       if (start.columns <= fewest && spread >= OPEN_SPREAD && card) {
@@ -217,9 +276,10 @@ export function usePinchColumns(
         open.current([...element.children].indexOf(card));
         return;
       }
-      const most = mostColumns(element.clientWidth);
-      const next = columnsAfterPinch(start.columns, spread, fewest, most);
       const now = getComputedStyle(element).gridTemplateColumns.split(' ').length;
+      // Never more than are worth having - but already more (as many as
+      // fit by themselves), pinching in leaves them as they are
+      const next = columnsAfterPinch(start.columns, spread, fewest, Math.max(most, now));
       if (next === now) return;
       anchor.current = card ? { card, top: card.getBoundingClientRect().top } : null;
       before.current = cardsOnScreen(element);
