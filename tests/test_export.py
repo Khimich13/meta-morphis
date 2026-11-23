@@ -21,6 +21,7 @@ from meta_morphis.export import (
     build_card,
     build_every_card,
     build_export,
+    card_kind,
     cost_part,
     creature_type,
     export_all,
@@ -30,9 +31,11 @@ from meta_morphis.export import (
     horizontal_sides,
     image_urls,
     is_basic_land,
+    list_changes,
     main_type,
     measure_new_symbols,
     name_boxes,
+    pick_cards,
     power_toughness,
     read_new_pictures,
     report_left_out,
@@ -76,7 +79,7 @@ FETCHED = 1792264683
 def _list_fetched(
     monkeypatch: MonkeyPatch, fetched: int | None, now: int = FETCHED + 60
 ) -> None:
-    """The MTGGoldfish list was fetched at `fetched`, and it is `now`"""
+    """The format's decks were counted at `fetched`, and it is `now`"""
     monkeypatch.setattr(
         "meta_morphis.export.get_meta_timestamp", lambda conn, name: fetched
     )
@@ -1436,7 +1439,7 @@ def test_export_format_refuses_an_old_list(
     age_days: int,
     publishes: bool,
 ) -> None:
-    # A list this old means fetching it has failed for days: fail the run,
+    # A count this old means counting has failed for days: fail the run,
     # so GitHub reports it, rather than publish the old list again
     meta, cards = _on_list(Card.from_raw(_raw("Hydroblast", oracle_id="h")))
     monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 1)
@@ -1456,7 +1459,7 @@ def test_export_format_fails_without_any_list(
 ) -> None:
     _list_fetched(monkeypatch, None)
 
-    with pytest.raises(RuntimeError, match="never fetched"):
+    with pytest.raises(RuntimeError, match="pauper decks were never counted"):
         export_format(conn, "pauper", "all", [], {}, tmp_path)
 
 
@@ -1490,7 +1493,7 @@ def _fake_export(fails: tuple[str, ...] = ()) -> FakeExport:
     ) -> Path:
         name = config.list_name(format_name, kind)
         if name in fails:
-            raise RuntimeError("MTGGoldfish's page changed")
+            raise RuntimeError("Too few usable cards")
         path = out_dir / f"{name}.json"
         path.write_text("{}", encoding="utf-8")
         return path
@@ -1504,18 +1507,17 @@ BULK = Path("cards.jsonl.gz")
 
 def _lists_and_cards(
     monkeypatch: MonkeyPatch,
-    lists: dict[str, list[str]] | None = None,
+    counts: dict[str, list[str]] | None = None,
     unreachable: tuple[str, ...] = (),
 ) -> list[set[str]]:
-    """MTGGoldfish has these lists, by name, and fails for `unreachable`;
-    read_cards finds nothing. Returns the names read_cards was asked
-    about, a set for each time it was called."""
+    """Each format's decks have these cards, and can't be counted for
+    the formats in `unreachable`; read_cards finds nothing. Returns the
+    names read_cards was asked about, a set for each time it was called."""
 
-    def fake_meta(conn: sqlite3.Connection, format_name: str, kind: str) -> Any:
-        name = config.list_name(format_name, kind)
-        if name in unreachable:
-            raise RuntimeError("MTGGoldfish is down")
-        return [MetaEntry(name=card) for card in (lists or {}).get(name, [])]
+    def fake_meta(conn: sqlite3.Connection, format_name: str) -> Any:
+        if format_name in unreachable:
+            raise RuntimeError("The pauper decks were never counted")
+        return [MetaEntry(name=card) for card in (counts or {}).get(format_name, [])]
 
     asked: list[set[str]] = []
 
@@ -1598,21 +1600,21 @@ def test_export_all_reports_no_failures(
     assert formats == {"formats": ["pauper"], "lists": {"pauper": ["all", "creatures"]}}
 
 
-def test_export_all_reads_the_card_data_once_for_every_list(
+def test_export_all_reads_the_card_data_once_for_every_format(
     conn: sqlite3.Connection, tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
     asked = _lists_and_cards(
         monkeypatch,
-        {"pauper": ["Lightning Bolt", "Counterspell"], "pauper-lands": ["Bojuka Bog"]},
+        {"pauper": ["Lightning Bolt", "Bojuka Bog"], "modern": ["Ragavan"]},
     )
     monkeypatch.setattr("meta_morphis.export.export_format", _fake_export())
 
-    export_all(conn, ["pauper"], ["all", "lands"], tmp_path, BULK)
+    export_all(conn, ["pauper", "modern"], ["all", "lands"], tmp_path, BULK)
 
-    assert asked == [{"Lightning Bolt", "Counterspell", "Bojuka Bog"}]
+    assert asked == [{"Lightning Bolt", "Bojuka Bog", "Ragavan"}]
 
 
-def test_export_all_keeps_going_when_a_list_cant_be_got(
+def test_export_all_keeps_going_when_a_format_cant_be_counted(
     conn: sqlite3.Connection, tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
     asked = _lists_and_cards(
@@ -1622,12 +1624,13 @@ def test_export_all_keeps_going_when_a_list_cant_be_got(
     )
     monkeypatch.setattr("meta_morphis.export.export_format", _fake_export())
 
-    # Reported in the order of the lists, though it failed before the others
-    failed = export_all(conn, ["modern", "pauper"], ["all", "lands"], tmp_path, BULK)
+    # Every list of the format fails, reported in the order of the lists
+    failed = export_all(conn, ["pauper", "modern"], ["all", "lands"], tmp_path, BULK)
 
-    assert failed == ["pauper"]
+    assert failed == ["pauper", "pauper-lands"]
     assert asked == [{"Ragavan, Nimble Pilferer"}]
-    assert (tmp_path / "pauper-lands.json").exists()
+    assert (tmp_path / "modern-lands.json").exists()
+    assert not (tmp_path / "pauper-lands.json").exists()
 
 
 def test_export_all_without_card_data_keeps_every_file(
@@ -1689,38 +1692,202 @@ def test_is_basic_land(type_line: str, basic: bool) -> None:
     assert is_basic_land(Card.from_raw(_raw("Some Land", type_line=type_line))) is basic
 
 
-def test_export_format_leaves_out_basic_lands_and_needs_fewer_lands(
-    conn: sqlite3.Connection, tmp_path: Path, monkeypatch: MonkeyPatch
-) -> None:
-    meta, cards = _on_list(
-        Card.from_raw(
-            _raw("Mountain", oracle_id="m", type_line="Basic Land — Mountain")
-        ),
-        Card.from_raw(_raw("Bojuka Bog", oracle_id="b", type_line="Land")),
+def _two_sided(name: str, front: str, back: str) -> Card:
+    """A card with two faces of these type lines"""
+    front_name, back_name = name.split(" // ")
+    return Card.from_raw(
+        _raw(
+            name,
+            card_faces=[
+                {"name": front_name, "type_line": front},
+                {"name": back_name, "type_line": back},
+            ],
+        )
     )
-    _list_fetched(monkeypatch, FETCHED)
-    # One card left: enough for a lands list here, too few for any other
-    monkeypatch.setattr(config, "EXPORT_MIN_LANDS", 1)
-    monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 2)
-
-    path = export_format(conn, "pauper", "lands", meta, cards, tmp_path)
-
-    written = json.loads(path.read_text(encoding="utf-8"))["cards"]
-    assert [card["name"] for card in written] == ["Bojuka Bog"]
-    with pytest.raises(RuntimeError, match="expected at least 2"):
-        export_format(conn, "pauper", "creatures", meta, cards, tmp_path)
 
 
-def test_list_names_and_addresses() -> None:
+@pytest.mark.parametrize(
+    "card, kind",
+    [
+        (Card.from_raw(_raw("Bojuka Bog", type_line="Land")), "lands"),
+        (
+            Card.from_raw(
+                _raw("Urza's Saga", type_line="Enchantment Land — Urza's Saga")
+            ),
+            "lands",
+        ),
+        (
+            Card.from_raw(
+                _raw("Dryad Arbor", type_line="Land Creature — Forest Dryad")
+            ),
+            "lands",
+        ),
+        (
+            Card.from_raw(_raw("Myr Enforcer", type_line="Artifact Creature — Myr")),
+            "creatures",
+        ),
+        (Card.from_raw(_raw("Lightning Bolt", type_line="Instant")), "spells"),
+        (
+            Card.from_raw(_raw("Jace", type_line="Legendary Planeswalker — Jace")),
+            "spells",
+        ),
+        (
+            Card.from_raw(_raw("Smuggler's Copter", type_line="Artifact — Vehicle")),
+            "spells",
+        ),
+        # By the front: an adventure, a spell with a land on its back
+        (
+            _two_sided(
+                "Bonecrusher Giant // Stomp", "Creature — Giant", "Instant — Adventure"
+            ),
+            "creatures",
+        ),
+        (
+            _two_sided("Sink into Stupor // Soporific Springs", "Instant", "Land"),
+            "spells",
+        ),
+        (
+            _two_sided("Brightclimb Pathway // Grimclimb Pathway", "Land", "Land"),
+            "lands",
+        ),
+        (_two_sided("Fire // Ice", "Instant", "Instant"), "spells"),
+    ],
+)
+def test_card_kind(card: Card, kind: str) -> None:
+    assert card_kind(card) == kind
+
+
+def test_pick_cards_takes_the_most_played_of_each_kind(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(config, "LIST_SIZE", 2)
+    bolt = Card.from_raw(_raw("Lightning Bolt", type_line="Instant"))
+    knife = Card.from_raw(_raw("Pumpkin Bombardment", type_line="Sorcery"))
+    _, cards = _on_list(
+        Card.from_raw(_raw("Island", type_line="Basic Land — Island")),
+        bolt,
+        Card.from_raw(_raw("Bojuka Bog", type_line="Land")),
+        Card.from_raw(_raw("Myr Enforcer", type_line="Artifact Creature — Myr")),
+        knife,
+        Card.from_raw(_raw("Ponder", type_line="Sorcery")),
+    )
+    # Its name on Magic Online leads to the same card
+    cards[normalize_name("Knife Trick")] = knife
+    # In the order of the count: most played first
+    meta = [
+        MetaEntry(name=name)
+        for name in [
+            "Island",
+            "Lightning Bolt",
+            "No Such Card",
+            "Bojuka Bog",
+            "Knife Trick",
+            "Pumpkin Bombardment",
+            "Myr Enforcer",
+            "Ponder",
+        ]
+    ]
+
+    def picked(kind: str) -> list[str]:
+        return [card.name for card in pick_cards(meta, cards, kind)]
+
+    assert picked("all") == ["Lightning Bolt", "Pumpkin Bombardment"]
+    assert picked("spells") == ["Lightning Bolt", "Pumpkin Bombardment"]
+    assert picked("creatures") == ["Myr Enforcer"]
+    assert picked("lands") == ["Bojuka Bog"]
+
+    monkeypatch.setattr(config, "LIST_SIZE", 4)
+    assert picked("all") == [
+        "Lightning Bolt",
+        "Pumpkin Bombardment",
+        "Myr Enforcer",
+        "Ponder",
+    ]
+
+
+def test_list_names() -> None:
     assert config.list_name("pauper", "all") == "pauper"
     assert config.list_name("pauper", "lands") == "pauper-lands"
-    assert config.GOLDFISH_LIST_URLS["pauper"] == (
-        "https://www.mtggoldfish.com/format-staples/pauper/full/all"
+
+
+def test_list_changes_names_cards_that_entered_and_left() -> None:
+    before = ["Hydroblast", "Ponder", "Lightning Bolt"]
+    after = ["Hydroblast", "Guttersnipe", "Lightning Bolt", "Writhing Chrysalis"]
+
+    assert list_changes(before, after) == (
+        ["Guttersnipe", "Writhing Chrysalis"],
+        ["Ponder"],
     )
-    assert config.GOLDFISH_LIST_URLS["modern-creatures"] == (
-        "https://www.mtggoldfish.com/format-staples/modern/full/creatures"
+
+
+def test_list_changes_ignores_spelling_and_order() -> None:
+    assert list_changes(
+        ["Lorien Revealed", "Hydroblast"], ["Hydroblast", "Lórien Revealed"]
+    ) == ([], [])
+
+
+def _export_twice(
+    conn: sqlite3.Connection,
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+    before: list[str],
+    after: list[str],
+) -> None:
+    """Exports Pauper's "all" list with the cards `before`, if any, and
+    then with the cards `after`"""
+    _list_fetched(monkeypatch, FETCHED)
+    monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 1)
+    for names in (before, after):
+        if names:
+            meta, cards = _on_list(
+                *(Card.from_raw(_raw(name, oracle_id=name)) for name in names)
+            )
+            export_format(conn, "pauper", "all", meta, cards, tmp_path)
+
+
+def test_export_format_logs_cards_that_entered_and_left(
+    conn: sqlite3.Connection,
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO)
+    _export_twice(
+        conn,
+        tmp_path,
+        monkeypatch,
+        ["Hydroblast", "Ponder"],
+        ["Hydroblast", "Guttersnipe"],
     )
-    assert len(config.GOLDFISH_LIST_URLS) == 20
+
+    assert "1 card entered the pauper list: Guttersnipe" in caplog.text
+    assert "1 card left the pauper list: Ponder" in caplog.text
+
+
+def test_export_format_logs_an_unchanged_list(
+    conn: sqlite3.Connection,
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO)
+    _export_twice(conn, tmp_path, monkeypatch, ["Hydroblast"], ["Hydroblast"])
+
+    assert "The pauper list did not change" in caplog.text
+
+
+def test_a_first_export_logs_no_changes(
+    conn: sqlite3.Connection,
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    # No file yet: every card would count as "entered", which says nothing
+    caplog.set_level(logging.INFO)
+    _export_twice(conn, tmp_path, monkeypatch, [], ["Hydroblast", "Ponder"])
+
+    assert "entered" not in caplog.text
+    assert "did not change" not in caplog.text
 
 
 def test_report_left_out_adds_to_the_github_job_summary(

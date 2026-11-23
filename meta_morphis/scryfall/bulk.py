@@ -41,7 +41,7 @@ NOT_CARDS = {"token", "double_faced_token", "art_series", "emblem"}
 FUNNY_SET_TYPE = "funny"
 
 # How a name on a list matched a card: its full name ("Fire // Ice"),
-# its front face (MTGGoldfish lists a double-faced card by its front),
+# its front face (a decklist may name a double-faced card by its front),
 # another face (the spell of an adventure card), or the name it has on
 # Magic Online (see _mtgo_names). The first kind that matched any card
 # decides, so a card's own name always wins over another's MTGO name.

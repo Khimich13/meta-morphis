@@ -3,98 +3,46 @@ import sqlite3
 
 from meta_morphis import config
 from meta_morphis.models.meta import MetaEntry
-from meta_morphis.utils.text import card_count, normalize_name
 
+from .decklists import count_meta_cards
 from .repo import (
     get_meta_from_cache,
     save_meta_to_cache,
     should_refresh_meta,
     update_meta_timestamp,
 )
-from .scraper import scrape_meta_cards
 
 log = logging.getLogger(__name__)
 
 
-def get_meta_cards(
-    conn: sqlite3.Connection, format_name: str, kind: str
-) -> list[MetaEntry]:
-    """One list of one format, e.g. "pauper" and "lands" - see
-    GOLDFISH_LISTS in config.py. It is cached under its list name."""
-    name = config.list_name(format_name, kind)
-    # Validated before the cache check, so an unknown list always fails
-    # the same way - otherwise it depended on the database: a leftover
-    # cache row for it was served silently, and no row meant a bare KeyError.
-    url = config.GOLDFISH_LIST_URLS.get(name)
-    if url is None:
-        known = ", ".join(config.GOLDFISH_LIST_URLS)
-        raise ValueError(f"Unknown list {name!r}, expected one of: {known}")
+def get_meta_cards(conn: sqlite3.Connection, format_name: str) -> list[MetaEntry]:
+    """Every card played in the format's decks, most played first - see
+    count_meta_cards. It is saved in the database under the format's
+    name and counted again after META_REFRESH_RATE; a run that can't
+    count the decks uses the last count instead.
+    """
+    # Validated before the cache check, so an unknown format always fails
+    # the same way - otherwise a leftover cache row for it would be served
+    # silently, and no row would mean an empty count
+    if format_name not in config.FORMATS:
+        known = ", ".join(config.FORMATS)
+        raise ValueError(f"Unknown format {format_name!r}, expected one of: {known}")
 
-    if not should_refresh_meta(conn, name):
-        log.info("Using cached meta data")
-        return get_meta_from_cache(conn, name)
+    if not should_refresh_meta(conn, format_name):
+        log.info(f"Using the {format_name} decks counted earlier")
+        return get_meta_from_cache(conn, format_name)
 
-    log.info("Refreshing meta data from MTGGoldfish...")
-
-    meta = scrape_meta_cards(url)
-
-    # A list too short to export counts as a failed fetch. Saving it would
-    # replace the cached list, and its new timestamp would stop the next
-    # runs from trying again until GOLDFISH_REFRESH_RATE has passed.
-    minimum = config.min_cards(kind)
-    if meta is not None and len(meta) < minimum:
-        log.warning(
-            f"MTGGoldfish's {name} list has only {card_count(len(meta))}, "
-            f"expected at least {minimum} - its page may have been cut short"
-        )
-        meta = None
-
+    meta = count_meta_cards(format_name)
     if not meta:
-        log.warning("Failed fetching data from MTGGoldfish...")
-        cached = get_meta_from_cache(conn, name)
+        # Why was logged by count_meta_cards
+        log.warning(f"Could not count the {format_name} decks")
+        cached = get_meta_from_cache(conn, format_name)
         if cached:
-            log.warning("Using cached meta data instead")
+            log.warning("Using the last count instead")
             return cached
-        raise RuntimeError("Program has failed to find meta info!")
-
-    # Read before saving, which replaces it
-    previous = get_meta_from_cache(conn, name)
+        raise RuntimeError(f"The {format_name} decks were never counted")
 
     with conn:
-        save_meta_to_cache(conn, meta, name)
-        update_meta_timestamp(conn, name)
-
-    if previous:
-        _log_list_changes(name, previous, meta)
+        save_meta_to_cache(conn, meta, format_name)
+        update_meta_timestamp(conn, format_name)
     return meta
-
-
-def list_changes(
-    before: list[MetaEntry], after: list[MetaEntry]
-) -> tuple[list[str], list[str]]:
-    """The card names that entered and that left the list, each in list
-    order. Names are compared by normalize_name, so a change of spelling
-    or accents alone isn't counted as a different card.
-    """
-    before_keys = {normalize_name(entry.name) for entry in before}
-    after_keys = {normalize_name(entry.name) for entry in after}
-    entered = [e.name for e in after if normalize_name(e.name) not in before_keys]
-    left = [e.name for e in before if normalize_name(e.name) not in after_keys]
-    return entered, left
-
-
-def _log_list_changes(
-    format_name: str, before: list[MetaEntry], after: list[MetaEntry]
-) -> None:
-    entered, left = list_changes(before, after)
-    if not entered and not left:
-        log.info(f"The {format_name} list did not change")
-        return
-    if entered:
-        log.info(
-            f"{card_count(len(entered))} entered the {format_name} list: {', '.join(entered)}"
-        )
-    if left:
-        log.info(
-            f"{card_count(len(left))} left the {format_name} list: {', '.join(left)}"
-        )

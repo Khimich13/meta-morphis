@@ -79,8 +79,10 @@ def test_init_db_upgrades_a_version_1_database() -> None:
         )
     """)
     conn.execute("INSERT INTO cards VALUES ('1', 'lightning bolt', '{}', 0)")
-    # Every version 1 database has this table, and version 3 changes it
+    # Every version 1 database has these tables; version 3 changes meta,
+    # and version 5 empties both
     conn.execute("CREATE TABLE meta (name TEXT, format TEXT, lookup_name TEXT)")
+    conn.execute("CREATE TABLE meta_refresh (format TEXT, last_updated INTEGER)")
     conn.execute("PRAGMA user_version = 1")
 
     init_db(conn)
@@ -92,9 +94,11 @@ def test_init_db_upgrades_a_version_1_database() -> None:
 
 
 def test_init_db_upgrades_a_version_2_database() -> None:
-    # A database whose meta table still has lookup_name keeps its rows
-    # and loses the column
+    # A database whose meta table still has lookup_name loses the column
     conn = sqlite3.connect(":memory:")
+    conn.execute(
+        "CREATE TABLE meta_refresh (format TEXT PRIMARY KEY, last_updated INTEGER NOT NULL)"
+    )
     conn.execute("""
         CREATE TABLE meta (
             name TEXT NOT NULL, format TEXT NOT NULL, rank INTEGER,
@@ -112,12 +116,11 @@ def test_init_db_upgrades_a_version_2_database() -> None:
     assert conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
     columns = [row[1] for row in conn.execute("PRAGMA table_info(meta)")]
     assert columns == ["name", "format", "rank", "percent", "avg_copies"]
-    assert conn.execute("SELECT name FROM meta").fetchall() == [("Wear // Tear",)]
 
 
 def test_init_db_upgrades_a_version_3_database() -> None:
     # The Scryfall tables go - its card data now comes from its daily
-    # file - and the MTGGoldfish lists stay
+    # file
     conn = sqlite3.connect(":memory:")
     version_3 = """
         CREATE TABLE cards (
@@ -157,4 +160,28 @@ def test_init_db_upgrades_a_version_3_database() -> None:
         for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
     }
     assert tables == {"meta_refresh", "meta"}
-    assert conn.execute("SELECT name FROM meta").fetchall() == [("Lightning Bolt",)]
+
+
+def test_init_db_upgrades_a_version_4_database() -> None:
+    # MTGGoldfish's saved lists go, and when they were fetched: the lists
+    # are now counted from decklists, one count per format
+    conn = sqlite3.connect(":memory:")
+    version_4 = """
+        CREATE TABLE meta_refresh (
+            format TEXT PRIMARY KEY, last_updated INTEGER NOT NULL
+        );
+        CREATE TABLE meta (
+            name TEXT NOT NULL, format TEXT NOT NULL, rank INTEGER,
+            percent REAL, avg_copies FLOAT, PRIMARY KEY (format, name)
+        );
+        INSERT INTO meta VALUES ('Lightning Bolt', 'pauper', 1, 10.0, 4.0);
+        INSERT INTO meta_refresh VALUES ('pauper', 1795324980);
+        PRAGMA user_version = 4;
+    """
+    conn.executescript(version_4)
+
+    init_db(conn)
+
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
+    assert conn.execute("SELECT * FROM meta").fetchall() == []
+    assert conn.execute("SELECT * FROM meta_refresh").fetchall() == []

@@ -3,36 +3,29 @@ from pathlib import Path
 
 DAY = 24 * 60 * 60
 
-# MTGGoldfish
-GOLDFISH_FORMATS = ["pauper", "premodern", "pioneer", "standard", "modern"]
-# Each format's most played cards: "all" is creatures and spells
-# together (no lands), and the others are each kind on its own
-GOLDFISH_LISTS = ["all", "creatures", "spells", "lands"]
+# The formats the app teaches
+FORMATS = ["pauper", "premodern", "pioneer", "standard", "modern"]
+# Each format's lists of most played cards: "all" is creatures and spells
+# together (no lands), and the others are each kind on its own - see
+# card_kind in export.py
+LIST_KINDS = ["all", "creatures", "spells", "lands"]
+# How many cards each list has, the most played of its kind
+LIST_SIZE = 50
 
 
 def list_name(format_name: str, kind: str) -> str:
-    """The name a list is cached and exported under: the format's own
-    name for "all", as before the other lists existed, e.g. "pauper",
-    and "pauper-creatures" for the others.
+    """The name a list is exported under: the format's own name for
+    "all", as before the other lists existed, e.g. "pauper", and
+    "pauper-creatures" for the others.
     """
     return format_name if kind == "all" else f"{format_name}-{kind}"
 
 
-GOLDFISH_LIST_URLS = {
-    list_name(
-        format_name, kind
-    ): f"https://www.mtggoldfish.com/format-staples/{format_name}/full/{kind}"
-    for format_name in GOLDFISH_FORMATS
-    for kind in GOLDFISH_LISTS
-}
-GOLDFISH_HEADERS = {
-    "User-Agent": "meta-morphis (https://github.com/Khimich13/meta-morphis)",
-}
-# 20 hours rather than a full day: the daily run on GitHub starts a few
-# minutes earlier or later each day, and with a 24-hour limit a run that
-# started early would find yesterday's list still "fresh" and skip it.
-GOLDFISH_REFRESH_RATE = 20 * 60 * 60
-GOLDFISH_BAD_ROWS_LIMIT = 10
+# How long a format's count of its decks is used before it is counted
+# again. 20 hours rather than a full day: the daily run on GitHub starts
+# a few minutes earlier or later each day, and with a 24-hour limit a run
+# that started early would find yesterday's count still "fresh" and skip it.
+META_REFRESH_RATE = 20 * 60 * 60
 
 # Magic Online's decklists, from fbettega's archive on GitHub - see
 # meta/decklists.py. Its files are listed through GitHub's API, which
@@ -80,33 +73,23 @@ SCRYFALL_MIN_DELAY = 0.5
 SCRYFALL_RATE_LIMIT_COOLDOWN = 30.0
 
 # PWA data export
-# An export with fewer usable cards than this fails instead of writing
-# the file, so a failed fetch can't publish an empty or half-empty page.
+# A list with fewer usable cards than this fails instead of writing the
+# file, so a failed count can't publish an empty or half-empty page.
+# Each list takes LIST_SIZE cards, and a few may still be left out - see
+# build_export.
 EXPORT_MIN_CARDS = 45
-# The same for a lands list, which loses its basic lands: up to 12 of
-# them (Plains, Island, Swamp, Mountain, Forest and Wastes, each also
-# snow-covered), plus a small margin
-EXPORT_MIN_LANDS = 35
 
 # The same for the files of every card (see export_every_card): today's
 # Scryfall data gives 32,441 cards less basic lands, so fewer than this
 # means its data or the export broke
 EXPORT_MIN_EVERY_CARD = 30_000
 
-
-def min_cards(kind: str) -> int:
-    """The fewest cards a list of this kind needs to be exported. A list
-    scraped with fewer isn't saved either, so it can't replace a good
-    one - see meta/service.py.
-    """
-    return EXPORT_MIN_LANDS if kind == "lands" else EXPORT_MIN_CARDS
-
-
-# An MTGGoldfish list older than this makes the export fail, so a lasting
-# breakage of the scraper fails the daily run and GitHub reports it,
-# instead of the old list being published day after day. A short outage
-# still publishes the slightly older list. Keep in step with
-# LIST_OLD_AFTER_DAYS in web/src/lib/cards.ts, which shows a banner.
+# A format's count of its decks older than this makes the export fail, so
+# a lasting breakage of the decklist archive's listing fails the daily
+# run and GitHub reports it, instead of the old lists being published day
+# after day. A short outage still publishes the slightly older lists.
+# Keep in step with LIST_OLD_AFTER_DAYS in web/src/lib/cards.ts, which
+# shows a banner.
 EXPORT_STALE_AFTER = 3 * DAY
 
 # Scryfall's card data older than this makes the run fail after the

@@ -1,4 +1,3 @@
-import logging
 import sqlite3
 import time
 from pathlib import Path
@@ -6,94 +5,116 @@ from pathlib import Path
 import pytest
 from pytest import MonkeyPatch
 
-from meta_morphis import config
 from meta_morphis.meta.repo import (
     get_meta_from_cache,
     get_meta_timestamp,
     save_meta_to_cache,
     update_meta_timestamp,
 )
-from meta_morphis.meta.service import get_meta_cards, list_changes
+from meta_morphis.meta.service import get_meta_cards
 from meta_morphis.models.meta import MetaEntry
 
 
-@pytest.fixture(autouse=True)
-def _short_lists_allowed(monkeypatch: MonkeyPatch) -> None:
-    # Most tests here scrape a list of one or two cards, far below the
-    # real minimum. The test of the minimum sets its own.
-    monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 1)
+def _counted(monkeypatch: MonkeyPatch, meta: list[MetaEntry] | None) -> list[str]:
+    """count_meta_cards returns `meta`; returns the formats it counted"""
+    asked: list[str] = []
+
+    def fake_count(format_name: str) -> list[MetaEntry] | None:
+        asked.append(format_name)
+        return meta
+
+    monkeypatch.setattr("meta_morphis.meta.service.count_meta_cards", fake_count)
+    return asked
 
 
-def test_get_meta_cards_uses_cache(
+def _saved(conn: sqlite3.Connection, *names: str, at: int | None = None) -> None:
+    """A count of these cards saved for Pauper, at `at` (Unix time)"""
+    meta = [MetaEntry(name, rank, 0, 0) for rank, name in enumerate(names, start=1)]
+    with conn:
+        save_meta_to_cache(conn, meta, "pauper")
+        update_meta_timestamp(conn, "pauper")
+        if at is not None:
+            conn.execute("UPDATE meta_refresh SET last_updated = ?", (at,))
+
+
+def test_a_recent_count_is_used_without_counting_again(
     conn: sqlite3.Connection, monkeypatch: MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.should_refresh_meta", lambda conn, fmt: False
-    )
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.get_meta_from_cache",
-        lambda conn, fmt: [MetaEntry("cached", 0, 0, 0)],
-    )
+    _saved(conn, "Hydroblast")
+    asked = _counted(monkeypatch, [MetaEntry("Ponder", 1)])
 
-    result = get_meta_cards(conn, "pauper", "all")
+    result = get_meta_cards(conn, "pauper")
 
-    assert [m.name for m in result] == ["cached"]
+    assert [m.name for m in result] == ["Hydroblast"]
+    assert asked == []
 
 
-def test_get_meta_cards_scraper_success(
+def test_an_old_count_is_replaced(
     conn: sqlite3.Connection, monkeypatch: MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.should_refresh_meta", lambda conn, fmt: True
-    )
+    _saved(conn, "Hydroblast", at=int(time.time()) - 2 * 24 * 60 * 60)
+    asked = _counted(monkeypatch, [MetaEntry("Ponder", 1, 40.0, 3.9)])
 
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.config.GOLDFISH_LIST_URLS",
-        {"pauper": "http://fake-url"},
-    )
+    result = get_meta_cards(conn, "pauper")
 
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.scrape_meta_cards",
-        lambda url: [MetaEntry("new-meta", 0, 0, 0)],
-    )
-
-    saved = []
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.save_meta_to_cache",
-        lambda conn, meta, fmt: saved.append(meta),
-    )
-
-    updated = []
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.update_meta_timestamp",
-        lambda conn, fmt: updated.append(fmt),
-    )
-
-    result = get_meta_cards(conn, "pauper", "all")
-
-    assert [m.name for m in result] == ["new-meta"]
-    assert saved == [[MetaEntry("new-meta", 0, 0, 0)]]
-    assert updated == ["pauper"]
+    assert asked == ["pauper"]
+    assert result == [MetaEntry("Ponder", 1, 40.0, 3.9)]
+    assert get_meta_from_cache(conn, "pauper") == result
+    assert abs(time.time() - (get_meta_timestamp(conn, "pauper") or 0)) < 60
 
 
-def test_get_meta_cards_saves_rows_with_unparseable_fields(
+@pytest.mark.parametrize("count", [None, []])
+def test_a_failed_or_empty_count_uses_the_last_one(
+    conn: sqlite3.Connection,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    count: list[MetaEntry] | None,
+) -> None:
+    # None: the archive couldn't be listed; []: it had no decks
+    counted_at = int(time.time()) - 2 * 24 * 60 * 60
+    _saved(conn, "Hydroblast", at=counted_at)
+    _counted(monkeypatch, count)
+
+    result = get_meta_cards(conn, "pauper")
+
+    assert [m.name for m in result] == ["Hydroblast"]
+    # Still the old time, so the export can tell how old the count is
+    assert get_meta_timestamp(conn, "pauper") == counted_at
+    assert "Could not count the pauper decks" in caplog.text
+
+
+def test_a_failed_count_with_none_before_fails(
     conn: sqlite3.Connection, monkeypatch: MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.should_refresh_meta", lambda conn, fmt: True
-    )
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.config.GOLDFISH_LIST_URLS",
-        {"pauper": "http://fake-url"},
-    )
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.scrape_meta_cards",
-        lambda url: [MetaEntry("Weird Row")],
-    )
+    _counted(monkeypatch, None)
 
-    result = get_meta_cards(conn, "pauper", "all")
+    with pytest.raises(RuntimeError, match="pauper decks were never counted"):
+        get_meta_cards(conn, "pauper")
 
-    assert [m.name for m in result] == ["Weird Row"]
+
+# Validated before the cache check, so a leftover row for a format no
+# longer in config can't be served silently
+@pytest.mark.parametrize("saved", [False, True])
+def test_an_unknown_format_fails(
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, saved: bool
+) -> None:
+    if saved:
+        with conn:
+            save_meta_to_cache(conn, [MetaEntry("Brainstorm", 1)], "legacy")
+            update_meta_timestamp(conn, "legacy")
+    asked = _counted(monkeypatch, [MetaEntry("Brainstorm", 1)])
+
+    with pytest.raises(ValueError, match="legacy"):
+        get_meta_cards(conn, "legacy")
+    assert asked == []
+
+
+def test_a_card_with_no_numbers_is_saved_too(
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch
+) -> None:
+    _counted(monkeypatch, [MetaEntry("Weird Row")])
+
+    get_meta_cards(conn, "pauper")
 
     row = conn.execute(
         "SELECT rank, percent, avg_copies FROM meta WHERE name = ?", ("Weird Row",)
@@ -101,236 +122,19 @@ def test_get_meta_cards_saves_rows_with_unparseable_fields(
     assert row == (None, None, None)
 
 
-def test_get_meta_cards_scraper_returns_empty_list_uses_cache(
-    conn: sqlite3.Connection, monkeypatch: MonkeyPatch
-) -> None:
-    with conn:
-        save_meta_to_cache(conn, [MetaEntry("cached-meta", 1, 10.0, 2.0)], "pauper")
-        update_meta_timestamp(conn, "pauper")
-
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.should_refresh_meta", lambda conn, fmt: True
-    )
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.config.GOLDFISH_LIST_URLS",
-        {"pauper": "http://fake-url"},
-    )
-    monkeypatch.setattr("meta_morphis.meta.service.scrape_meta_cards", lambda url: [])
-
-    result = get_meta_cards(conn, "pauper", "all")
-
-    assert [m.name for m in result] == ["cached-meta"]
-    assert [m.name for m in get_meta_from_cache(conn, "pauper")] == ["cached-meta"]
-
-
-def test_get_meta_cards_scraper_fail_uses_cache(
-    conn: sqlite3.Connection, monkeypatch: MonkeyPatch
-) -> None:
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.should_refresh_meta", lambda conn, fmt: True
-    )
-
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.config.GOLDFISH_LIST_URLS",
-        {"pauper": "http://fake-url"},
-    )
-
-    monkeypatch.setattr("meta_morphis.meta.service.scrape_meta_cards", lambda url: None)
-
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.get_meta_from_cache",
-        lambda conn, fmt: [MetaEntry("cached-meta", 0, 0, 0)],
-    )
-
-    result = get_meta_cards(conn, "pauper", "all")
-
-    assert [m.name for m in result] == ["cached-meta"]
-
-
-def test_get_meta_cards_scraper_fail_and_no_cache(
-    conn: sqlite3.Connection, monkeypatch: MonkeyPatch
-) -> None:
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.should_refresh_meta", lambda conn, fmt: True
-    )
-
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.config.GOLDFISH_LIST_URLS",
-        {"pauper": "http://fake-url"},
-    )
-
-    monkeypatch.setattr("meta_morphis.meta.service.scrape_meta_cards", lambda url: None)
-
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.get_meta_from_cache", lambda conn, fmt: []
-    )
-
-    with pytest.raises(RuntimeError):
-        get_meta_cards(conn, "pauper", "all")
-
-
-# A page cut short must not replace the cached list or mark it fresh -
-# or the next runs would reuse the short list until GOLDFISH_REFRESH_RATE
-def test_get_meta_cards_keeps_cache_when_scraped_list_is_too_short(
-    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: pytest.LogCaptureFixture
-) -> None:
-    monkeypatch.setattr(config, "EXPORT_MIN_CARDS", 3)
-    fetched = int(time.time()) - 2 * config.GOLDFISH_REFRESH_RATE
-    with conn:
-        save_meta_to_cache(
-            conn, _entries("Hydroblast", "Ponder", "Lightning Bolt"), "pauper"
-        )
-        conn.execute(
-            "INSERT INTO meta_refresh (format, last_updated) VALUES ('pauper', ?)",
-            (fetched,),
-        )
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.scrape_meta_cards",
-        lambda url: _entries("Hydroblast", "Ponder"),
-    )
-
-    result = get_meta_cards(conn, "pauper", "all")
-
-    expected = ["Hydroblast", "Ponder", "Lightning Bolt"]
-    assert [m.name for m in result] == expected
-    assert [m.name for m in get_meta_from_cache(conn, "pauper")] == expected
-    assert get_meta_timestamp(conn, "pauper") == fetched
-    assert "only 2 cards, expected at least 3" in caplog.text
-
-
-# An unknown format used to escape as a bare KeyError after the cache check
-def test_get_meta_cards_unknown_format_raises(
-    conn: sqlite3.Connection, monkeypatch: MonkeyPatch
-) -> None:
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.scrape_meta_cards",
-        lambda url: pytest.fail("an unknown format must not be scraped"),
-    )
-
-    with pytest.raises(ValueError, match="legacy"):
-        get_meta_cards(conn, "legacy", "all")
-
-
-# Validation happens before the cache check, so a leftover cache row for a
-# format no longer in config can't be served silently
-def test_get_meta_cards_unknown_format_raises_even_with_cached_rows(
-    conn: sqlite3.Connection,
-) -> None:
-    with conn:
-        save_meta_to_cache(conn, [MetaEntry(name="Brainstorm", rank=1)], "legacy")
-        update_meta_timestamp(conn, "legacy")
-
-    with pytest.raises(ValueError, match="legacy"):
-        get_meta_cards(conn, "legacy", "all")
-
-
 # Read back through a second connection, which only sees committed data -
 # the shared `conn` fixture can't tell whether a write was ever committed
-def test_get_meta_cards_commits_scraped_meta(
-    db_file: Path, monkeypatch: MonkeyPatch
-) -> None:
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.scrape_meta_cards",
-        lambda url: [MetaEntry("Lightning Bolt", 1, 25.0, 3.5)],
-    )
+def test_a_new_count_is_committed(db_file: Path, monkeypatch: MonkeyPatch) -> None:
+    _counted(monkeypatch, [MetaEntry("Lightning Bolt", 1, 25.0, 3.5)])
 
     writer = sqlite3.connect(db_file)
-    get_meta_cards(writer, "pauper", "all")
+    get_meta_cards(writer, "pauper")
     writer.close()
 
     reader = sqlite3.connect(db_file)
     cached = get_meta_from_cache(reader, "pauper")
-    last_updated = reader.execute(
-        "SELECT last_updated FROM meta_refresh WHERE format = 'pauper'"
-    ).fetchone()[0]
+    last_updated = get_meta_timestamp(reader, "pauper")
     reader.close()
 
     assert [m.name for m in cached] == ["Lightning Bolt"]
-    assert abs(time.time() - last_updated) < 60
-
-
-def _entries(*names: str) -> list[MetaEntry]:
-    return [MetaEntry(name, rank, 0, 0) for rank, name in enumerate(names, start=1)]
-
-
-def test_list_changes_names_cards_that_entered_and_left() -> None:
-    before = _entries("Hydroblast", "Ponder", "Lightning Bolt")
-    after = _entries(
-        "Hydroblast", "Guttersnipe", "Lightning Bolt", "Writhing Chrysalis"
-    )
-
-    assert list_changes(before, after) == (
-        ["Guttersnipe", "Writhing Chrysalis"],
-        ["Ponder"],
-    )
-
-
-def test_list_changes_ignores_spelling_and_order() -> None:
-    before = _entries("Lorien Revealed", "Hydroblast")
-    after = _entries("Hydroblast", "Lórien Revealed")
-
-    assert list_changes(before, after) == ([], [])
-
-
-def _refresh(
-    monkeypatch: MonkeyPatch, saved: list[MetaEntry], scraped: list[MetaEntry]
-) -> None:
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.should_refresh_meta", lambda conn, fmt: True
-    )
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.config.GOLDFISH_LIST_URLS",
-        {"pauper": "http://fake-url"},
-    )
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.scrape_meta_cards", lambda url: scraped
-    )
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.get_meta_from_cache", lambda conn, fmt: saved
-    )
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.save_meta_to_cache", lambda conn, meta, fmt: None
-    )
-    monkeypatch.setattr(
-        "meta_morphis.meta.service.update_meta_timestamp", lambda conn, fmt: None
-    )
-
-
-def test_refresh_logs_cards_that_entered_and_left(
-    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: pytest.LogCaptureFixture
-) -> None:
-    caplog.set_level(logging.INFO)
-    _refresh(
-        monkeypatch,
-        _entries("Hydroblast", "Ponder"),
-        _entries("Hydroblast", "Guttersnipe"),
-    )
-
-    get_meta_cards(conn, "pauper", "all")
-
-    assert "1 card entered the pauper list: Guttersnipe" in caplog.text
-    assert "1 card left the pauper list: Ponder" in caplog.text
-
-
-def test_refresh_logs_an_unchanged_list(
-    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: pytest.LogCaptureFixture
-) -> None:
-    caplog.set_level(logging.INFO)
-    _refresh(monkeypatch, _entries("Hydroblast"), _entries("Hydroblast"))
-
-    get_meta_cards(conn, "pauper", "all")
-
-    assert "The pauper list did not change" in caplog.text
-
-
-def test_first_refresh_logs_no_changes(
-    conn: sqlite3.Connection, monkeypatch: MonkeyPatch, caplog: pytest.LogCaptureFixture
-) -> None:
-    # Nothing saved yet: every card would count as "entered", which says nothing
-    caplog.set_level(logging.INFO)
-    _refresh(monkeypatch, [], _entries("Hydroblast", "Ponder"))
-
-    get_meta_cards(conn, "pauper", "all")
-
-    assert "entered" not in caplog.text
-    assert "did not change" not in caplog.text
+    assert abs(time.time() - (last_updated or 0)) < 60

@@ -41,8 +41,7 @@ def count_meta_cards(
 ) -> list[MetaEntry] | None:
     """Every card played in the format's decks of the last DECKLISTS_DAYS
     days, most played first - see rank_cards. None when the archive
-    can't be listed, as scrape_meta_cards returns None when MTGGoldfish
-    can't be reached.
+    can't be listed.
     """
     days = _window(today or datetime.now(timezone.utc).date())
     paths = _list_files(format_name, days)

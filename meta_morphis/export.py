@@ -220,8 +220,8 @@ class FormatsFile(TypedDict):
 
 class ExportFile(TypedDict):
     format: str
-    # When the list of most played cards was last fetched from MTGGoldfish,
-    # in UTC, e.g. "2026-10-17T19:18:03Z" - the app warns when it gets old
+    # When the format's decks were last counted, in UTC, e.g.
+    # "2026-10-17T19:18:03Z" - the app warns when it gets old
     list_updated: str
     cards: list[ExportCard]
 
@@ -1100,6 +1100,48 @@ def is_basic_land(card: Card) -> bool:
     return "Basic" in card.type_line.split("—")[0].split()
 
 
+def card_kind(card: Card) -> str:
+    """The list a card is on besides "all": "lands", "creatures" or
+    "spells", by its front's types. A land is a land even if it is also
+    a creature (Dryad Arbor) and a creature even with a spell on its
+    other side (Bonecrusher Giant), and everything else is a spell. This
+    sorts every card on MTGGoldfish's lists of November 2026 as they did.
+    """
+    front = card.faces[0].type_line if card.faces else card.type_line
+    types = front.split("—")[0].split()
+    if "Land" in types:
+        return "lands"
+    if "Creature" in types:
+        return "creatures"
+    return "spells"
+
+
+def pick_cards(meta: list[MetaEntry], cards: dict[str, Card], kind: str) -> list[Card]:
+    """The LIST_SIZE most played cards of this kind, most played first:
+    "all" is creatures and spells. `meta` is the format's count of its
+    decks, and `cards` the cards read_cards found for its names. Left
+    out, so the next card takes the place: a name with no card (logged
+    by read_cards), basic lands, and a second name of a card already
+    picked, such as its name on Magic Online.
+    """
+    picked: list[Card] = []
+    seen: set[str] = set()
+    for entry in meta:
+        card = cards.get(normalize_name(entry.name))
+        if card is None or is_basic_land(card):
+            continue
+        on_list = (
+            card_kind(card) != "lands" if kind == "all" else card_kind(card) == kind
+        )
+        if not on_list or card.id in seen:
+            continue
+        seen.add(card.id)
+        picked.append(card)
+        if len(picked) == config.LIST_SIZE:
+            break
+    return picked
+
+
 def export_format(
     conn: sqlite3.Connection,
     format_name: str,
@@ -1112,25 +1154,58 @@ def export_format(
 ) -> Path:
     """Exports one list of one format, e.g. "pauper" and "lands", to a
     file named after the list - see list_name in config.py. `meta` is the
-    list from MTGGoldfish, and `cards` the cards from read_cards, each in
-    the printing it is shown with."""
+    format's count of its decks, and `cards` the cards from read_cards,
+    each in the printing it is shown with - see pick_cards."""
     name = config.list_name(format_name, kind)
-    list_updated = _check_list_age(conn, name)
-    # A name read_cards couldn't find a card for was logged there
-    on_list = [
-        cards[key] for entry in meta if (key := normalize_name(entry.name)) in cards
-    ]
-    on_list = [card for card in on_list if not is_basic_land(card)]
+    list_updated = _check_list_age(conn, format_name)
+    on_list = pick_cards(meta, cards, kind)
     data = build_export(name, on_list, list_updated, read_text, symbols)
-    minimum = config.min_cards(kind)
-    if len(data["cards"]) < minimum:
+    if len(data["cards"]) < config.EXPORT_MIN_CARDS:
         raise RuntimeError(
             f"Only {len(data['cards'])} usable cards for {name}, "
-            f"expected at least {minimum} - not writing the file"
+            f"expected at least {config.EXPORT_MIN_CARDS} - not writing the file"
         )
+    previous = _names_in_file(out_dir / f"{name}.json")
     path = write_export(data, out_dir)
     log.info(f"Wrote {path}: {card_count(len(data['cards']))}")
+    if previous is not None:
+        _log_list_changes(name, previous, [card["name"] for card in data["cards"]])
     return path
+
+
+def _names_in_file(path: Path) -> list[str] | None:
+    """The card names in a list's file from an earlier run, or None if
+    there is none, or it can't be read"""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return [str(card["name"]) for card in data["cards"]]
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def list_changes(before: list[str], after: list[str]) -> tuple[list[str], list[str]]:
+    """The card names that entered and that left the list, each in list
+    order. Names are compared by normalize_name, so a change of spelling
+    or accents alone isn't counted as a different card.
+    """
+    before_keys = {normalize_name(name) for name in before}
+    after_keys = {normalize_name(name) for name in after}
+    entered = [name for name in after if normalize_name(name) not in before_keys]
+    left = [name for name in before if normalize_name(name) not in after_keys]
+    return entered, left
+
+
+def _log_list_changes(name: str, before: list[str], after: list[str]) -> None:
+    entered, left = list_changes(before, after)
+    if not entered and not left:
+        log.info(f"The {name} list did not change")
+        return
+    if entered:
+        log.info(
+            f"{card_count(len(entered))} entered the {name} list: {', '.join(entered)}"
+        )
+    if left:
+        log.info(f"{card_count(len(left))} left the {name} list: {', '.join(left)}")
 
 
 # The first two characters of an oracle id, which name its card's file.
@@ -1227,20 +1302,20 @@ def export_every_card(
 
 
 def _check_list_age(conn: sqlite3.Connection, format_name: str) -> str:
-    """When the MTGGoldfish list was last fetched, as UTC text. Fails if
+    """When the format's decks were last counted, as UTC text. Fails if
     that is longer ago than EXPORT_STALE_AFTER - see config.py.
     """
-    fetched = get_meta_timestamp(conn, format_name)
-    if fetched is None:
-        raise RuntimeError(f"The {format_name} list was never fetched from MTGGoldfish")
-    age = int(time.time()) - fetched
+    counted = get_meta_timestamp(conn, format_name)
+    if counted is None:
+        raise RuntimeError(f"The {format_name} decks were never counted")
+    age = int(time.time()) - counted
     if age > config.EXPORT_STALE_AFTER:
         raise RuntimeError(
-            f"The {format_name} list was last fetched from MTGGoldfish "
-            f"{age // config.DAY} days ago - not publishing it. "
-            "The warnings above say why fetching failed."
+            f"The {format_name} decks were last counted "
+            f"{age // config.DAY} days ago - not publishing their lists. "
+            "The warnings above say why counting failed."
         )
-    return datetime.fromtimestamp(fetched, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.fromtimestamp(counted, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def export_all(
@@ -1256,8 +1331,9 @@ def export_all(
     the file it had, and the others are still written. Then writes
     formats.json. Returns the lists that failed.
 
-    Every list is read from MTGGoldfish first, so Scryfall's card data
-    (`bulk_path`) is read only once, for the names on all of them.
+    Every format's decks are counted first, so Scryfall's card data
+    (`bulk_path`) is read only once, for the names in all of them. Each
+    format's lists are then picked from its count - see pick_cards.
     """
     # A run killed while write_json was writing - out of memory, or over
     # the time limit - leaves its half-written .tmp file, and the daily
@@ -1268,39 +1344,40 @@ def export_all(
 
     all_lists = [(format_name, kind) for format_name in formats for kind in kinds]
     failed: set[tuple[str, str]] = set()
-    lists: dict[tuple[str, str], list[MetaEntry]] = {}
-    for format_name, kind in all_lists:
+    counts: dict[str, list[MetaEntry]] = {}
+    for format_name in formats:
         try:
-            lists[format_name, kind] = get_meta_cards(conn, format_name, kind)
+            counts[format_name] = get_meta_cards(conn, format_name)
         except Exception:
             # With the full error, so the log says why
-            name = config.list_name(format_name, kind)
             log.exception(
-                f"Could not get the {name} list - keeping its previous file, if any"
+                f"Could not count the {format_name} decks - keeping the previous "
+                f"files of the {format_name} lists, if any"
             )
-            failed.add((format_name, kind))
+            failed.update((format_name, kind) for kind in kinds)
 
     try:
-        names = {entry.name for meta in lists.values() for entry in meta}
+        names = {entry.name for meta in counts.values() for entry in meta}
         cards = read_cards(bulk_path, names)
     except Exception:
         log.exception(
             "Could not read Scryfall's card data - keeping every list's previous file"
         )
-        failed.update(lists)
-        lists = {}
+        failed.update(all_lists)
+        counts = {}
 
-    for (format_name, kind), meta in lists.items():
-        try:
-            export_format(
-                conn, format_name, kind, meta, cards, out_dir, read_text, symbols
-            )
-        except Exception:
-            name = config.list_name(format_name, kind)
-            log.exception(
-                f"Could not export {name} - keeping its previous file, if any"
-            )
-            failed.add((format_name, kind))
+    for format_name, meta in counts.items():
+        for kind in kinds:
+            try:
+                export_format(
+                    conn, format_name, kind, meta, cards, out_dir, read_text, symbols
+                )
+            except Exception:
+                name = config.list_name(format_name, kind)
+                log.exception(
+                    f"Could not export {name} - keeping its previous file, if any"
+                )
+                failed.add((format_name, kind))
 
     write_formats(out_dir, formats, kinds)
     # In the order of the lists, not of the steps they failed at
@@ -1425,8 +1502,8 @@ def main() -> int:
             init_db(conn)
             failed = export_all(
                 conn,
-                config.GOLDFISH_FORMATS,
-                config.GOLDFISH_LISTS,
+                config.FORMATS,
+                config.LIST_KINDS,
                 config.EXPORT_DIR,
                 config.BULK_PATH,
                 read_text,

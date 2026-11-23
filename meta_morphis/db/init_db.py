@@ -4,7 +4,7 @@ import sqlite3
 # block below with the migration steps. CREATE TABLE IF NOT EXISTS alone
 # can't detect an existing table whose columns have drifted from what the
 # code now expects - this guard makes that drift loud instead of silent.
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 
 def init_db(conn: sqlite3.Connection) -> None:
@@ -38,10 +38,14 @@ def init_db(conn: sqlite3.Connection) -> None:
         _migrate_to_v4(c)
         current_version = 4
 
+    if current_version < 5:
+        _migrate_to_v5(c)
+        current_version = 5
+
     # Next schema change adds a block here, e.g.:
-    # if current_version < 5:
-    #     _migrate_to_v5(c)
-    #     current_version = 5
+    # if current_version < 6:
+    #     _migrate_to_v6(c)
+    #     current_version = 6
 
     c.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     conn.commit()
@@ -123,3 +127,13 @@ def _migrate_to_v4(c: sqlite3.Cursor) -> None:
     # they point into cards.
     for table in ("card_aliases", "cards", "card_lookup_failures", "chosen_printings"):
         c.execute(f"DROP TABLE IF EXISTS {table}")
+
+
+def _migrate_to_v5(c: sqlite3.Cursor) -> None:
+    # The lists are now counted from decklists - see meta/decklists.py -
+    # and saved as one count per format, under the format's name. The
+    # saved rows are MTGGoldfish's 50-card lists, and "pauper" among them
+    # would pass for Pauper's whole count until it was counted again, so
+    # they go, with when they were fetched.
+    c.execute("DELETE FROM meta")
+    c.execute("DELETE FROM meta_refresh")
