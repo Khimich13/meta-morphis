@@ -18,6 +18,7 @@ import json
 import logging
 import os
 import shutil
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -34,14 +35,24 @@ log = logging.getLogger(__name__)
 Deck = dict[str, int]
 
 
+@dataclass
+class DeckCount:
+    """A format's count of its decks"""
+
+    # Every card played, most played first - see rank_cards
+    cards: list[MetaEntry]
+    # The day of the newest event counted: the archive is a day or two
+    # behind, and stops moving if the archive stops. None with no decks.
+    decks_to: date | None
+
+
 def count_meta_cards(
     format_name: str,
     today: date | None = None,
     folder: Path = config.DECKLISTS_DIR,
-) -> list[MetaEntry] | None:
+) -> DeckCount | None:
     """Every card played in the format's decks of the last DECKLISTS_DAYS
-    days, most played first - see rank_cards. None when the archive
-    can't be listed.
+    days. None when the archive can't be listed.
     """
     days = _window(today or datetime.now(timezone.utc).date())
     paths = _list_files(format_name, days)
@@ -54,17 +65,22 @@ def count_meta_cards(
         _download(path, folder)
 
     decks: list[Deck] = []
-    files = 0
+    # The day of each event with decks
+    event_days: list[date] = []
     for path in paths:
         file = folder / path
         if file.exists():
-            decks.extend(_read_decks(file))
-            files += 1
+            event_decks = _read_decks(file)
+            decks.extend(event_decks)
+            if event_decks:
+                event_days.append(_day_of(path))
+    newest = max(event_days, default=None)
     log.info(
-        f"Counted {len(decks)} {format_name} decks from {files} events "
-        f"of the last {config.DECKLISTS_DAYS} days ({len(new)} downloaded now)"
+        f"Counted {len(decks)} {format_name} decks from {len(event_days)} events "
+        f"of the last {config.DECKLISTS_DAYS} days, the newest on {newest} "
+        f"({len(new)} downloaded now)"
     )
-    return rank_cards(decks)
+    return DeckCount(rank_cards(decks), newest)
 
 
 def rank_cards(decks: list[Deck]) -> list[MetaEntry]:
@@ -175,6 +191,13 @@ def _wanted_path(
     except ValueError:
         return None
     return f"{year}/{month:02}/{day}/{name}" if on in days else None
+
+
+def _day_of(path: str) -> date:
+    """The day of an event's file, from its path under DECKLISTS_FOLDER:
+    "2026/10/10/pauper-challenge-32-....json" is 2026-10-10"""
+    year, month, day = path.split("/")[:3]
+    return date(int(year), int(month), int(day))
 
 
 def _api(path: str) -> Any:

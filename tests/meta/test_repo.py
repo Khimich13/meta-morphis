@@ -1,8 +1,10 @@
 import sqlite3
 import time
+from datetime import date
 
 from meta_morphis import config
 from meta_morphis.meta.repo import (
+    get_decks_to,
     get_meta_from_cache,
     get_meta_timestamp,
     save_meta_to_cache,
@@ -18,7 +20,7 @@ def test_get_meta_timestamp_never_scraped(conn: sqlite3.Connection) -> None:
 
 def test_get_meta_timestamp_after_update(conn: sqlite3.Connection) -> None:
     before = int(time.time())
-    update_meta_timestamp(conn, "pauper")
+    update_meta_timestamp(conn, "pauper", None)
 
     timestamp = get_meta_timestamp(conn, "pauper")
     assert timestamp is not None
@@ -26,8 +28,14 @@ def test_get_meta_timestamp_after_update(conn: sqlite3.Connection) -> None:
 
 
 def test_get_meta_timestamp_is_per_format(conn: sqlite3.Connection) -> None:
-    conn.execute("INSERT INTO meta_refresh VALUES (?, ?)", ("pauper", 1000))
-    conn.execute("INSERT INTO meta_refresh VALUES (?, ?)", ("pioneer", 2000))
+    conn.execute(
+        "INSERT INTO meta_refresh (format, last_updated) VALUES (?, ?)",
+        ("pauper", 1000),
+    )
+    conn.execute(
+        "INSERT INTO meta_refresh (format, last_updated) VALUES (?, ?)",
+        ("pioneer", 2000),
+    )
 
     assert get_meta_timestamp(conn, "pauper") == 1000
     assert get_meta_timestamp(conn, "pioneer") == 2000
@@ -41,7 +49,10 @@ def test_should_refresh_meta_no_row(conn: sqlite3.Connection) -> None:
 def test_should_refresh_meta_old(conn: sqlite3.Connection) -> None:
     old_time = int(time.time()) - (config.META_REFRESH_RATE + 10)
 
-    conn.execute("INSERT INTO meta_refresh VALUES (?, ?)", ("pauper", old_time))
+    conn.execute(
+        "INSERT INTO meta_refresh (format, last_updated) VALUES (?, ?)",
+        ("pauper", old_time),
+    )
 
     assert should_refresh_meta(conn, "pauper") is True
 
@@ -49,7 +60,10 @@ def test_should_refresh_meta_old(conn: sqlite3.Connection) -> None:
 def test_should_refresh_meta_fresh(conn: sqlite3.Connection) -> None:
     fresh_time = int(time.time())
 
-    conn.execute("INSERT INTO meta_refresh VALUES (?, ?)", ("pauper", fresh_time))
+    conn.execute(
+        "INSERT INTO meta_refresh (format, last_updated) VALUES (?, ?)",
+        ("pauper", fresh_time),
+    )
 
     assert should_refresh_meta(conn, "pauper") is False
 
@@ -59,13 +73,16 @@ def test_should_refresh_meta_fresh(conn: sqlite3.Connection) -> None:
 def test_should_refresh_meta_future_timestamp(conn: sqlite3.Connection) -> None:
     future_time = int(time.time()) + 3600
 
-    conn.execute("INSERT INTO meta_refresh VALUES (?, ?)", ("pauper", future_time))
+    conn.execute(
+        "INSERT INTO meta_refresh (format, last_updated) VALUES (?, ?)",
+        ("pauper", future_time),
+    )
 
     assert should_refresh_meta(conn, "pauper") is True
 
 
 def test_update_meta_timestamp_insert(conn: sqlite3.Connection) -> None:
-    update_meta_timestamp(conn, "pauper")
+    update_meta_timestamp(conn, "pauper", None)
 
     row = conn.execute(
         "SELECT last_updated FROM meta_refresh WHERE format = ?", ("pauper",)
@@ -76,15 +93,30 @@ def test_update_meta_timestamp_insert(conn: sqlite3.Connection) -> None:
 
 
 def test_update_meta_timestamp_update(conn: sqlite3.Connection) -> None:
-    conn.execute("INSERT INTO meta_refresh VALUES (?, ?)", ("pauper", 123))
+    conn.execute(
+        "INSERT INTO meta_refresh (format, last_updated) VALUES (?, ?)", ("pauper", 123)
+    )
 
-    update_meta_timestamp(conn, "pauper")
+    update_meta_timestamp(conn, "pauper", None)
 
     row = conn.execute(
         "SELECT last_updated FROM meta_refresh WHERE format = ?", ("pauper",)
     ).fetchone()
 
     assert row[0] != 123
+
+
+def test_the_day_of_the_newest_decks_is_saved_with_each_count(
+    conn: sqlite3.Connection,
+) -> None:
+    assert get_decks_to(conn, "pauper") is None
+
+    update_meta_timestamp(conn, "pauper", date(2026, 11, 19))
+    assert get_decks_to(conn, "pauper") == "2026-11-19"
+    assert get_decks_to(conn, "modern") is None
+
+    update_meta_timestamp(conn, "pauper", date(2026, 11, 20))
+    assert get_decks_to(conn, "pauper") == "2026-11-20"
 
 
 def test_get_meta_from_cache(conn: sqlite3.Connection) -> None:

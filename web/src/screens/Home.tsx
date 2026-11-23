@@ -1,4 +1,4 @@
-import { type Card, formatLabel, LIST_OLD_AFTER_DAYS, listAgeDays } from '../lib/cards';
+import { type Card, formatLabel, shortDay } from '../lib/cards';
 import { LIST_LABELS, type ListKind, type Selection, selectionLabel } from '../lib/formats';
 import { dueCount, localDay, masteredCount, type Progress, streak } from '../lib/progress';
 import { OPTION_COUNT } from '../lib/quiz';
@@ -21,8 +21,8 @@ interface HomeProps {
   /** A format and list that did load, to go back to after a failure */
   fallback: Selection | null;
   onChooseFallback: (selection: Selection) => void;
-  /** When the list of most played cards was last fetched, if known */
-  listUpdated: string | undefined;
+  /** The day of the newest decks the list was counted from, if known */
+  decksTo: string | null;
   progress: Progress;
   /** How many card pictures are saved for offline use, out of how many */
   pictures: { saved: number; total: number };
@@ -45,7 +45,7 @@ export default function Home({
   failed,
   fallback,
   onChooseFallback,
-  listUpdated,
+  decksTo,
   progress,
   pictures,
   onStartLesson,
@@ -60,6 +60,7 @@ export default function Home({
         <h1>MetaMorphis</h1>
         <p>
           {listName ?? formatLabel(selection.format)} ·{' '}
+          {listName === null && <DecksTo day={decksTo} />}
           <button className="link" onClick={onChangeFormat}>
             Change
           </button>
@@ -69,8 +70,6 @@ export default function Home({
       {listName === null && offered !== null && offered.length > 1 && (
         <ListChoice offered={offered} current={selection.kind} onChoose={onChooseKind} />
       )}
-
-      {listName === null && <OldListBanner listUpdated={listUpdated} />}
 
       {failed ? (
         <LoadFailed selection={selection} fallback={fallback} onChoose={onChooseFallback} />
@@ -225,17 +224,13 @@ function LoadFailed({
 }
 
 /**
- * Shown when the list of most played cards hasn't been updated for a
- * while, which means fetching it has been failing
+ * How recent the list is: "decks to Nov 19 · ". It stops moving when the
+ * decklists stop coming, so it also tells when the list has grown old.
  */
-function OldListBanner({ listUpdated }: { listUpdated: string | undefined }) {
-  const days = listAgeDays(listUpdated);
-  if (days === null || days <= LIST_OLD_AFTER_DAYS) return null;
-  return (
-    <p className="old-list" role="status">
-      ⚠ The card list was last updated {days} days ago, so it may not match the current meta.
-    </p>
-  );
+function DecksTo({ day }: { day: string | null }) {
+  const shown = shortDay(day);
+  if (shown === null) return null;
+  return <>decks to {shown} · </>;
 }
 
 function Notice() {

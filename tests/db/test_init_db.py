@@ -185,3 +185,25 @@ def test_init_db_upgrades_a_version_4_database() -> None:
     assert conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
     assert conn.execute("SELECT * FROM meta").fetchall() == []
     assert conn.execute("SELECT * FROM meta_refresh").fetchall() == []
+
+
+def test_init_db_upgrades_a_version_5_database() -> None:
+    # Each count gets the day of its newest decks; one made before has none
+    conn = sqlite3.connect(":memory:")
+    conn.executescript("""
+        CREATE TABLE meta_refresh (
+            format TEXT PRIMARY KEY, last_updated INTEGER NOT NULL
+        );
+        CREATE TABLE meta (
+            name TEXT NOT NULL, format TEXT NOT NULL, rank INTEGER,
+            percent REAL, avg_copies FLOAT, PRIMARY KEY (format, name)
+        );
+        INSERT INTO meta_refresh VALUES ('pauper', 1795324980);
+        PRAGMA user_version = 5;
+    """)
+
+    init_db(conn)
+
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
+    rows = conn.execute("SELECT format, last_updated, decks_to FROM meta_refresh")
+    assert rows.fetchall() == [("pauper", 1795324980, None)]

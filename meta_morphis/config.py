@@ -88,8 +88,6 @@ EXPORT_MIN_EVERY_CARD = 30_000
 # a lasting breakage of the decklist archive's listing fails the daily
 # run and GitHub reports it, instead of the old lists being published day
 # after day. A short outage still publishes the slightly older lists.
-# Keep in step with LIST_OLD_AFTER_DAYS in web/src/lib/cards.ts, which
-# shows a banner.
 EXPORT_STALE_AFTER = 3 * DAY
 
 # Scryfall's card data older than this makes the run fail after the

@@ -79,9 +79,13 @@ FETCHED = 1792264683
 def _list_fetched(
     monkeypatch: MonkeyPatch, fetched: int | None, now: int = FETCHED + 60
 ) -> None:
-    """The format's decks were counted at `fetched`, and it is `now`"""
+    """The format's decks were counted at `fetched`, to the decks of the
+    day before, and it is `now`"""
     monkeypatch.setattr(
         "meta_morphis.export.get_meta_timestamp", lambda conn, name: fetched
+    )
+    monkeypatch.setattr(
+        "meta_morphis.export.get_decks_to", lambda conn, name: "2026-10-16"
     )
     monkeypatch.setattr("meta_morphis.export.time.time", lambda: now)
 
@@ -1183,7 +1187,7 @@ def test_build_export_sorts_by_name_and_skips_unusable_cards() -> None:
         Card.from_raw({"id": "2", "oracle_id": "x", "name": "No Picture"}),
         Card.from_raw(_raw("Hydroblast", oracle_id="h")),
     ]
-    data = build_export("pauper", cards, "2026-10-17T19:18:03Z")
+    data = build_export("pauper", cards, "2026-10-16")
     assert data["format"] == "pauper"
     assert [c["name"] for c in data["cards"]] == ["Hydroblast", "Pyroblast"]
 
@@ -1208,7 +1212,7 @@ def test_build_export_keeps_one_copy_of_each_card(
         Card.from_raw(_raw("Old Name", oracle_id="n")),
         Card.from_raw(_raw("Mixed Fixed", oracle_id="m")),
     ]
-    data = build_export("pauper", cards, "2026-10-17T19:18:03Z")
+    data = build_export("pauper", cards, "2026-10-16")
     assert [c["name"] for c in data["cards"]] == ["Mixed Fixed", "New Name"]
     assert "Leaving out 'Old Name' - the same card as 'New Name'" in caplog.text
 
@@ -1346,7 +1350,7 @@ def test_export_format_writes_the_file(
     assert "Lórien Revealed" in text
     assert json.loads(text) == {
         "format": "pauper",
-        "list_updated": "2026-10-17T19:18:03Z",
+        "decks_to": "2026-10-16",
         "cards": [
             {
                 "oracle_id": "l",

@@ -1,19 +1,18 @@
 import { expect, test } from 'vitest';
 
-import { type Card, halfArt, listAgeDays, partName, partType, visibleName } from './cards';
+import { type Card, halfArt, partName, partType, shortDay, visibleName } from './cards';
 
-const NOW = new Date('2026-10-20T12:00:00Z');
-
-test('listAgeDays counts whole days since the list was fetched', () => {
-  expect(listAgeDays('2026-10-20T08:00:00Z', NOW)).toBe(0);
-  expect(listAgeDays('2026-10-19T12:00:00Z', NOW)).toBe(1);
-  expect(listAgeDays('2026-10-17T13:00:00Z', NOW)).toBe(2);
-  expect(listAgeDays('2026-10-15T19:17:00Z', NOW)).toBe(4);
+test('shortDay writes the day without its year, the way of the language', () => {
+  expect(shortDay('2026-11-19', 'en-US')).toBe('Nov 19');
+  expect(shortDay('2027-01-01', 'en-US')).toBe('Jan 1');
+  expect(shortDay('2026-11-19', 'en-GB')).toBe('19 Nov');
 });
 
-test('listAgeDays has no answer for a missing or broken date', () => {
-  expect(listAgeDays(undefined, NOW)).toBeNull();
-  expect(listAgeDays('not a date', NOW)).toBeNull();
+test('shortDay has no answer for a missing or broken day', () => {
+  expect(shortDay(undefined)).toBeNull();
+  expect(shortDay(null)).toBeNull();
+  expect(shortDay('not a day')).toBeNull();
+  expect(shortDay('2026-10-17T19:18:03Z')).toBeNull();
 });
 
 function card(name: string, sides: number): Card {

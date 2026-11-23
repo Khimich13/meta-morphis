@@ -318,6 +318,14 @@ html:has(.enlarged[open]:not(.closing)) .card-list-bar {
   text-align: center;
 }
 
+/* How recent the list is: "Decks to Nov 19" */
+.card-list-bar p {
+  margin: 0;
+  font-size: 0.9rem;
+  text-align: center;
+  opacity: 0.7;
+}
+
 .card-list-bar .back {
   min-height: 44px;
   /* The bar only as tall as the name and the arrow, leaving more of the

@@ -1,5 +1,6 @@
 import sqlite3
 import time
+from datetime import date
 
 from meta_morphis import config
 from meta_morphis.models.meta import MetaEntry
@@ -30,19 +31,35 @@ def should_refresh_meta(conn: sqlite3.Connection, format_name: str) -> bool:
     return age < 0 or age > config.META_REFRESH_RATE
 
 
-def update_meta_timestamp(conn: sqlite3.Connection, format_name: str) -> None:
+def update_meta_timestamp(
+    conn: sqlite3.Connection, format_name: str, decks_to: date | None
+) -> None:
+    """Records that `format_name`'s decks were counted now, to the day
+    of the newest decks, `decks_to`"""
     c = conn.cursor()
     c.execute(
         """
-        INSERT INTO meta_refresh (format, last_updated)
-        VALUES (?, ?)
-        ON CONFLICT(format) DO UPDATE SET last_updated = excluded.last_updated
+        INSERT INTO meta_refresh (format, last_updated, decks_to)
+        VALUES (?, ?, ?)
+        ON CONFLICT(format) DO UPDATE SET
+            last_updated = excluded.last_updated,
+            decks_to = excluded.decks_to
     """,
         (
             format_name,
             int(time.time()),
+            decks_to.isoformat() if decks_to else None,
         ),
     )
+
+
+def get_decks_to(conn: sqlite3.Connection, format_name: str) -> str | None:
+    """The day of the newest decks in `format_name`'s last count, e.g.
+    "2026-11-19", or None if it isn't known"""
+    row: tuple[str | None] | None = conn.execute(
+        "SELECT decks_to FROM meta_refresh WHERE format = ?", (format_name,)
+    ).fetchone()
+    return row[0] if row else None
 
 
 def get_meta_from_cache(conn: sqlite3.Connection, format_name: str) -> list[MetaEntry]:

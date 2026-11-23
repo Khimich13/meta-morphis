@@ -4,7 +4,7 @@ import sqlite3
 # block below with the migration steps. CREATE TABLE IF NOT EXISTS alone
 # can't detect an existing table whose columns have drifted from what the
 # code now expects - this guard makes that drift loud instead of silent.
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 
 def init_db(conn: sqlite3.Connection) -> None:
@@ -42,10 +42,14 @@ def init_db(conn: sqlite3.Connection) -> None:
         _migrate_to_v5(c)
         current_version = 5
 
+    if current_version < 6:
+        _migrate_to_v6(c)
+        current_version = 6
+
     # Next schema change adds a block here, e.g.:
-    # if current_version < 6:
-    #     _migrate_to_v6(c)
-    #     current_version = 6
+    # if current_version < 7:
+    #     _migrate_to_v7(c)
+    #     current_version = 7
 
     c.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     conn.commit()
@@ -137,3 +141,10 @@ def _migrate_to_v5(c: sqlite3.Cursor) -> None:
     # they go, with when they were fetched.
     c.execute("DELETE FROM meta")
     c.execute("DELETE FROM meta_refresh")
+
+
+def _migrate_to_v6(c: sqlite3.Cursor) -> None:
+    # The day of the newest decks in each format's count, e.g.
+    # "2026-11-19", which the app shows - see count_meta_cards. Empty for
+    # a count made before, until the format is counted again.
+    c.execute("ALTER TABLE meta_refresh ADD COLUMN decks_to TEXT")

@@ -18,8 +18,9 @@ log = logging.getLogger(__name__)
 def get_meta_cards(conn: sqlite3.Connection, format_name: str) -> list[MetaEntry]:
     """Every card played in the format's decks, most played first - see
     count_meta_cards. It is saved in the database under the format's
-    name and counted again after META_REFRESH_RATE; a run that can't
-    count the decks uses the last count instead.
+    name, with the day of its newest decks, and counted again after
+    META_REFRESH_RATE; a run that can't count the decks uses the last
+    count instead.
     """
     # Validated before the cache check, so an unknown format always fails
     # the same way - otherwise a leftover cache row for it would be served
@@ -32,8 +33,8 @@ def get_meta_cards(conn: sqlite3.Connection, format_name: str) -> list[MetaEntry
         log.info(f"Using the {format_name} decks counted earlier")
         return get_meta_from_cache(conn, format_name)
 
-    meta = count_meta_cards(format_name)
-    if not meta:
+    count = count_meta_cards(format_name)
+    if count is None or not count.cards:
         # Why was logged by count_meta_cards
         log.warning(f"Could not count the {format_name} decks")
         cached = get_meta_from_cache(conn, format_name)
@@ -43,6 +44,6 @@ def get_meta_cards(conn: sqlite3.Connection, format_name: str) -> list[MetaEntry
         raise RuntimeError(f"The {format_name} decks were never counted")
 
     with conn:
-        save_meta_to_cache(conn, meta, format_name)
-        update_meta_timestamp(conn, format_name)
-    return meta
+        save_meta_to_cache(conn, count.cards, format_name)
+        update_meta_timestamp(conn, format_name, count.decks_to)
+    return count.cards

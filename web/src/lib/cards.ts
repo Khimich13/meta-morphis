@@ -201,10 +201,11 @@ export interface Card {
 export interface CardFile {
   format: string;
   /**
-   * When the list of most played cards was last fetched from MTGGoldfish,
-   * in UTC. Missing in files written before it was added.
+   * The day of the newest decks the list was counted from, e.g.
+   * "2026-11-19". Null if not known, missing in files written before it
+   * was added.
    */
-  list_updated?: string;
+  decks_to?: string | null;
   cards: Card[];
 }
 
@@ -243,21 +244,20 @@ export async function loadDataFile<T>(name: string): Promise<T> {
 }
 
 /**
- * A list older than this is shown with a warning. Keep in step with
- * EXPORT_STALE_AFTER in meta_morphis/config.py: from then on the daily
- * update stops publishing, so the list the app has gets no newer.
+ * A day such as a list's decks_to, written the device's own way without
+ * the year: "2026-11-19" is "Nov 19" in American English. Null if
+ * there is no day or it isn't one.
  */
-export const LIST_OLD_AFTER_DAYS = 3;
-
-/** Whole days since the list was fetched, or null if the file doesn't say */
-export function listAgeDays(
-  listUpdated: string | undefined,
-  now: Date = new Date(),
-): number | null {
-  if (listUpdated === undefined) return null;
-  const fetched = Date.parse(listUpdated);
-  if (Number.isNaN(fetched)) return null;
-  return Math.floor((now.getTime() - fetched) / (24 * 60 * 60 * 1000));
+export function shortDay(day: string | null | undefined, locales?: string): string | null {
+  const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day ?? '');
+  if (parts === null) return null;
+  const [, year, month, date] = parts.map(Number);
+  // Made from its parts: Date.parse would take it as midnight in London,
+  // which is still the day before in America
+  return new Date(year, month - 1, date).toLocaleDateString(locales, {
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
 /** A format's name for showing on screen: "pauper" → "Pauper" */

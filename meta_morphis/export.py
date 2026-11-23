@@ -13,7 +13,6 @@ import time
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
-from datetime import datetime, timezone
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, TypedDict
@@ -21,7 +20,7 @@ from typing import Any, TypedDict
 from meta_morphis import config
 from meta_morphis.db.connection import get_connection
 from meta_morphis.db.init_db import init_db
-from meta_morphis.meta.repo import get_meta_timestamp
+from meta_morphis.meta.repo import get_decks_to, get_meta_timestamp
 from meta_morphis.meta.service import get_meta_cards
 from meta_morphis.models.card import Card, ImageSide
 from meta_morphis.models.meta import MetaEntry
@@ -220,9 +219,9 @@ class FormatsFile(TypedDict):
 
 class ExportFile(TypedDict):
     format: str
-    # When the format's decks were last counted, in UTC, e.g.
-    # "2026-10-17T19:18:03Z" - the app warns when it gets old
-    list_updated: str
+    # The day of the newest decks the list was counted from, e.g.
+    # "2026-11-19", which the app shows; None if it isn't known
+    decks_to: str | None
     cards: list[ExportCard]
 
 
@@ -969,7 +968,7 @@ def build_card(
 def build_export(
     format_name: str,
     cards: list[Card],
-    list_updated: str,
+    decks_to: str | None,
     read_text: ReadText = never_read,
     symbols: SetSymbols = NO_SYMBOLS,
 ) -> ExportFile:
@@ -996,7 +995,7 @@ def build_export(
 
     # Sorted so the file doesn't reshuffle between runs
     exported = sorted((built for _, built in kept.values()), key=lambda c: c["name"])
-    return {"format": format_name, "list_updated": list_updated, "cards": exported}
+    return {"format": format_name, "decks_to": decks_to, "cards": exported}
 
 
 def write_json(path: Path, data: object) -> None:
@@ -1157,9 +1156,11 @@ def export_format(
     format's count of its decks, and `cards` the cards from read_cards,
     each in the printing it is shown with - see pick_cards."""
     name = config.list_name(format_name, kind)
-    list_updated = _check_list_age(conn, format_name)
+    _check_count_age(conn, format_name)
     on_list = pick_cards(meta, cards, kind)
-    data = build_export(name, on_list, list_updated, read_text, symbols)
+    data = build_export(
+        name, on_list, get_decks_to(conn, format_name), read_text, symbols
+    )
     if len(data["cards"]) < config.EXPORT_MIN_CARDS:
         raise RuntimeError(
             f"Only {len(data['cards'])} usable cards for {name}, "
@@ -1301,10 +1302,9 @@ def export_every_card(
     return index
 
 
-def _check_list_age(conn: sqlite3.Connection, format_name: str) -> str:
-    """When the format's decks were last counted, as UTC text. Fails if
-    that is longer ago than EXPORT_STALE_AFTER - see config.py.
-    """
+def _check_count_age(conn: sqlite3.Connection, format_name: str) -> None:
+    """Fails if the format's decks were last counted longer ago than
+    EXPORT_STALE_AFTER - see config.py"""
     counted = get_meta_timestamp(conn, format_name)
     if counted is None:
         raise RuntimeError(f"The {format_name} decks were never counted")
@@ -1315,7 +1315,6 @@ def _check_list_age(conn: sqlite3.Connection, format_name: str) -> str:
             f"{age // config.DAY} days ago - not publishing their lists. "
             "The warnings above say why counting failed."
         )
-    return datetime.fromtimestamp(counted, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def export_all(

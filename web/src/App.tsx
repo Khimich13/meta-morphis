@@ -73,8 +73,8 @@ export default function App() {
   const [pool, setPool] = useState<Record<string, Card[]>>({});
   // The chosen format's cards; null until they have arrived
   const [cards, setCards] = useState<Card[] | null>(null);
-  // When that format's list was last fetched, if the file says
-  const [listUpdated, setListUpdated] = useState<string | undefined>(undefined);
+  // The day of the newest decks that list was counted from, if the file says
+  const [decksTo, setDecksTo] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [screen, setScreen] = useState<Screen>(
     format === null && openList === null ? 'formats' : 'home',
@@ -122,7 +122,7 @@ export default function App() {
       .then((file) => {
         if (stale) return;
         setCards(file.cards);
-        setListUpdated(file.list_updated);
+        setDecksTo(file.decks_to ?? null);
         // Remembered only once it has loaded, so the app never reopens
         // on a list it can't show
         saveFormat(format);
@@ -294,6 +294,7 @@ export default function App() {
       <CardList
         selection={{ format: format ?? '', kind: shownKind }}
         listName={openList?.name ?? null}
+        decksTo={decksTo}
         cards={shownCards}
         progress={progress}
         onBack={goHome}
@@ -303,7 +304,7 @@ export default function App() {
 
   return (
     <Home
-      listUpdated={listUpdated}
+      decksTo={decksTo}
       selection={{ format: format ?? '', kind: shownKind }}
       listName={openList?.name ?? null}
       onAddCards={() => addCards(openList?.id ?? null, 'home')}

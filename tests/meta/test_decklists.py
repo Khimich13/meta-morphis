@@ -9,6 +9,7 @@ from pytest import MonkeyPatch
 from meta_morphis import config
 from meta_morphis.meta import decklists
 from meta_morphis.meta.decklists import count_meta_cards, rank_cards
+from meta_morphis.models.meta import MetaEntry
 from meta_morphis.utils.http import RequestUnavailable
 
 TODAY = date(2026, 11, 22)
@@ -117,6 +118,35 @@ def test_rank_cards_of_no_decks_is_empty() -> None:
     assert rank_cards([]) == []
 
 
+def _ranked(format_name: str, today: date, folder: Path) -> list[MetaEntry] | None:
+    """count_meta_cards's cards, or None"""
+    count = count_meta_cards(format_name, today, folder)
+    return None if count is None else count.cards
+
+
+def test_the_count_is_to_the_day_of_its_newest_decks(
+    github: FakeGitHub, tmp_path: Path
+) -> None:
+    github.files = {
+        "2026/11/02/pauper-league.json": _event(_deck({"A": 4})),
+        "2026/11/19/pauper-challenge.json": _event(_deck({"A": 4})),
+        "2026/11/18/pauper-league.json": _event(_deck({"A": 4})),
+        # Newer, but with no deck that can be read
+        "2026/11/20/pauper-league.json": json.dumps({"Decks": []}),
+        "2026/11/21/premodern-league.json": _event(_deck({"A": 4})),
+    }
+    count = count_meta_cards("pauper", TODAY, tmp_path)
+    assert count is not None
+    assert count.decks_to == date(2026, 11, 19)
+
+
+def test_a_count_of_no_decks_is_to_no_day(github: FakeGitHub, tmp_path: Path) -> None:
+    count = count_meta_cards("pauper", TODAY, tmp_path)
+    assert count is not None
+    assert count.cards == []
+    assert count.decks_to is None
+
+
 def test_counts_the_formats_files_of_the_last_30_days(
     github: FakeGitHub, tmp_path: Path
 ) -> None:
@@ -131,7 +161,7 @@ def test_counts_the_formats_files_of_the_last_30_days(
         "2026/10/23/pauper-league.json": _event(_deck({"Too Old": 4})),
         "2026/11/20/premodern-challenge.json": _event(_deck({"Other": 4})),
     }
-    ranked = count_meta_cards("pauper", TODAY, tmp_path)
+    ranked = _ranked("pauper", TODAY, tmp_path)
     assert ranked is not None
     assert [(e.name, e.percent, e.avg_copies) for e in ranked] == [
         ("Counterspell", 66.7, 3.0),
@@ -151,7 +181,7 @@ def test_modern_is_not_premodern(github: FakeGitHub, tmp_path: Path) -> None:
         "2026/11/20/premodern-challenge.json": _event(_deck({"Premodern Card": 4})),
         "2026/11/20/modern-challenge.json": _event(_deck({"Modern Card": 4})),
     }
-    ranked = count_meta_cards("modern", TODAY, tmp_path)
+    ranked = _ranked("modern", TODAY, tmp_path)
     assert ranked is not None
     assert [e.name for e in ranked] == ["Modern Card"]
 
@@ -162,7 +192,7 @@ def test_downloads_only_new_files(github: FakeGitHub, tmp_path: Path) -> None:
     github.files["2026/11/21/pauper-b.json"] = _event(_deck({"B": 4}))
     github.calls.clear()
 
-    ranked = count_meta_cards("pauper", TODAY, tmp_path)
+    ranked = _ranked("pauper", TODAY, tmp_path)
     assert github.downloads() == ["2026/11/21/pauper-b.json"]
     assert ranked is not None
     assert sorted(e.name for e in ranked) == ["A", "B"]
@@ -193,7 +223,7 @@ def test_a_year_with_no_folder_yet_has_no_files(
     github: FakeGitHub, tmp_path: Path
 ) -> None:
     github.files = {"2026/12/31/pauper-a.json": _event(_deck({"A": 4}))}
-    ranked = count_meta_cards("pauper", date(2027, 1, 1), tmp_path)
+    ranked = _ranked("pauper", date(2027, 1, 1), tmp_path)
     assert ranked is not None
     assert [e.name for e in ranked] == ["A"]
 
@@ -205,14 +235,14 @@ def test_a_failed_download_is_tried_again_next_run(
         "2026/11/20/pauper-a.json": _event(_deck({"A": 4})),
         "2026/11/20/pauper-b.json": "<html>not json</html>",
     }
-    ranked = count_meta_cards("pauper", TODAY, tmp_path)
+    ranked = _ranked("pauper", TODAY, tmp_path)
     assert ranked is not None
     assert [e.name for e in ranked] == ["A"]
     assert not (tmp_path / "2026/11/20/pauper-b.json").exists()
 
     github.files["2026/11/20/pauper-b.json"] = _event(_deck({"B": 4}))
     github.calls.clear()
-    ranked = count_meta_cards("pauper", TODAY, tmp_path)
+    ranked = _ranked("pauper", TODAY, tmp_path)
     assert github.downloads() == ["2026/11/20/pauper-b.json"]
     assert ranked is not None
     assert sorted(e.name for e in ranked) == ["A", "B"]
@@ -239,7 +269,7 @@ def test_leaves_out_decks_and_card_lines_of_the_wrong_shape(
         ),
         "2026/11/20/pauper-b.json": json.dumps({"Tournament": {}}),
     }
-    ranked = count_meta_cards("pauper", TODAY, tmp_path)
+    ranked = _ranked("pauper", TODAY, tmp_path)
     assert ranked is not None
     assert [(e.name, e.percent) for e in ranked] == [("A", 50.0), ("B", 50.0)]
 

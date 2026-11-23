@@ -1,11 +1,14 @@
 import sqlite3
 import time
+from datetime import date
 from pathlib import Path
 
 import pytest
 from pytest import MonkeyPatch
 
+from meta_morphis.meta.decklists import DeckCount
 from meta_morphis.meta.repo import (
+    get_decks_to,
     get_meta_from_cache,
     get_meta_timestamp,
     save_meta_to_cache,
@@ -16,12 +19,13 @@ from meta_morphis.models.meta import MetaEntry
 
 
 def _counted(monkeypatch: MonkeyPatch, meta: list[MetaEntry] | None) -> list[str]:
-    """count_meta_cards returns `meta`; returns the formats it counted"""
+    """count_meta_cards counts `meta`, to 2026-11-19, or fails for None;
+    returns the formats it counted"""
     asked: list[str] = []
 
-    def fake_count(format_name: str) -> list[MetaEntry] | None:
+    def fake_count(format_name: str) -> DeckCount | None:
         asked.append(format_name)
-        return meta
+        return None if meta is None else DeckCount(meta, date(2026, 11, 19))
 
     monkeypatch.setattr("meta_morphis.meta.service.count_meta_cards", fake_count)
     return asked
@@ -32,7 +36,7 @@ def _saved(conn: sqlite3.Connection, *names: str, at: int | None = None) -> None
     meta = [MetaEntry(name, rank, 0, 0) for rank, name in enumerate(names, start=1)]
     with conn:
         save_meta_to_cache(conn, meta, "pauper")
-        update_meta_timestamp(conn, "pauper")
+        update_meta_timestamp(conn, "pauper", date(2026, 11, 1))
         if at is not None:
             conn.execute("UPDATE meta_refresh SET last_updated = ?", (at,))
 
@@ -61,6 +65,7 @@ def test_an_old_count_is_replaced(
     assert result == [MetaEntry("Ponder", 1, 40.0, 3.9)]
     assert get_meta_from_cache(conn, "pauper") == result
     assert abs(time.time() - (get_meta_timestamp(conn, "pauper") or 0)) < 60
+    assert get_decks_to(conn, "pauper") == "2026-11-19"
 
 
 @pytest.mark.parametrize("count", [None, []])
@@ -78,8 +83,10 @@ def test_a_failed_or_empty_count_uses_the_last_one(
     result = get_meta_cards(conn, "pauper")
 
     assert [m.name for m in result] == ["Hydroblast"]
-    # Still the old time, so the export can tell how old the count is
+    # Still the old time, so the export can tell how old the count is,
+    # and still the day of the old count's newest decks
     assert get_meta_timestamp(conn, "pauper") == counted_at
+    assert get_decks_to(conn, "pauper") == "2026-11-01"
     assert "Could not count the pauper decks" in caplog.text
 
 
@@ -101,7 +108,7 @@ def test_an_unknown_format_fails(
     if saved:
         with conn:
             save_meta_to_cache(conn, [MetaEntry("Brainstorm", 1)], "legacy")
-            update_meta_timestamp(conn, "legacy")
+            update_meta_timestamp(conn, "legacy", None)
     asked = _counted(monkeypatch, [MetaEntry("Brainstorm", 1)])
 
     with pytest.raises(ValueError, match="legacy"):

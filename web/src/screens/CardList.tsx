@@ -15,7 +15,7 @@ import {
 import { PlainCardPicture } from '../components/CardPicture';
 import LargeView from '../components/LargeView';
 import StandingLabel from '../components/StandingLabel';
-import { type Card, formatLabel } from '../lib/cards';
+import { type Card, formatLabel, shortDay } from '../lib/cards';
 import { LIST_LABELS, type Selection } from '../lib/formats';
 import { isLandscape, useLandscape, useLandscapeAllowed } from '../lib/landscape';
 import { useLargeView } from '../lib/largeView';
@@ -33,6 +33,8 @@ interface CardListProps {
   selection: Selection;
   /** The name of the player's own list, when that is what's shown */
   listName: string | null;
+  /** The day of the newest decks the list was counted from, if known */
+  decksTo: string | null;
   cards: Card[];
   progress: Progress;
   onBack: () => void;
@@ -47,9 +49,18 @@ interface CardListProps {
  */
 const NEARBY = 2;
 
-export default function CardList({ selection, listName, cards, progress, onBack }: CardListProps) {
+export default function CardList({
+  selection,
+  listName,
+  decksTo,
+  cards,
+  progress,
+  onBack,
+}: CardListProps) {
   // "Most played in Pauper", or "Most played creatures in Pauper"
   const what = selection.kind === 'all' ? '' : `${LIST_LABELS[selection.kind].toLowerCase()} `;
+  // Under it, how recent the list is, as on the start screen
+  const day = listName === null ? shortDay(decksTo) : null;
 
   // The double-faced cards showing their back, by oracle_id. Kept here so
   // the large view shows the same side as the small picture.
@@ -146,7 +157,10 @@ export default function CardList({ selection, listName, cards, progress, onBack 
         <button className="back" onClick={onBack} aria-label="Back">
           ←
         </button>
-        <h1>{listName ?? `Most played ${what}in ${formatLabel(selection.format)}`}</h1>
+        <div>
+          <h1>{listName ?? `Most played ${what}in ${formatLabel(selection.format)}`}</h1>
+          {day !== null && <p>Decks to {day}</p>}
+        </div>
       </header>
       <CardGrid
         gridRef={grid}
