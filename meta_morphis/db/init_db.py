@@ -82,7 +82,7 @@ def _migrate_to_v1(c: sqlite3.Cursor) -> None:
         )
     """)
 
-    # Create Goldfish meta refresh timestamp table
+    # When each format's list was last fetched, now counted
     c.execute("""
         CREATE TABLE IF NOT EXISTS meta_refresh (
             format TEXT PRIMARY KEY,
@@ -90,7 +90,7 @@ def _migrate_to_v1(c: sqlite3.Cursor) -> None:
         )
     """)
 
-    # Create Goldfish meta card list table
+    # Each format's list of cards, now its count of its decks
     c.execute("""
         CREATE TABLE IF NOT EXISTS meta (
             name TEXT NOT NULL,

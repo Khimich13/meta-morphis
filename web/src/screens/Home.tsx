@@ -243,9 +243,10 @@ function Notice() {
         Coast. ©Wizards of the Coast LLC.
       </p>
       <p>
-        Card data and images come from <a href="https://scryfall.com">Scryfall</a>. The list of most
-        played cards comes from <a href="https://www.mtggoldfish.com">MTGGoldfish</a>. This app is
-        not affiliated with either.
+        Card data and images come from <a href="https://scryfall.com">Scryfall</a>. The most played
+        cards are counted from the decklists{' '}
+        <a href="https://www.mtgo.com/decklists">Magic Online</a> publishes. This app is not
+        affiliated with either.
       </p>
     </footer>
   );

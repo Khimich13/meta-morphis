@@ -14,7 +14,7 @@ from meta_morphis.meta.repo import (
 from meta_morphis.models.meta import MetaEntry
 
 
-def test_get_meta_timestamp_never_scraped(conn: sqlite3.Connection) -> None:
+def test_get_meta_timestamp_never_counted(conn: sqlite3.Connection) -> None:
     assert get_meta_timestamp(conn, "pauper") is None
 
 

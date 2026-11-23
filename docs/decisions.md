@@ -9,7 +9,8 @@ what has been done is in the commit history.
 - **Two halves, a set of files between them.** Python fetches the data and
   writes a JSON file for each list of cards. The app reads those files and
   loads card pictures from Scryfall's image servers. The app never calls
-  Scryfall's API or MTGGoldfish itself, so its users can never overload them.
+  Scryfall's API or the decklist archive itself, so its users can never
+  overload them.
 - **The exporter is one module,** `meta_morphis/export.py`. It writes one
   file per format and list (`pauper.json`, `pauper-lands.json`, …) and
   `formats.json`, which lists what exists. It also writes every card, for
@@ -18,8 +19,9 @@ what has been done is in the commit history.
   phone loads only the files of the cards it adds. A card's file never
   changes, as its oracle id doesn't. Cards printed only in joke sets are
   left out.
-- **The data refreshes once a day** on GitHub Actions, at 19:17 UTC, about an
-  hour after MTGGoldfish was seen to update its lists.
+- **The data refreshes once a day** on GitHub Actions, at 21:17 UTC. The
+  decklist archive updates once a day, usually around 18:30 UTC; from
+  2026-10-27 to 2026-11-20 its latest update came at 20:42.
 - **Scryfall's card data comes from its file of every printing** ("Default
   cards" bulk data), not from looking cards up one by one: Scryfall asks for
   its bulk files when many cards are looked up, and they have no rate
@@ -27,11 +29,14 @@ what has been done is in the commit history.
   between runs. If the download fails the last copy is used, and after a
   week of that the run is marked as failed, so GitHub reports it. A name on
   a list must match a card's name exactly, ignoring case and accents: its
-  full name first, then a front face, then another face.
+  full name first, then a front face, then another face, then the name
+  Magic Online sells a Universes Beyond card under (Scryfall's
+  `printed_name`: Peter Parker is "Surris, Spidersilk Innovator").
 - **One list failing doesn't stop the others.** It keeps its previous file,
   the other lists are published, and the run is then marked as failed, so
-  GitHub reports it. A list older than three days fails on purpose, rather
-  than being published again unchanged.
+  GitHub reports it. A format whose decks couldn't be counted for three
+  days fails on purpose, rather than its lists being published again
+  unchanged.
 - **The app is React, TypeScript and Vite,** in `web/`. It is a progressive
   web app: installable, and usable offline once a list has been opened.
 - **Hosting is GitHub Pages,** free for a public repository.
@@ -192,8 +197,22 @@ what has been done is in the commit history.
   appears on the most regular English paper printings, in its newest
   printing. The question and the full card after answering always show the
   same printing.
-- **From MTGGoldfish, only the lists of cards are used:** not their rank,
-  deck percentages or copy counts. Basic lands are left out of every list.
+- **The lists are this project's own count of Magic Online's decklists,**
+  not another site's statistics. Magic Online publishes the decks of its
+  events at <https://www.mtgo.com/decklists>, and
+  [fbettega's archive](https://github.com/fbettega/MTG_decklistcache) keeps
+  them on GitHub as one JSON file per event. Each daily run downloads the
+  new files of the last 30 days and counts every format's decks: a card's
+  share is the share of decks playing it, in the main deck or the
+  sideboard. Each list takes the 50 most played cards of its kind, by the
+  types on the card's front: lands, creatures, and everything else as
+  spells; "all" is creatures and spells. Basic lands are left out. Magic
+  Online publishes only the top finishers of its Challenges and the
+  undefeated League decks, so the lists describe winning decks. The app
+  shows the day of the newest decks counted, which stops moving if the
+  archive stops. Checked against MTGGoldfish's lists on 2026-11-18: 30
+  days with sideboards put 74-94% of each format's 50 most played cards
+  in the counted top 50, more than any other rule tried (issue #27).
 
 ## Rules to follow
 
@@ -223,6 +242,15 @@ what has been done is in the commit history.
   own site has a button for it.
 - **Stay within Scryfall's rate limit** of 2 requests per second, and wait 30
   seconds after being told to slow down. The backend does both.
-- **Don't share the app publicly yet.** MTGGoldfish's terms allow personal use
-  only. Before a public launch, either get their permission or compute the
-  lists from tournament decklists instead (issue #27).
+- **Never use Daybreak's names or trademarks in the app's name, and never
+  suggest Daybreak endorses it.** Daybreak runs Magic Online, and its
+  [Terms of Service](https://www.daybreakgames.com/terms-of-service?locale=en_US)
+  (section 14) let fan sites and apps earn money through ads, which fits
+  the rule above; a subscription or access fee would need a separate
+  fansite license. Not yet confirmed: that mtgo.com is one of the sites
+  those terms list.
+- **Use only Magic Online's decklists,** not paper events'. Topdeck.gg's
+  [developer terms](https://topdeck.gg/developer-terms) ban scraping and
+  commercial use of its data, and MTGmelee's
+  [terms](https://melee.gg/Policy/Terms) need written permission to use
+  its data (contact@melee.gg, issue #49).

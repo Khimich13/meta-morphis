@@ -33,17 +33,19 @@ like an app, and works offline once a list has been opened.
 ## How it works
 
 ```
- MTGGoldfish ──► most played cards ─┐
+ Magic Online ─► decklists ─────────┐
                                     ├─► Python exporter ──► JSON files ──► web app
  Scryfall ─────► card data ─────────┘   (daily, on           (GitHub Pages)
                                          GitHub Actions)
 ```
 
-- **`meta_morphis/`** (Python) reads MTGGoldfish's lists of most played
-  cards, keeping them in a SQLite database, and reads each card's data
-  from Scryfall's daily file of every card, downloaded only when Scryfall
-  has made a newer one. Its exporter writes a JSON file for each format
-  and list, and every card in `cards/`. It reads
+- **`meta_morphis/`** (Python) counts the most played cards of each
+  format in the last 30 days of decklists Magic Online publishes, from
+  [fbettega's archive](https://github.com/fbettega/MTG_decklistcache) on
+  GitHub, keeping the count in a SQLite database. It reads each card's
+  data from Scryfall's daily file of every card, downloaded only when
+  Scryfall has made a newer one. Its exporter writes a JSON file for each
+  format and list, and every card in `cards/`. It reads
   card pictures with Tesseract to find a card's name in its text box, and
   keeps what it found in `meta_morphis/name_in_text.json`, in git.
 - **`web/`** (React, TypeScript, Vite) is the app. It reads those JSON files
@@ -62,7 +64,8 @@ install tesseract-ocr`). Without Tesseract the export still works, but cards
 with their name in their text box are asked only by their artwork.
 
 Write the card files (the first run downloads Scryfall's card data, about
-80 MB, and takes a minute or two):
+80 MB, and the last 30 days of decklists, a few hundred small files, and
+takes a few minutes):
 
 ```bash
 uv run python -m meta_morphis.export
@@ -109,9 +112,11 @@ npm run check        # TypeScript type check
 
 ## Credits
 
-Card data and images come from [Scryfall](https://scryfall.com). The lists of
-most played cards come from [MTGGoldfish](https://www.mtggoldfish.com). This
-project is not affiliated with either.
+Card data and images come from [Scryfall](https://scryfall.com). The most
+played cards are counted from the decklists
+[Magic Online](https://www.mtgo.com/decklists) publishes, as
+[fbettega's MTG_decklistcache](https://github.com/fbettega/MTG_decklistcache)
+keeps them. This project is not affiliated with any of them.
 
 MetaMorphis is unofficial Fan Content permitted under the Fan Content Policy.
 Not approved/endorsed by Wizards. Portions of the materials used are property

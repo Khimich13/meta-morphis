@@ -5,13 +5,13 @@ name: Deploy
 on:
   push:
     branches: [main]
-  # Once a day, to pick up changes to the most played cards. MTGGoldfish
-  # publishes no schedule; on 14 October 2026 its Pauper list changed
-  # between 17:49 and 18:09 UTC, so this runs about an hour after that.
-  # The odd minute avoids the start of the hour, when GitHub delays
-  # scheduled runs.
+  # Once a day, to count the new decklists. fbettega's archive updates
+  # once a day, usually around 18:30 UTC; from 27 October to 20 November
+  # 2026 its latest update came at 20:42, so this runs after that. The
+  # odd minute avoids the start of the hour, when GitHub delays scheduled
+  # runs.
   schedule:
-    - cron: '17 19 * * *'
+    - cron: '17 21 * * *'
   # Adds a "Run workflow" button on the Actions page
   workflow_dispatch:
 
@@ -36,9 +36,10 @@ jobs:
       - uses: actions/checkout@v7
 
       # Keep the data folder and the exported card files between runs.
-      # The data folder holds the database of MTGGoldfish's lists and
-      # Scryfall's card data, downloaded again only when Scryfall has made
-      # a newer file; the card files let a format that fails today keep
+      # The data folder holds the last 30 days of decklists, downloaded
+      # once each, the database of each format's count, and Scryfall's
+      # card data, downloaded again only when Scryfall has made a newer
+      # file; the card files let a format that fails today keep
       # publishing its last good list. Each run saves under its own name; the next run
       # restores the newest. If nothing is saved yet, the export starts
       # empty.
