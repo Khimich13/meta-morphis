@@ -1,4 +1,5 @@
 import errno
+import io
 import json
 import logging
 import sqlite3
@@ -7,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from PIL import Image, ImageDraw
 from pytest import MonkeyPatch
 
 from meta_morphis import config, name_in_text
@@ -20,13 +22,16 @@ from meta_morphis.export import (
     build_every_card,
     build_export,
     cost_part,
+    creature_type,
     export_all,
     export_every_card,
     export_format,
     face_of,
     horizontal_sides,
+    image_urls,
     is_basic_land,
     main_type,
+    measure_new_symbols,
     name_boxes,
     power_toughness,
     read_new_pictures,
@@ -41,6 +46,7 @@ from meta_morphis.export import (
 from meta_morphis.models.card import Card
 from meta_morphis.models.meta import MetaEntry
 from meta_morphis.name_in_text import READER_VERSION, NameInText, ReadText
+from meta_morphis.set_symbols import SetSymbols
 from meta_morphis.utils.text import normalize_name
 
 
@@ -97,6 +103,7 @@ def test_build_card_single_faced() -> None:
         "type": "instant",
         "cost": None,
         "power_toughness": None,
+        "creature_type": None,
     }
     assert build_card(card) == expected
 
@@ -980,6 +987,130 @@ def test_no_power_and_toughness_asked_unless_whole_numbers_in_a_measured_box() -
         assert power_toughness(card) is None, card.name
 
 
+# Where the test set's symbol starts on the type line
+SYMBOLS = {"tst": 0.87}
+
+
+def _typed(name: str, type_line: str, **extra: Any) -> Card:
+    return Card.from_raw(_raw(name, type_line=type_line, set="tst", **extra))
+
+
+def test_creature_types_and_their_line_up_to_the_set_symbol() -> None:
+    mage = _typed("Meddling Mage", "Creature — Human Wizard")
+    # From the line's start to 3 pixels before the symbol
+    assert creature_type(mage, SYMBOLS) == {
+        "types": ["Human", "Wizard"],
+        "box": [0.078, 0.569, 0.786, 0.043],
+    }
+    karn = _typed("Karn, Argent Defender", "Legendary Artifact Creature — Golem")
+    built = creature_type(karn, SYMBOLS)
+    assert built is not None
+    assert built["types"] == ["Golem"]
+
+
+def test_an_adventures_creature_types_are_its_main_parts() -> None:
+    borrower = Card.from_raw(
+        _raw(
+            "Brazen Borrower // Petty Theft",
+            layout="adventure",
+            set="tst",
+            card_faces=[
+                {"name": "Brazen Borrower", "type_line": "Creature — Faerie Rogue"},
+                {"name": "Petty Theft", "type_line": "Instant — Adventure"},
+            ],
+        )
+    )
+    built = creature_type(borrower, SYMBOLS)
+    assert built is not None
+    assert built["types"] == ["Faerie", "Rogue"]
+
+
+def test_no_creature_types_asked_when_the_name_has_them_all() -> None:
+    king = _typed("Goblin King", "Creature — Goblin")
+    rats = _typed("Ravenous Rats", "Creature — Rat")
+    # Asked: the name has the Goblin but not the Warrior
+    warchief = _typed("Goblin Warchief", "Creature — Goblin Warrior")
+    # Asked: a Rat is in "Pirate", but no word of the name starts with it
+    pirate = _typed("Pirate Captain", "Creature — Rat")
+    assert creature_type(king, SYMBOLS) is None
+    assert creature_type(rats, SYMBOLS) is None
+    assert creature_type(warchief, SYMBOLS) is not None
+    assert creature_type(pirate, SYMBOLS) is not None
+
+
+def test_no_creature_types_asked_of_other_cards_or_frames() -> None:
+    old = _typed("Wild Mongrel", "Creature — Dog", frame="2003")
+    transform = _double_faced("transform", {"power": "3", "toughness": "2"}, set="tst")
+    instant = _english("Counterspell", set="tst")
+    equipment = _typed("Bonesplitter", "Artifact — Equipment")
+    kindred = _typed("Bitterblossom", "Kindred Enchantment — Faerie")
+    for card in [old, transform, instant, equipment, kindred]:
+        assert creature_type(card, SYMBOLS) is None, card.name
+
+
+def test_no_creature_types_asked_without_the_sets_symbol_measured() -> None:
+    mage = _typed("Meddling Mage", "Creature — Human Wizard")
+    assert creature_type(mage, {}) is None
+    assert creature_type(mage, {"tst": None}) is None
+
+
+def _symbol_picture(
+    symbol: tuple[int, int] | None = (420, 450), text_to: int = 200
+) -> bytes:
+    """A modern frame's type line, 488 by 680: a light bar, dark text from
+    the line's start to `text_to`, and a set symbol from and to the
+    columns given - both drawn as thin upright strokes, as print is all
+    edges"""
+    image = Image.new("L", (488, 680), 200)
+    draw = ImageDraw.Draw(image)
+    for x in range(40, text_to, 4):
+        draw.rectangle([x, 392, x + 1, 410], fill=20)
+    if symbol:
+        for x in range(symbol[0], symbol[1], 4):
+            draw.rectangle([x, 390, x + 1, 412], fill=20)
+    out = io.BytesIO()
+    image.save(out, "PNG")
+    return out.getvalue()
+
+
+def test_new_sets_symbols_are_measured_on_the_shortest_type_line(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    short = _typed("Ravager", "Creature — Ox")
+    long = _typed("Ancient Ravager", "Legendary Creature — Human Soldier")
+    pictures = {
+        image_urls(short)[0]: _symbol_picture(),
+        image_urls(long)[0]: _symbol_picture(text_to=410),
+    }
+    asked: list[str] = []
+
+    def download(url: str) -> bytes | None:
+        asked.append(url)
+        return pictures.get(url)
+
+    monkeypatch.setattr(name_in_text, "_download", download)
+    for card in (short, long):
+        card.raw["set"] = "new"
+    measured = measure_new_symbols([long, short], {"old": 0.85})
+    assert measured == {"old": 0.85, "new": round(420 / 488, 4)}
+    assert asked == [image_urls(short)[0]]
+
+
+def test_a_set_not_measured_on_any_card_is_left_out(monkeypatch: MonkeyPatch) -> None:
+    # No symbol on the first; the text runs up to it on the second
+    cards = [_typed("Ravager", "Creature — Ox"), _typed("Pillager", "Creature — Orc")]
+    pictures = iter([_symbol_picture(symbol=None), _symbol_picture(text_to=410)])
+    monkeypatch.setattr(name_in_text, "_download", lambda url: next(pictures))
+    assert measure_new_symbols(cards, {}) == {"tst": None}
+
+
+def test_a_set_whose_picture_cant_be_downloaded_is_tried_next_time(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(name_in_text, "_download", lambda url: None)
+    assert measure_new_symbols([_typed("Ravager", "Creature — Ox")], {}) == {}
+
+
 def test_horizontal_sides() -> None:
     upright = Card.from_raw(_raw("Counterspell"))
     split = Card.from_raw(_raw("Wear // Tear", layout="split", keywords=["Fuse"]))
@@ -1232,6 +1363,7 @@ def test_export_format_writes_the_file(
                 "type": "card",
                 "cost": None,
                 "power_toughness": None,
+                "creature_type": None,
             }
         ],
     }
@@ -1329,7 +1461,16 @@ def test_export_format_fails_without_any_list(
 
 
 FakeExport = Callable[
-    [sqlite3.Connection, str, str, list[MetaEntry], dict[str, Card], Path, ReadText],
+    [
+        sqlite3.Connection,
+        str,
+        str,
+        list[MetaEntry],
+        dict[str, Card],
+        Path,
+        ReadText,
+        SetSymbols,
+    ],
     Path,
 ]
 
@@ -1345,6 +1486,7 @@ def _fake_export(fails: tuple[str, ...] = ()) -> FakeExport:
         cards: dict[str, Card],
         out_dir: Path,
         read_text: ReadText,
+        symbols: SetSymbols,
     ) -> Path:
         name = config.list_name(format_name, kind)
         if name in fails:

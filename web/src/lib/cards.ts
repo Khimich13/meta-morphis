@@ -90,6 +90,14 @@ export interface PowerToughness {
   box: [number, number, number, number];
 }
 
+/** A creature's types, for the question about them */
+export interface CreatureType {
+  /** As the type line prints them after the dash: ["Goblin", "Warrior"] */
+  types: string[];
+  /** Where the type line sits on the front picture, up to just before its set symbol, like name_box */
+  box: [number, number, number, number];
+}
+
 export interface Card {
   oracle_id: string;
   name: string;
@@ -181,6 +189,13 @@ export interface Card {
    * every other card, missing in files written before it was added.
    */
   power_toughness?: PowerToughness | null;
+  /**
+   * The creature types, which a question may cover on the full card to
+   * ask what they are: only on a creature with one side whose type line
+   * is measured, and whose name doesn't hold them all. Null on every
+   * other card, missing in files written before it was added.
+   */
+  creature_type?: CreatureType | null;
 }
 
 export interface CardFile {

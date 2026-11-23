@@ -90,6 +90,39 @@ what has been done is in the commit history.
   numbers - not Tarmogoyf's */1+*. The older frames print them on the
   frame itself, with no box to paint them over with. A spacecraft
   prints them in its text box, and isn't asked.
+- **A creature can be asked its creature types too,** the same way: as
+  often as each of the other kinds, sharing the card's one level, its
+  full picture with the type line painted over in its bar, and four
+  answers to choose from. The answers are the corners of a square, as
+  for the power and toughness: its own types, the first swapped for
+  another, the last swapped for another, and both - a Goblin Warrior
+  offers Goblin Warrior, Elf Warrior, Goblin Scout and Elf Scout. A word
+  is swapped for one other creatures have in the same place, a first for
+  a first and a last for a last, from the cards being learned first; a
+  single type for three other single types. Asked for now only of a
+  creature with one side, or an adventure's or prepare card's main
+  part, in the modern frame (see CREATURE_TYPE_LINES in `export.py`),
+  and not of one whose name holds every word of its types (Goblin King,
+  a Goblin): the question would answer itself and move the card up a
+  level for nothing. The 2003 frame's set symbols fill the bar's height,
+  and smear the paint (#47). The types are today's Oracle ones, which an
+  older printing may not print (Hound for today's Dog, Viashino for
+  Lizard): one card on the lists on 2026-11-22, Wild Mongrel, which is
+  in the 2003 frame, and about one in twenty over every card (#48).
+- **The set symbol stays in sight** on the type line: the paint stops a
+  few pixels before it. Symbols differ in width, so where a set's symbol
+  starts is measured once, on one of its cards with a short type line,
+  and kept in git (`set_symbols.json`, see `set_symbols.py`); the daily
+  run measures a new set's. A long line never runs into the symbol - the
+  card squeezes it to fit - but can end 3 pixels before it, and a set's
+  symbol sits up to 2 pixels apart from one scan to the next. So the
+  paint's right edge takes its colors, row by row, from the column past
+  it closest to the bar's color at the left end, which leaves out the
+  edge of a round symbol reaching in. Chosen on 2026-11-22 on the 313
+  creatures in the modern frame on the lists then and drawn at random:
+  every letter covered and every symbol whole. Of the 169 sets with
+  such creatures then, 4 couldn't be measured, their creatures all with
+  long lines, and aren't asked.
 - **A double-faced card is asked by either side,** half the time each:
   by its back's artwork, as by its front's, and a transform or modal
   double-faced card's by its back's full picture too. The answers name

@@ -132,6 +132,11 @@ DECKLISTS_DIR = PROJECT_ROOT / "data" / "decklists"
 # printings missing from it.
 NAME_IN_TEXT_PATH = PROJECT_ROOT / "meta_morphis" / "name_in_text.json"
 
+# Where each set's symbol starts on a card's type line - see
+# set_symbols.py. Kept in git like name_in_text.json: the daily run
+# measures only the sets missing from it, a picture each.
+SET_SYMBOLS_PATH = PROJECT_ROOT / "meta_morphis" / "set_symbols.json"
+
 # How long the export reads the pictures of cards on no list that
 # read_every_picture.py hasn't read, a new set's mostly, in seconds: a
 # set's few hundred take minutes, and thousands, after READER_VERSION

@@ -77,9 +77,29 @@ test("at the bar's end, what lies past it is left out", () => {
   // the last mana symbol, or the bar's own rounded end
   const bar = Array.from({ length: 4 }, () => Array(11).fill(120));
   for (const row of [1, 2]) bar[row].fill(250, 8);
-  const plain = grays(fillName(around(bar), 11, 3, NO_GRAIN, true), 5).flat();
+  const plain = grays(fillName(around(bar), 11, 3, NO_GRAIN, 'barEnd'), 5).flat();
   expect(plain.every((gray) => gray === 120)).toBe(true);
   // Without it, the light shows at the right
   const streaked = grays(fillName(around(bar), 11, 3, NO_GRAIN), 5);
   expect(streaked[0][4]).toBeGreaterThan(200);
+});
+
+test("before a set symbol, the symbol's edge past the area is left out", () => {
+  // A plain bar, and right of the area a round symbol's edge: in two of
+  // the three columns past it on three rows, and in all three on one
+  const bar = Array.from({ length: 9 }, () => Array(11).fill(120));
+  for (const row of [2, 3, 5]) bar[row].fill(20, 9);
+  bar[4].fill(20, 8);
+  const plain = grays(fillName(around(bar), 11, 3, NO_GRAIN, 'beforeSymbol'), 5).flat();
+  expect(plain.every((gray) => gray === 120)).toBe(true);
+  // Taking the middle of the three columns, the edge shows at the right
+  const streaked = grays(fillName(around(bar), 11, 3, NO_GRAIN), 5);
+  expect(streaked[1][4]).toBeLessThan(60);
+});
+
+test('before a set symbol, the right side still follows the shading past the area', () => {
+  // The bar gets lighter from left to right, with no symbol in the way
+  const bar = Array.from({ length: 4 }, () => [...Array(4).fill(100), ...Array(7).fill(160)]);
+  const pixels = grays(fillName(around(bar), 11, 3, NO_GRAIN, 'beforeSymbol'), 5);
+  for (const row of pixels) expect(row[4]).toBeGreaterThan(row[0]);
 });

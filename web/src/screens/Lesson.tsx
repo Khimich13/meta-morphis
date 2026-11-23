@@ -232,7 +232,9 @@ export default function Lesson({
                     ? 'Name the cost'
                     : question.kind === 'powerToughness'
                       ? 'Power and toughness?'
-                      : 'What is this art from?'}
+                      : question.kind === 'creatureType'
+                        ? 'Creature type?'
+                        : 'What is this art from?'}
               </h2>
               <QuestionLabel repeat={repeat} standing={cardStanding(record)} />
             </div>
@@ -448,8 +450,9 @@ function Artwork({
  * spell's name hidden instead of its own, and `half` a split card with
  * that half's name hidden. A name printed sideways is painted along its
  * own line, as it reads. `kind` "cost" paints over the mana cost in the
- * title bar instead, the same way, and "powerToughness" the power and
- * toughness in their box, both leaving the name in sight.
+ * title bar instead, the same way, "powerToughness" the power and
+ * toughness in their box, and "creatureType" the type line up to its set
+ * symbol, all leaving the name in sight.
  *
  * A card printed sideways opens in the large view when the phone turns
  * sideways, the right way up and its name still hidden, as the answer
@@ -468,7 +471,7 @@ function NameHidden({
   half: number | null;
   /**
    * What the question asks for, which is covered: the name ("picture"),
-   * the mana cost, or the power and toughness
+   * the mana cost, the power and toughness, or the type line
    */
   kind: Exclude<QuestionKind, 'artwork'>;
 }) {
@@ -485,10 +488,12 @@ function NameHidden({
       ? [card.cost.box]
       : kind === 'powerToughness' && card.power_toughness
         ? [card.power_toughness.box]
-        : [
-            side.name_box ?? [0, 0, 0, 0],
-            ...(('name_text_boxes' in side && side.name_text_boxes) || []),
-          ];
+        : kind === 'creatureType' && card.creature_type
+          ? [card.creature_type.box]
+          : [
+              side.name_box ?? [0, 0, 0, 0],
+              ...(('name_text_boxes' in side && side.name_text_boxes) || []),
+            ];
   const sideways = isHorizontal(card, back);
   const picture = useRef<HTMLImageElement>(null);
   const cardBox = useRef<HTMLDivElement>(null);
@@ -529,9 +534,12 @@ function NameHidden({
         : [around.width, around.height];
       context.drawImage(image, fromX, fromY, fromW, fromH, 0, 0, fromW, fromH);
       const pixels = context.getImageData(0, 0, around.width, around.height).data;
-      // A mana cost ends where the title bar does
+      // A mana cost ends where the title bar does, and a type line a few
+      // pixels before its set symbol (see RightSide)
+      const rightSide =
+        kind === 'cost' ? 'barEnd' : kind === 'creatureType' ? 'beforeSymbol' : 'past';
       const filled = new ImageData(
-        fillName(pixels, around.width, reach, Math.random, kind === 'cost'),
+        fillName(pixels, around.width, reach, Math.random, rightSide),
         along,
         crosswise,
       );
@@ -590,7 +598,9 @@ function NameHidden({
               ? 'Card with its mana cost hidden'
               : kind === 'powerToughness'
                 ? 'Card with its power and toughness hidden'
-                : 'Card with its name hidden'
+                : kind === 'creatureType'
+                  ? 'Card with its type line hidden'
+                  : 'Card with its name hidden'
           }
           crossOrigin="anonymous"
           onLoad={paint}

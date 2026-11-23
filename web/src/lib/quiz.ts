@@ -21,8 +21,10 @@ export const NEW_PER_LESSON = 3;
  *             cards.ts), asking what it costs
  *   powerToughness - the full card with its power and toughness covered
  *             (see power_toughness in cards.ts), asking what they are
+ *   creatureType - the full card with its type line covered (see
+ *             creature_type in cards.ts), asking its creature types
  */
-export type QuestionKind = 'artwork' | 'picture' | 'cost' | 'powerToughness';
+export type QuestionKind = 'artwork' | 'picture' | 'cost' | 'powerToughness' | 'creatureType';
 
 /** An answer to choose from */
 export interface Option {
@@ -33,9 +35,10 @@ export interface Option {
    * answer - so a back side's name never tells the answer apart. The
    * same for a card with a spell: its spell's name or its main part's,
    * and a split card: one half's. For a question about the cost, a cost
-   * as Scryfall writes it, "{1}{U}{U}", and for one about the power and
-   * toughness, both as printed, "2/3": then `card` is the card asked
-   * about on every answer.
+   * as Scryfall writes it, "{1}{U}{U}", for one about the power and
+   * toughness, both as printed, "2/3", and for one about the creature
+   * types, those as printed, "Goblin Warrior": then `card` is the card
+   * asked about on every answer.
    */
   name: string;
 }
@@ -86,8 +89,9 @@ export function shuffle<T>(items: readonly T[], random: Random = Math.random): T
  * cards being learned, then from each of `moreCards` in turn: the
  * format's other cards, then every format's. Only when all of those run
  * out of that type do cards of other types fill in. A question about the
- * cost offers costs instead (see costOptions), and one about the power
- * and toughness offers those (see powerToughnessOptions).
+ * cost offers costs instead (see costOptions), one about the power and
+ * toughness offers those (see powerToughnessOptions), and one about the
+ * creature types offers types (see creatureTypeOptions).
  */
 export function makeQuestion(
   card: Card,
@@ -99,10 +103,10 @@ export function makeQuestion(
   // Either side, half the time each, for a card with a back to ask about,
   // either part, for a card with a spell whose name can be hidden, and
   // either half of a split card. Any kind it can be asked by, as often
-  // each: by the picture on a side or half whose name can be hidden, by
-  // its cost on a card whose cost can be, and by its power and toughness
-  // on a card whose power and toughness can be - a spell only by the
-  // picture: the artwork is the main part's.
+  // each: by the picture on a side or half whose name can be hidden, and
+  // by its cost, its power and toughness and its creature types on a
+  // card where each can be - a spell only by the picture: the artwork is
+  // the main part's.
   const back = same?.back ?? (card.back ? random() < 0.5 : false);
   const spell = same?.spell ?? (card.spell?.name_box ? random() < 0.5 : false);
   const half = same?.half ?? (card.halves ? pickHalf(random) : null);
@@ -119,6 +123,7 @@ export function makeQuestion(
         'artwork',
         ...(card.cost ? ['cost' as const] : []),
         ...(card.power_toughness ? ['powerToughness' as const] : []),
+        ...(card.creature_type ? ['creatureType' as const] : []),
       ];
   const kind =
     same?.kind ?? (kinds.length > 1 ? kinds[Math.floor(random() * kinds.length)] : kinds[0]);
@@ -140,6 +145,21 @@ export function makeQuestion(
       spell,
       half,
       options: powerToughnessOptions(card, card.power_toughness, random),
+    };
+  }
+  if (kind === 'creatureType' && card.creature_type) {
+    return {
+      card,
+      kind,
+      back,
+      spell,
+      half,
+      options: creatureTypeOptions(
+        card,
+        card.creature_type.types,
+        [allCards, ...moreCards],
+        random,
+      ),
     };
   }
   const right = { card, name: partName(card, back, spell, half) };
@@ -226,6 +246,70 @@ function printedPowerToughness({ power, toughness }: PowerToughness): string {
   return `${power}/${toughness}`;
 }
 
+/**
+ * The answers to a question about the card's creature types, in the
+ * order shown: the four corners of a square, as for the power and
+ * toughness - its own types, with the first swapped for another, the
+ * last swapped for another, and both. A Goblin Warrior offers Goblin
+ * Warrior, Elf Warrior, Goblin Scout and Elf Scout; a type in between
+ * stays (Human Soldier Ranger). Each answer shares a word with two
+ * others, so none stands out. A card of one type offers three other
+ * single types: Bird among Insect, Spirit and Elemental.
+ *
+ * A word is swapped for one that other creatures have in the same
+ * place - a first for a first, a last for a last, a single type for a
+ * single type - so a race stays a race (Goblin, Elf) and a job a job
+ * (Warrior, Scout). They come from `pools` in turn, the cards being
+ * learned first, at random within each, so a type more creatures have
+ * comes up more often. Only when those run out does a word from
+ * anywhere on their type lines fill in.
+ */
+function creatureTypeOptions(
+  card: Card,
+  types: readonly string[],
+  pools: readonly (readonly Card[])[],
+  random: Random,
+): Option[] {
+  // The words in a place of the other creatures' types, the pools in
+  // turn, each pool shuffled anew for each place: so the first and the
+  // last swapped in come from different creatures, and the answer with
+  // both swapped isn't always another creature's whole type
+  const wordsAt = (place: (words: readonly string[]) => readonly string[]) =>
+    pools.flatMap((pool) =>
+      shuffle(pool, random).flatMap((other) =>
+        other.oracle_id !== card.oracle_id && other.creature_type
+          ? place(other.creature_type.types)
+          : [],
+      ),
+    );
+  const single = wordsAt((words) => (words.length === 1 ? words : []));
+  const firsts = wordsAt((words) => (words.length > 1 ? words.slice(0, 1) : []));
+  const lasts = wordsAt((words) => (words.length > 1 ? words.slice(-1) : []));
+  const anywhere = wordsAt((words) => words);
+  const taken = new Set(types);
+  /** The first of the words not taken yet, which is taken then */
+  const take = (words: readonly string[]): string[] => {
+    const word = words.find((word) => !taken.has(word));
+    if (word === undefined) return [];
+    taken.add(word);
+    return [word];
+  };
+
+  let answers: string[][];
+  if (types.length === 1) {
+    const wrong = Array.from({ length: OPTION_COUNT - 1 }, () =>
+      take([...single, ...anywhere]),
+    ).flat();
+    answers = [[...types], ...wrong.map((word) => [word])];
+  } else {
+    const firstWords = [types[0], ...take([...firsts, ...anywhere])];
+    const lastWords = [types.at(-1)!, ...take([...lasts, ...anywhere])];
+    const middle = types.slice(1, -1);
+    answers = firstWords.flatMap((first) => lastWords.map((last) => [first, ...middle, last]));
+  }
+  return shuffle(answers, random).map((words) => ({ card, name: words.join(' ') }));
+}
+
 /** Either half of a split card, half the time each */
 function pickHalf(random: Random): number {
   return random() < 0.5 ? 1 : 0;
@@ -299,13 +383,16 @@ export function chooseLessonCards(
 
 /**
  * The card itself was picked - or, for a question about the cost, its
- * cost, and about the power and toughness, its own
+ * cost, and about the power and toughness or the creature types, its own
  */
 export function isCorrect(question: Question, picked: Option): boolean {
-  const { cost, power_toughness: powerToughness } = question.card;
+  const { cost, power_toughness: powerToughness, creature_type: creatureType } = question.card;
   if (question.kind === 'cost') return picked.name === cost?.mana_cost;
   if (question.kind === 'powerToughness') {
     return !!powerToughness && picked.name === printedPowerToughness(powerToughness);
+  }
+  if (question.kind === 'creatureType') {
+    return !!creatureType && picked.name === creatureType.types.join(' ');
   }
   return picked.card.oracle_id === question.card.oracle_id;
 }

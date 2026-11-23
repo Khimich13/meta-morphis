@@ -202,6 +202,113 @@ test('the power and toughness offered never go below 0, nor toughness to 0 on a 
   }
 });
 
+const TYPE_LINE: [number, number, number, number] = [0.078, 0.569, 0.854, 0.043];
+
+function ofTypes(n: number, ...types: string[]): Card {
+  return { ...card(n), creature_type: { types, box: TYPE_LINE } };
+}
+
+// Other creatures, whose types the wrong answers swap in
+const CREATURES = [
+  ofTypes(100, 'Elf', 'Druid'),
+  ofTypes(101, 'Human', 'Wizard'),
+  ofTypes(102, 'Merfolk', 'Rogue'),
+  ofTypes(103, 'Bird'),
+  ofTypes(104, 'Spirit'),
+  ofTypes(105, 'Insect'),
+  ofTypes(106, 'Zombie'),
+];
+
+function askCreatureType(
+  card: Card,
+  seed: number,
+  allCards: readonly Card[] = CREATURES,
+  moreCards: readonly (readonly Card[])[] = [],
+) {
+  const same = { kind: 'creatureType', back: false, spell: false, half: null } as const;
+  return makeQuestion(card, allCards, seeded(seed), same, moreCards);
+}
+
+test('a creature whose type line can be hidden is asked its types too', () => {
+  const card = { ...creature('2', '2'), creature_type: { types: ['Bird'], box: TYPE_LINE } };
+  const kinds = new Set(SEEDS.map((seed) => makeQuestion(card, CARDS, seeded(seed)).kind));
+  expect(kinds).toEqual(new Set(['artwork', 'picture', 'cost', 'powerToughness', 'creatureType']));
+});
+
+test('a question about the creature types offers the corners of a square', () => {
+  const card = ofTypes(0, 'Goblin', 'Warrior');
+  const squares = new Set<string>();
+  for (const seed of SEEDS) {
+    const question = askCreatureType(card, seed);
+    const answers = question.options.map((option) => option.name);
+    expect(new Set(answers).size).toBe(OPTION_COUNT);
+    expect(answers).toContain('Goblin Warrior');
+    // The first swapped for another creature's first, the last for a last
+    const firsts = [...new Set(answers.map((answer) => answer.split(' ')[0]))];
+    const lasts = [...new Set(answers.map((answer) => answer.split(' ')[1]))];
+    expect(firsts).toHaveLength(2);
+    expect(lasts).toHaveLength(2);
+    expect(firsts).toContain('Goblin');
+    expect(lasts).toContain('Warrior');
+    for (const first of firsts) expect(['Goblin', 'Elf', 'Human', 'Merfolk']).toContain(first);
+    for (const last of lasts) expect(['Warrior', 'Druid', 'Wizard', 'Rogue']).toContain(last);
+    squares.add([...answers].sort().join(', '));
+    // Every answer is the card itself: only the types are right or wrong
+    const right = question.options.filter((option) => isCorrect(question, option));
+    expect(right.map((option) => option.name)).toEqual(['Goblin Warrior']);
+    for (const option of question.options) expect(option.card).toBe(card);
+  }
+  // Each of the three other firsts with each of the three other lasts
+  expect(squares.size).toBe(9);
+});
+
+test('a type between the first and the last stays', () => {
+  for (const seed of SEEDS) {
+    const card = ofTypes(0, 'Human', 'Soldier', 'Ranger');
+    const answers = askCreatureType(card, seed).options.map((option) => option.name);
+    expect(answers).toContain('Human Soldier Ranger');
+    for (const answer of answers) expect(answer.split(' ')[1]).toBe('Soldier');
+    // Human is its own, so not swapped in again
+    expect(answers.filter((answer) => answer.startsWith('Human'))).toHaveLength(2);
+  }
+});
+
+test('a creature of one type is offered three other single types', () => {
+  for (const seed of SEEDS) {
+    const answers = askCreatureType(ofTypes(0, 'Dragon'), seed).options.map(
+      (option) => option.name,
+    );
+    expect(new Set(answers).size).toBe(OPTION_COUNT);
+    expect(answers).toContain('Dragon');
+    for (const answer of answers) {
+      expect(['Dragon', 'Bird', 'Spirit', 'Insect', 'Zombie']).toContain(answer);
+    }
+  }
+});
+
+test('swapped types come from the cards being learned first', () => {
+  const card = ofTypes(0, 'Goblin', 'Warrior');
+  const learned = [card, ofTypes(1, 'Elf', 'Druid')];
+  for (const seed of SEEDS) {
+    const answers = askCreatureType(card, seed, learned, [CREATURES]).options.map(
+      (option) => option.name,
+    );
+    expect(answers.sort()).toEqual(['Elf Druid', 'Elf Warrior', 'Goblin Druid', 'Goblin Warrior']);
+  }
+});
+
+test('with no creature of more than one type, any of their types is swapped in', () => {
+  const card = ofTypes(0, 'Goblin', 'Warrior');
+  const singles = [card, ofTypes(1, 'Bird'), ofTypes(2, 'Spirit')];
+  for (const seed of SEEDS) {
+    const answers = askCreatureType(card, seed, singles).options.map((option) => option.name);
+    expect(new Set(answers).size).toBe(OPTION_COUNT);
+    expect(answers).toContain('Goblin Warrior');
+    const swapped = new Set(answers.flatMap((answer) => answer.split(' ')));
+    expect(swapped).toEqual(new Set(['Goblin', 'Warrior', 'Bird', 'Spirit']));
+  }
+});
+
 function doubleFaced(n: number): Card {
   return {
     ...card(n),

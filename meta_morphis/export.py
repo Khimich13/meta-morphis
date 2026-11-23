@@ -15,6 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, TypedDict
 
 from meta_morphis import config
@@ -29,6 +30,8 @@ from meta_morphis.name_in_text import (
     REMINDER,
     TEXT_COLUMNS,
     NameInText,
+    NotDownloaded,
+    Picture,
     ReadText,
     fetch_game_words,
     has_long_text,
@@ -49,6 +52,7 @@ from meta_morphis.scryfall.bulk import (
     read_every_card,
     update_bulk_file,
 )
+from meta_morphis.set_symbols import SetSymbols, symbol_left, symbol_set
 from meta_morphis.utils.text import card_count, normalize_name
 
 log = logging.getLogger(__name__)
@@ -109,6 +113,16 @@ class PowerToughness(TypedDict):
     # Where they sit in the box at the bottom right of the front picture,
     # as [left, top, width, height]: the app paints over them to ask
     # what they are
+    box: list[float]
+
+
+class CreatureType(TypedDict):
+    # As the type line prints them after the dash: ["Goblin", "Warrior"]
+    # on a Goblin Warrior
+    types: list[str]
+    # Where the type line sits on the front picture, up to a little
+    # before its set symbol, as [left, top, width, height]: the app paints
+    # over it to ask what the types are
     box: list[float]
 
 
@@ -191,6 +205,9 @@ class ExportCard(TypedDict):
     # The power and toughness, for the question about them (see
     # power_toughness). None for a card not asked about them.
     power_toughness: PowerToughness | None
+    # The creature types, for the question about them (see
+    # creature_type). None for a card not asked about them.
+    creature_type: CreatureType | None
 
 
 class FormatsFile(TypedDict):
@@ -749,6 +766,82 @@ def power_toughness(card: Card) -> PowerToughness | None:
     return {"power": power, "toughness": toughness, "box": list(box)}
 
 
+# Where the type line sits in its bar below the artwork, as shares of
+# the card's width and height: left, top and height. It runs right up to
+# a little before the set symbol, which stays in sight: where that starts
+# is measured once per set (see set_symbols.py), as the symbols' widths
+# differ - the longest lines run to 0.84 of the width ("Legendary
+# Enchantment Creature — Spider") and the widest symbols start at 0.80
+# (M20's), so no edge fits every card. Chosen on 2026-11-22 by painting
+# over the 196 creatures in this frame on the lists then and 120 more
+# drawn at random from every card: all clean but one Mystery Booster 2
+# playtest card in a frame of its own. The 2003 frame's set symbols fill
+# the bar's height, so the rows above and below the line, which it is
+# painted from, run through them: about one card in six was left with a
+# smear.
+CREATURE_TYPE_LINES = {"2015": (0.078, 0.569, 0.043)}
+# Room left between the type line's cover and its set symbol, as a share
+# of the card's width: 3 pixels of Scryfall's 488-pixel-wide picture,
+# which the cover's right side takes its colors from (beforeSymbol in
+# the app's nameFill.ts). The longest lines end about 3 pixels before
+# the symbol (Kogla and Yidaro's, Jin-Gitaxias, Progress Tyrant's), so
+# they are still covered, and on some scans of a set the symbol starts
+# up to 2 pixels further left than on the one measured.
+SYMBOL_GAP = 0.006
+# No set's symbol measured: no question about a creature's types
+NO_SYMBOLS: SetSymbols = MappingProxyType({})
+
+
+def creature_types(card: Card) -> list[str] | None:
+    """The creature types the card can be asked: those of a creature with
+    one side (see POWER_TOUGHNESS_LAYOUTS) in a frame whose type line is
+    measured. None for any other card, and for one whose name gives its
+    types away (see name_gives_types)."""
+    faces = card.gameplay_faces()
+    if (
+        card.frame not in CREATURE_TYPE_LINES
+        or card.layout not in POWER_TOUGHNESS_LAYOUTS
+        or not faces
+    ):
+        return None
+    front = faces[0]
+    kinds, _, after = front.type_line.partition("—")
+    types = after.split()
+    if "Creature" not in kinds.split() or not types:
+        return None
+    if name_gives_types(front.name, types):
+        return None
+    return types
+
+
+def creature_type(card: Card, symbols: SetSymbols = NO_SYMBOLS) -> CreatureType | None:
+    """The card's creature types and where its type line sits, for the
+    question about them, up to a little before its set symbol, which
+    `symbols` says the place of. None for a card not asked about them
+    (see creature_types), and for one of a set whose symbol isn't
+    measured."""
+    types = creature_types(card)
+    symbol = symbols.get(symbol_set(card))
+    if types is None or symbol is None:
+        return None
+    left, top, height = CREATURE_TYPE_LINES[card.frame or ""]
+    box = [left, top, symbol - SYMBOL_GAP - left, height]
+    return {"types": types, "box": [round(value, 4) for value in box]}
+
+
+def name_gives_types(name: str, types: list[str]) -> bool:
+    """Every one of the types starts a word of the name, ignoring case
+    and accents: Goblin King is a Goblin, Ravenous Rats a Rat. Asked, the
+    question would answer itself, and a right answer would move the card
+    up a level for nothing. A name holding only some of them still leaves
+    a question: Goblin Warchief, a Goblin Warrior, might be a Goblin
+    Scout."""
+    words = [normalize(word) for word in re.split(r"[\s-]+", name)]
+    return all(
+        any(word.startswith(normalize(kind)) for word in words) for kind in types
+    )
+
+
 def horizontal_sides(card: Card) -> list[bool]:
     """Which sides are printed sideways: both halves of a split card
     (Fire // Ice, the Rooms), and a battle's front. An aftermath card is
@@ -827,7 +920,9 @@ def back_side(card: Card, read_text: ReadText = never_read) -> BackSide | None:
     }
 
 
-def build_card(card: Card, read_text: ReadText = never_read) -> ExportCard | None:
+def build_card(
+    card: Card, read_text: ReadText = never_read, symbols: SetSymbols = NO_SYMBOLS
+) -> ExportCard | None:
     # Without an id the app can't tell cards apart, and without its
     # pictures and artist it can't show or ask about the card - leave
     # such a card out.
@@ -867,6 +962,7 @@ def build_card(card: Card, read_text: ReadText = never_read) -> ExportCard | Non
         "type": front_type(card),
         "cost": cost_part(card),
         "power_toughness": power_toughness(card),
+        "creature_type": creature_type(card, symbols),
     }
 
 
@@ -875,13 +971,14 @@ def build_export(
     cards: list[Card],
     list_updated: str,
     read_text: ReadText = never_read,
+    symbols: SetSymbols = NO_SYMBOLS,
 ) -> ExportFile:
     # The app tells cards apart by oracle id, so each may appear only once.
     # Two names on the list can still lead to one card, e.g. an old
     # spelling and the new one after Scryfall renamed it: the first is kept.
     kept: dict[str, tuple[Card, ExportCard]] = {}
     for card in cards:
-        built = build_card(card, read_text)
+        built = build_card(card, read_text, symbols)
         if built is None:
             log.warning(
                 f"Leaving out '{card.name}' - no oracle id, picture or artist, "
@@ -931,6 +1028,63 @@ def load_name_in_text(path: Path) -> dict[str, Any]:
     return results
 
 
+def load_set_symbols(path: Path) -> dict[str, float | None]:
+    """The sets' symbols measured on earlier runs - see set_symbols.py"""
+    if not path.exists():
+        return {}
+    symbols: dict[str, float | None] = json.loads(path.read_text(encoding="utf-8"))
+    return symbols
+
+
+# How many of a set's cards are tried, the shortest type lines first,
+# before it is taken as one that can't be measured
+MEASURE_TRIES = 3
+
+
+def measure_new_symbols(
+    cards: Iterable[Card], symbols: SetSymbols
+) -> dict[str, float | None]:
+    """`symbols` with the sets added that it lacks, of the creatures that
+    can be asked their types (see creature_types): each measured on the
+    picture of its card with the shortest type line, whose text is far
+    from the symbol, or of the next when that one can't be, up to
+    MEASURE_TRIES; None for a set none of those could be measured on. A
+    set whose picture couldn't be downloaded is left out, to be tried
+    again on the next run."""
+    by_set: dict[str, list[Card]] = {}
+    for card in cards:
+        if creature_types(card) is not None and image_urls(card):
+            code = symbol_set(card)
+            if code not in symbols:
+                by_set.setdefault(code, []).append(card)
+    measured = dict(symbols)
+    for code, candidates in sorted(by_set.items()):
+        candidates.sort(
+            key=lambda card: (len(card.gameplay_faces()[0].type_line), card.name)
+        )
+        left: float | None = None
+        downloaded = True
+        for card in candidates[:MEASURE_TRIES]:
+            try:
+                left = symbol_left(Picture(image_urls(card)[0]).content())
+            except (NotDownloaded, OSError):
+                downloaded = False
+                break
+            if left is not None:
+                break
+        if left is not None or downloaded:
+            measured[code] = left
+        if left is None and downloaded:
+            log.warning(
+                f"Could not measure the set symbol of '{code}': its creatures "
+                "aren't asked their types"
+            )
+    new = len(measured) - len(symbols)
+    if new:
+        log.info(f"Measured the set symbols of {new} new sets")
+    return measured
+
+
 def write_export(data: ExportFile, out_dir: Path) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"{data['format']}.json"
@@ -954,6 +1108,7 @@ def export_format(
     cards: dict[str, Card],
     out_dir: Path,
     read_text: ReadText = never_read,
+    symbols: SetSymbols = NO_SYMBOLS,
 ) -> Path:
     """Exports one list of one format, e.g. "pauper" and "lands", to a
     file named after the list - see list_name in config.py. `meta` is the
@@ -966,7 +1121,7 @@ def export_format(
         cards[key] for entry in meta if (key := normalize_name(entry.name)) in cards
     ]
     on_list = [card for card in on_list if not is_basic_land(card)]
-    data = build_export(name, on_list, list_updated, read_text)
+    data = build_export(name, on_list, list_updated, read_text, symbols)
     minimum = config.min_cards(kind)
     if len(data["cards"]) < minimum:
         raise RuntimeError(
@@ -985,7 +1140,9 @@ FILE_KEY = re.compile(r"[0-9a-f]{2}")
 
 
 def build_every_card(
-    cards: Iterable[Card], read_text: ReadText = never_read
+    cards: Iterable[Card],
+    read_text: ReadText = never_read,
+    symbols: SetSymbols = NO_SYMBOLS,
 ) -> dict[str, list[ExportCard]]:
     """Every card the app can ask about, by the file it goes in - see
     FILE_KEY - each file's cards sorted by name. Left out, as on the
@@ -997,7 +1154,7 @@ def build_every_card(
     for card in cards:
         if is_basic_land(card):
             continue
-        built = build_card(card, read_text)
+        built = build_card(card, read_text, symbols)
         if built is None or not FILE_KEY.match(built["oracle_id"]):
             unusable.append(card.name)
             continue
@@ -1024,7 +1181,10 @@ def build_every_card(
 
 
 def export_every_card(
-    cards: Iterable[Card], out_dir: Path, read_text: ReadText = never_read
+    cards: Iterable[Card],
+    out_dir: Path,
+    read_text: ReadText = never_read,
+    symbols: SetSymbols = NO_SYMBOLS,
 ) -> Path:
     """Writes every card to EVERY_CARD_DIR in `out_dir`, for the player's
     own lists: index.json with the names in each file, e.g. {"00":
@@ -1039,7 +1199,7 @@ def export_every_card(
     cards for are removed. Fails with fewer than EXPORT_MIN_EVERY_CARD,
     writing nothing. Returns the index's path.
     """
-    files = build_every_card(cards, read_text)
+    files = build_every_card(cards, read_text, symbols)
     count = sum(len(file_cards) for file_cards in files.values())
     if count < config.EXPORT_MIN_EVERY_CARD:
         raise RuntimeError(
@@ -1090,6 +1250,7 @@ def export_all(
     out_dir: Path,
     bulk_path: Path,
     read_text: ReadText = never_read,
+    symbols: SetSymbols = NO_SYMBOLS,
 ) -> list[str]:
     """Exports each list of each format on its own: one that fails keeps
     the file it had, and the others are still written. Then writes
@@ -1131,7 +1292,9 @@ def export_all(
 
     for (format_name, kind), meta in lists.items():
         try:
-            export_format(conn, format_name, kind, meta, cards, out_dir, read_text)
+            export_format(
+                conn, format_name, kind, meta, cards, out_dir, read_text, symbols
+            )
         except Exception:
             name = config.list_name(format_name, kind)
             log.exception(
@@ -1241,9 +1404,23 @@ def main() -> int:
         fetch_game_words(),
         config.WORDS_DIR,
     )
+    known_symbols = load_set_symbols(config.SET_SYMBOLS_PATH)
+    symbols = known_symbols
     not_read = 0
     try:
         update_bulk_file(config.BULK_PATH)
+        # Before the lists, a new set's symbol, for the question about a
+        # creature's types. Every card is read again below rather than
+        # kept, which would hold it in memory while the lists are built.
+        try:
+            symbols = measure_new_symbols(
+                read_every_card(config.BULK_PATH).values(), known_symbols
+            )
+        except Exception:
+            log.exception(
+                "Could not measure new sets' symbols - their creatures aren't "
+                "asked their types"
+            )
         with get_connection() as conn:
             init_db(conn)
             failed = export_all(
@@ -1253,6 +1430,7 @@ def main() -> int:
                 config.EXPORT_DIR,
                 config.BULK_PATH,
                 read_text,
+                symbols,
             )
         # After the lists, so their cards' pictures were read and saved.
         # Every card's picture is read by hand, by read_every_picture.py,
@@ -1262,7 +1440,7 @@ def main() -> int:
             not_read = read_new_pictures(
                 cards, read_text, config.NEW_PICTURES_TIME_LIMIT
             )
-            export_every_card(cards, config.EXPORT_DIR, read_text.saved)
+            export_every_card(cards, config.EXPORT_DIR, read_text.saved, symbols)
         except Exception:
             log.exception("Could not export every card - keeping the previous files")
             failed.append("every card")
@@ -1272,6 +1450,8 @@ def main() -> int:
             write_json(
                 config.NAME_IN_TEXT_PATH, dict(sorted(read_text.results.items()))
             )
+        if symbols != known_symbols:
+            write_json(config.SET_SYMBOLS_PATH, dict(sorted(symbols.items())))
         summary = read_text.summary()
         if not_read:
             sides = "side" if not_read == 1 else "sides"

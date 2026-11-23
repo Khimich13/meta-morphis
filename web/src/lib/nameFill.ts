@@ -31,6 +31,29 @@ const INK = 150;
 const SMOOTHING = 3;
 
 /**
+ * Before a set symbol, how many rows above and below each row its right
+ * side's color is chosen among (see RightSide): more than the few rows
+ * a round symbol's edge reaches into the columns past the area
+ */
+const SYMBOL_ROWS = 3;
+
+/**
+ * Where the area's right side takes its colors from:
+ *   past         - the columns just past it, as between a name and the
+ *                  mana cost
+ *   barEnd       - its left side's, where the area ends at the bar's
+ *                  end, as a mana cost does: a title bar is about the
+ *                  same color all along, and past it is its rounded end
+ *   beforeSymbol - the columns just past it, a few pixels before a type
+ *                  line's set symbol, which on some scans reaches into
+ *                  them: in each row the color closest to the left
+ *                  side's is taken, and then the middle one of it and
+ *                  SYMBOL_ROWS rows above and below, by brightness - so
+ *                  the edge of a round symbol, a few rows tall, drops out
+ */
+export type RightSide = 'past' | 'barEnd' | 'beforeSymbol';
+
+/**
  * The pixels of the name's area, as RGBA, painted from the title bar
  * around it so that no edge shows:
  *
@@ -54,12 +77,7 @@ export function fillName(
   aroundWidth: number,
   reach: number,
   random: Random = Math.random,
-  /**
-   * The area ends where the title bar does, as a mana cost does: its
-   * right side then takes the colors of its left, not those past the
-   * bar's end - a title bar is about the same color all along
-   */
-  atBarEnd = false,
+  rightSide: RightSide = 'past',
 ): Uint8ClampedArray<ArrayBuffer> {
   const width = aroundWidth - 2 * reach;
   const height = around.length / 4 / aroundWidth - 2;
@@ -88,7 +106,21 @@ export function fillName(
       ),
     );
   const left = side(reach - 1, -1);
-  const right = atBarEnd ? left : side(reach + width, 1);
+  let right: Color[];
+  if (rightSide === 'barEnd') {
+    right = left;
+  } else if (rightSide === 'past') {
+    right = side(reach + width, 1);
+  } else {
+    const closest = left.map((color, y) =>
+      Array.from({ length: SIDE_COLUMNS }, (_, i) => pixel(reach + width + i, y + 1)).reduce(
+        (best, next) => (distance(next, color) < distance(best, color) ? next : best),
+      ),
+    );
+    right = closest.map((_, y) =>
+      choose(closest.slice(Math.max(0, y - SYMBOL_ROWS), y + SYMBOL_ROWS + 1), PICK),
+    );
+  }
 
   // How grainy the bar is: how far its pixels just above and below the
   // area stray, on average, from the smoothed colors there - leaving out
@@ -136,6 +168,11 @@ type Color = [number, number, number];
 
 function brightness([r, g, b]: Color): number {
   return r + g + b;
+}
+
+/** How far apart two colors are: the sum of their red, green and blue differences */
+function distance(a: Color, b: Color): number {
+  return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]);
 }
 
 /** The color at `pick` of some, by brightness: 0.5 is the middle one */
