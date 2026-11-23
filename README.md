@@ -3,7 +3,8 @@
 An app for learning the most played cards of a Magic: The Gathering format,
 in short quiz lessons.
 
-Pick a format (Pauper, Premodern, Pioneer, Standard or Modern) and a list
+Pick a format (Pauper, Premodern, Pioneer, Standard, Modern or Commander)
+and a list
 (all its most played cards, or just its creatures, spells or lands). Each
 question shows a card's artwork, or the whole card with its name covered,
 and asks which card it is - or the whole card with its mana cost, or a
@@ -35,14 +36,16 @@ like an app, and works offline once a list has been opened.
 ```
  Magic Online ─► decklists ─────────┐
                                     ├─► Python exporter ──► JSON files ──► web app
- Scryfall ─────► card data ─────────┘   (daily, on           (GitHub Pages)
-                                         GitHub Actions)
+ Scryfall ─────► card data, ────────┘   (daily, on           (GitHub Pages)
+                 EDHREC rank             GitHub Actions)
 ```
 
 - **`meta_morphis/`** (Python) counts the most played cards of each
   format in the last 30 days of decklists Magic Online publishes, from
   [fbettega's archive](https://github.com/fbettega/MTG_decklistcache) on
-  GitHub, keeping the count in a SQLite database. It reads each card's
+  GitHub, keeping the count in a SQLite database. Commander's, which
+  Magic Online publishes no decks of, follow EDHREC's rank of each card,
+  which Scryfall's card data carries. It reads each card's
   data from Scryfall's daily file of every card, downloaded only when
   Scryfall has made a newer one. Its exporter writes a JSON file for each
   format and list, and every card in `cards/`. It reads
@@ -116,7 +119,9 @@ Card data and images come from [Scryfall](https://scryfall.com). The most
 played cards are counted from the decklists
 [Magic Online](https://www.mtgo.com/decklists) publishes, as
 [fbettega's MTG_decklistcache](https://github.com/fbettega/MTG_decklistcache)
-keeps them. This project is not affiliated with any of them.
+keeps them, and Commander's follow [EDHREC](https://edhrec.com)'s rank of
+each card, as Scryfall's card data gives it. This project is not affiliated
+with any of them.
 
 MetaMorphis is unofficial Fan Content permitted under the Fan Content Policy.
 Not approved/endorsed by Wizards. Portions of the materials used are property

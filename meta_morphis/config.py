@@ -4,7 +4,16 @@ from pathlib import Path
 DAY = 24 * 60 * 60
 
 # The formats the app teaches
-FORMATS = ["pauper", "premodern", "pioneer", "standard", "modern"]
+FORMATS = ["pauper", "premodern", "pioneer", "standard", "modern", "commander"]
+# The formats whose lists follow EDHREC's rank of each card, which
+# Scryfall's card data carries, instead of a count of Magic Online's
+# decklists: MTGO publishes no Commander decks, only Duel Commander's -
+# see docs/decisions.md
+EDHREC_FORMATS = {"commander"}
+# How many of the highest ranked cards are kept as such a format's
+# count, for its lists to pick from. Creatures, the kind that runs out
+# first, had their 50 by rank 368 on 2026-11-23, spells and lands by 111.
+EDHREC_RANKED_CARDS = 1000
 # Each format's lists of most played cards: "all" is creatures and spells
 # together (no lands), and the others are each kind on its own - see
 # card_kind in export.py

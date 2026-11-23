@@ -1331,7 +1331,8 @@ def export_all(
     formats.json. Returns the lists that failed.
 
     Every format's decks are counted first, so Scryfall's card data
-    (`bulk_path`) is read only once, for the names in all of them. Each
+    (`bulk_path`) is read only once, for the names in all of them; an
+    EDHREC_FORMATS format reads it once more before, for its ranks. Each
     format's lists are then picked from its count - see pick_cards.
     """
     # A run killed while write_json was writing - out of memory, or over
@@ -1346,7 +1347,7 @@ def export_all(
     counts: dict[str, list[MetaEntry]] = {}
     for format_name in formats:
         try:
-            counts[format_name] = get_meta_cards(conn, format_name)
+            counts[format_name] = get_meta_cards(conn, format_name, bulk_path)
         except Exception:
             # With the full error, so the log says why
             log.exception(

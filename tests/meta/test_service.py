@@ -116,6 +116,30 @@ def test_an_unknown_format_fails(
     assert asked == []
 
 
+def test_commander_is_ranked_from_scryfalls_card_data(
+    conn: sqlite3.Connection, monkeypatch: MonkeyPatch
+) -> None:
+    asked = _counted(monkeypatch, [MetaEntry("Ponder", 1)])
+    read: list[tuple[Path, str, int]] = []
+
+    def fake_ranks(path: Path, format_name: str, limit: int) -> list[MetaEntry]:
+        read.append((path, format_name, limit))
+        return [MetaEntry("Sol Ring", 1), MetaEntry("Command Tower", 2)]
+
+    monkeypatch.setattr("meta_morphis.meta.service.read_edhrec_ranks", fake_ranks)
+
+    result = get_meta_cards(conn, "commander", Path("cards.jsonl.gz"))
+
+    assert [m.name for m in result] == ["Sol Ring", "Command Tower"]
+    assert read == [(Path("cards.jsonl.gz"), "commander", 1000)]
+    # Not counted from Magic Online's decklists
+    assert asked == []
+    assert get_meta_from_cache(conn, "commander") == result
+    # Scryfall doesn't say how recent EDHREC's rank is
+    assert get_meta_timestamp(conn, "commander") is not None
+    assert get_decks_to(conn, "commander") is None
+
+
 def test_a_card_with_no_numbers_is_saved_too(
     conn: sqlite3.Connection, monkeypatch: MonkeyPatch
 ) -> None:

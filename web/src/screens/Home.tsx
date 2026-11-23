@@ -245,8 +245,9 @@ function Notice() {
       <p>
         Card data and images come from <a href="https://scryfall.com">Scryfall</a>. The most played
         cards are counted from the decklists{' '}
-        <a href="https://www.mtgo.com/decklists">Magic Online</a> publishes. This app is not
-        affiliated with either.
+        <a href="https://www.mtgo.com/decklists">Magic Online</a> publishes, and Commander's follow{' '}
+        <a href="https://edhrec.com">EDHREC</a>'s rank of each card. This app is not affiliated with
+        any of them.
       </p>
     </footer>
   );

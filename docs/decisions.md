@@ -198,7 +198,7 @@ what has been done is in the commit history.
   printing. The question and the full card after answering always show the
   same printing.
 - **The lists are this project's own count of Magic Online's decklists,**
-  not another site's statistics. Magic Online publishes the decks of its
+  not another site's statistics, except Commander's (below). Magic Online publishes the decks of its
   events at <https://www.mtgo.com/decklists>, and
   [fbettega's archive](https://github.com/fbettega/MTG_decklistcache) keeps
   them on GitHub as one JSON file per event. Each daily run downloads the
@@ -213,6 +213,17 @@ what has been done is in the commit history.
   archive stops. Checked against MTGGoldfish's lists on 2026-11-18: 30
   days with sideboards put 74-94% of each format's 50 most played cards
   in the counted top 50, more than any other rule tried (issue #27).
+- **Commander's lists follow EDHREC's rank of each card,** which
+  Scryfall's card data carries as `edhrec_rank`: "this card's overall
+  rank/popularity on EDHREC". Magic Online publishes no Commander decks,
+  only Duel Commander's - a one-on-one format with a ban list of its own -
+  and only 63 of those in the 30 days to 2026-11-23, a fifth of
+  Premodern's 333. EDHREC counts the decks players build on deck-building
+  sites, not winning decks, and Scryfall doesn't say how recent the rank
+  is, so the app shows no day of the newest decks for Commander. The
+  1,000 highest ranked cards legal in Commander stand in for its count,
+  and each list takes its 50 from them as for the other formats (issue
+  #2).
 
 ## Rules to follow
 
@@ -249,7 +260,11 @@ what has been done is in the commit history.
   the rule above; a subscription or access fee would need a separate
   fansite license. Not yet confirmed: that mtgo.com is one of the sites
   those terms list.
-- **Use only Magic Online's decklists,** not paper events'. Topdeck.gg's
+- **Use only Magic Online's decklists, and for Commander EDHREC's rank as
+  Scryfall gives it,** not paper events' or EDHREC's own site.
+  EDHREC's [terms](https://edhrec.com/terms) allow its site only for
+  "personal, noncommercial use"; Scryfall's terms for its data set no
+  other condition on `edhrec_rank`. Topdeck.gg's
   [developer terms](https://topdeck.gg/developer-terms) ban scraping and
   commercial use of its data, and MTGmelee's
   [terms](https://melee.gg/Policy/Terms) need written permission to use

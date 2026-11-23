@@ -1518,7 +1518,8 @@ def _lists_and_cards(
     the formats in `unreachable`; read_cards finds nothing. Returns the
     names read_cards was asked about, a set for each time it was called."""
 
-    def fake_meta(conn: sqlite3.Connection, format_name: str) -> Any:
+    def fake_meta(conn: sqlite3.Connection, format_name: str, bulk_path: Path) -> Any:
+        assert bulk_path == BULK
         if format_name in unreachable:
             raise RuntimeError("The pauper decks were never counted")
         return [MetaEntry(name=card) for card in (counts or {}).get(format_name, [])]

@@ -24,6 +24,7 @@ import requests
 
 from meta_morphis import config
 from meta_morphis.models.card import Card, oracle_id_of
+from meta_morphis.models.meta import MetaEntry
 from meta_morphis.utils.http import RequestUnavailable
 from meta_morphis.utils.text import card_count, normalize_name
 
@@ -260,6 +261,53 @@ def read_every_card(path: Path) -> dict[str, Card]:
             if card:
                 cards[chosen[printing["id"]]] = card
     return cards
+
+
+def read_edhrec_ranks(path: Path, format_name: str, limit: int) -> list[MetaEntry]:
+    """The `limit` cards legal in the format that EDHREC ranks highest,
+    best first, by each card's `edhrec_rank` in Scryfall's data, "this
+    card's overall rank/popularity on EDHREC". Every printing of a card
+    has the same rank, and `rank` is EDHREC's own; there is no deck
+    share or copies. Scryfall's legalities are keyed by the same format
+    names as FORMATS, and a card no longer legal, such as one just
+    banned, is left out.
+    """
+    # Each card's rank and name, by oracle id
+    ranked: dict[str, tuple[int, str]] = {}
+    with gzip.open(path, "rt", encoding="utf-8") as file:
+        for line in file:
+            printing = _parse(line)
+            if printing is None:
+                continue
+            oracle_id = oracle_id_of(printing)
+            if not oracle_id or oracle_id in ranked:
+                continue
+            rank = printing.get("edhrec_rank")
+            legalities = printing.get("legalities")
+            if not isinstance(rank, int) or not isinstance(legalities, dict):
+                continue
+            name = _own_name(printing)
+            if legalities.get(format_name) == "legal" and name:
+                ranked[oracle_id] = (rank, name)
+    best = sorted(ranked.values())[:limit]
+    log.info(
+        f"Took the {card_count(len(best))} legal in {format_name} that EDHREC "
+        f"ranks highest, of {len(ranked)} ranked"
+    )
+    return [MetaEntry(name=name, rank=rank) for rank, name in best]
+
+
+def _own_name(printing: dict[str, Any]) -> str | None:
+    """The card's name, as read_cards finds it. A reversible printing,
+    the same card on both sides, is named "Birds of Paradise // Birds of
+    Paradise", which would find only that printing: its card's name is
+    its front's."""
+    name = printing.get("name")
+    faces = printing.get("card_faces")
+    if printing.get("layout") == "reversible_card" and isinstance(faces, list):
+        front = faces[0] if faces else None
+        name = front.get("name") if isinstance(front, dict) else None
+    return name if isinstance(name, str) else None
 
 
 def _parse(line: str) -> dict[str, Any] | None:

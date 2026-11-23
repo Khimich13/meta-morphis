@@ -11,10 +11,12 @@ import pytest
 import requests
 from pytest import MonkeyPatch
 
+from meta_morphis.models.meta import MetaEntry
 from meta_morphis.scryfall import bulk
 from meta_morphis.scryfall.bulk import (
     bulk_file_age,
     read_cards,
+    read_edhrec_ranks,
     read_every_card,
     update_bulk_file,
 )
@@ -373,6 +375,69 @@ def test_a_malformed_or_unreadable_printing_is_never_chosen(
     printings = ['{"cut off', "[1, 2]", good, broken]
     assert _read_every(tmp_path, printings) == {"bolt": "bolt-m10"}
     assert "Skipped 2 unreadable line(s)" in caplog.text
+
+
+LEGAL = {"legalities": {"commander": "legal"}}
+
+
+def _ranks(tmp_path: Path, printings: list[Any], limit: int = 10) -> list[MetaEntry]:
+    path = _bulk_file(tmp_path / "cards.jsonl.gz", printings)
+    return read_edhrec_ranks(path, "commander", limit)
+
+
+def test_cards_are_ranked_by_edhrec_once_each(tmp_path: Path) -> None:
+    printings = [
+        _printing("Arcane Signet", "signet", edhrec_rank=3, **LEGAL),
+        _printing("Sol Ring", "ring", set="c21", edhrec_rank=1, **LEGAL),
+        _printing("Sol Ring", "ring", set="lea", edhrec_rank=1, **LEGAL),
+        _printing("Command Tower", "tower", edhrec_rank=2, **LEGAL),
+    ]
+    assert _ranks(tmp_path, printings) == [
+        MetaEntry("Sol Ring", rank=1),
+        MetaEntry("Command Tower", rank=2),
+        MetaEntry("Arcane Signet", rank=3),
+    ]
+
+
+def test_only_the_highest_ranked_cards_are_kept(tmp_path: Path) -> None:
+    printings = [
+        _printing(name, name, edhrec_rank=rank, **LEGAL)
+        for rank, name in enumerate(["Sol Ring", "Command Tower", "Arcane Signet"], 1)
+    ]
+    assert [m.name for m in _ranks(tmp_path, printings, limit=2)] == [
+        "Sol Ring",
+        "Command Tower",
+    ]
+
+
+def test_unranked_cards_and_cards_not_legal_are_left_out(tmp_path: Path) -> None:
+    printings = [
+        _printing("Sol Ring", "ring", edhrec_rank=1, **LEGAL),
+        _printing(
+            "Mana Crypt", "crypt", edhrec_rank=2, legalities={"commander": "banned"}
+        ),
+        _printing(
+            "A-Oko", "arena", edhrec_rank=3, legalities={"commander": "not_legal"}
+        ),
+        _printing("Brand New", "new", **LEGAL),
+        _printing("No Legalities", "none", edhrec_rank=4),
+    ]
+    assert [m.name for m in _ranks(tmp_path, printings)] == ["Sol Ring"]
+
+
+def test_a_reversible_printing_gives_its_cards_own_name(tmp_path: Path) -> None:
+    faces = [{"name": "Birds of Paradise"}, {"name": "Birds of Paradise"}]
+    printings = [
+        _printing(
+            "Birds of Paradise // Birds of Paradise",
+            "birds",
+            layout="reversible_card",
+            card_faces=faces,
+            edhrec_rank=35,
+            **LEGAL,
+        )
+    ]
+    assert _ranks(tmp_path, printings) == [MetaEntry("Birds of Paradise", rank=35)]
 
 
 class FakeDownload:
