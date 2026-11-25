@@ -37,14 +37,13 @@ import {
   isCorrect,
   isFinished,
   isFirstTry,
-  type Option,
   type Question,
-  type QuestionKind,
   type Segment,
   segments,
   startLesson,
 } from '../lib/quiz';
 import { useLargeView } from '../lib/largeView';
+import { type Option, type QuestionKind } from '../lib/questionKinds';
 import { FILL_REACH, fillName } from '../lib/nameFill';
 import { playAnswerSound } from '../lib/sounds';
 import './Lesson.css';

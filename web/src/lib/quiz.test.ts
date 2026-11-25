@@ -12,12 +12,11 @@ import {
   type LessonState,
   makeQuestion,
   NEW_PER_LESSON,
-  OPTION_COUNT,
-  type Random,
   segments,
-  shuffle,
   startLesson,
 } from './quiz';
+import { OPTION_COUNT } from './questionKinds';
+import { type Random, shuffle } from './random';
 
 function card(n: number): Card {
   return {

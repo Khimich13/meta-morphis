@@ -1,7 +1,7 @@
 import { type Card, formatLabel, shortDay } from '../lib/cards';
 import { LIST_LABELS, type ListKind, type Selection, selectionLabel } from '../lib/formats';
 import { dueCount, localDay, masteredCount, type Progress, streak } from '../lib/progress';
-import { OPTION_COUNT } from '../lib/quiz';
+import { OPTION_COUNT } from '../lib/questionKinds';
 import './Home.css';
 
 interface HomeProps {

@@ -9,7 +9,7 @@
 import { type ArtFrom, type Card, loadCards } from './cards';
 import { type FormatsFile, listFile, listsOf, loadFormats } from './formats';
 import { nearCosts, symbols, symbolUrl } from './manaCost';
-import { OPTION_COUNT } from './quiz';
+import { OPTION_COUNT } from './questionKinds';
 
 /** Must match the cacheName for card pictures in vite.config.ts */
 export const PICTURE_CACHE = 'card-pictures';
@@ -29,7 +29,7 @@ export function pictureUrls(cards: readonly Card[]): string[] {
   return [...new Set(urls)];
 }
 
-/** The symbols of a cost and of every wrong cost near it (see costOptions in quiz.ts) */
+/** The symbols of a cost and of every wrong cost near it (see costOptions in questionKinds.ts) */
 function symbolUrls(cost: string): string[] {
   const costs = [cost, ...nearCosts(cost, OPTION_COUNT - 1).flat()];
   return costs.flatMap(symbols).map(symbolUrl);
