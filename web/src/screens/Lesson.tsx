@@ -15,9 +15,12 @@ import NameCovers, { type NameCover } from '../components/NameCovers';
 import StandingLabel, { type PipChange } from '../components/StandingLabel';
 import {
   type ArtFrom,
+  type ArtSide,
   type Card,
   halfArt,
+  halfIndex,
   isHorizontal,
+  type Part,
   SIDEWAYS_ART_BOX,
   SIDEWAYS_HALF_ART_BOXES,
 } from '../lib/cards';
@@ -42,7 +45,7 @@ import {
   startLesson,
 } from '../lib/quiz';
 import { useLargeView } from '../lib/largeView';
-import { type Cover, KINDS, type Option, type Part } from '../lib/questionKinds';
+import { type Cover, KINDS, type Option } from '../lib/questionKinds';
 import { FILL_REACH, fillName } from '../lib/nameFill';
 import { playAnswerSound } from '../lib/sounds';
 import './Lesson.css';
@@ -193,9 +196,8 @@ export default function Lesson({
   const record = progress.cards[card.oracle_id];
   // Whether the question on screen was answered right; null while choosing
   const answer = picked === null ? null : isCorrect(question, picked);
-  // The side or half asked about: its artwork, and where on its picture it lands
-  const back = question.back && card.back ? card.back : null;
-  const art = question.half !== null ? halfArt(card, question.half) : (back ?? card);
+  // The artwork of the side or half asked about
+  const art = partArt(card, question.part);
   // Cards answered right, including this one as soon as it is
   const done = lesson.done + (answer === true ? 1 : 0);
   const bar = segments(lesson, answer);
@@ -227,14 +229,14 @@ export default function Lesson({
           >
             {/* The question over the left edge, its label over the right */}
             <div className="question-line">
-              <h2 className="question">{kind.prompt(card, question)}</h2>
+              <h2 className="question">{kind.prompt(card, question.part)}</h2>
               <QuestionLabel repeat={repeat} standing={cardStanding(record)} />
             </div>
             {kind.cover ? (
               <CoveredCard
-                key={`${card.oracle_id}-${question.kind}-${question.back}-${question.spell}-${question.half}`}
+                key={`${card.oracle_id}-${question.kind}-${question.part}`}
                 card={card}
-                part={question}
+                part={question.part}
                 hides={kind.cover}
               />
             ) : (
@@ -242,9 +244,9 @@ export default function Lesson({
               <figure className="artwork">
                 <Artwork
                   // Its own for each question, so a cut never shows on another
-                  key={`${card.oracle_id}-${question.back}-${question.half}`}
+                  key={`${card.oracle_id}-${question.part}`}
                   side={art}
-                  transition={artTransition(card, question.back, question.half)}
+                  transition={artTransition(card, question.part)}
                 />
                 {/* Scryfall asks for this whenever the artwork is shown by itself */}
                 <figcaption className="credit">
@@ -277,14 +279,18 @@ export default function Lesson({
               card={card}
               speaker
               openOnTurn
-              startOnBack={question.back}
+              startOnBack={question.part === 'back'}
             />
             {/* Where the artwork lands after an answer: the side's art box */}
             {!kind.cover && (
               <div
-                className={isHorizontal(card, question.back) ? 'art-target sideways' : 'art-target'}
+                className={
+                  isHorizontal(card, question.part === 'back')
+                    ? 'art-target sideways'
+                    : 'art-target'
+                }
                 aria-hidden="true"
-                style={artTarget(card, question.back, question.half)}
+                style={artTarget(card, question.part)}
               />
             )}
           </div>
@@ -445,7 +451,7 @@ function Artwork({
  * card does (see useOpenOnTurn in CardPicture.tsx).
  */
 function CoveredCard({ card, part, hides }: { card: Card; part: Part; hides: Cover }) {
-  const { back } = part;
+  const back = part === 'back';
   const boxes = hides.boxes(card, part);
   const sideways = isHorizontal(card, back);
   const picture = useRef<HTMLImageElement>(null);
@@ -560,12 +566,21 @@ function CoveredCard({ card, part, hides }: { card: Card; part: Part; hides: Cov
   );
 }
 
+/** The artwork of the side or half asked about, as an artwork question shows it */
+function partArt(card: Card, part: Part): ArtSide {
+  const half = halfIndex(part);
+  if (half !== null) return halfArt(card, half);
+  return part === 'back' && card.back ? card.back : card;
+}
+
 /**
  * Where the artwork lands on the side asked about: its art box, or for a
  * side printed sideways, its art area turned - a split card's half's
  * alone, when one half is asked about. Null for a side without either.
  */
-function landingBox(card: Card, back: boolean, half: number | null): number[] | null {
+function landingBox(card: Card, part: Part): number[] | null {
+  const back = part === 'back';
+  const half = halfIndex(part);
   if (half !== null && isHorizontal(card, back)) return SIDEWAYS_HALF_ART_BOXES[half];
   if (isHorizontal(card, back)) return SIDEWAYS_ART_BOX;
   return (back ? card.back?.art_box : card.art_box) ?? null;
@@ -576,15 +591,15 @@ function landingBox(card: Card, back: boolean, half: number | null): number[] | 
  * Lesson.css): flying into the card's art, or, for a card without a known
  * place for it, shrinking towards the card's middle and fading
  */
-function artTransition(card: Card, back: boolean, half: number | null): string {
-  return landingBox(card, back, half) ? 'card-art' : 'card-art-soft';
+function artTransition(card: Card, part: Part): string {
+  return landingBox(card, part) ? 'card-art' : 'card-art-soft';
 }
 
 /** Where on the card the artwork lands: its art, or the card's middle */
-function artTarget(card: Card, back: boolean, half: number | null): CSSProperties {
-  const [left, top, width, height] = landingBox(card, back, half) ?? [0.3, 0.3, 0.4, 0.4];
+function artTarget(card: Card, part: Part): CSSProperties {
+  const [left, top, width, height] = landingBox(card, part) ?? [0.3, 0.3, 0.4, 0.4];
   return {
-    viewTransitionName: artTransition(card, back, half),
+    viewTransitionName: artTransition(card, part),
     '--box-left': left,
     '--box-top': top,
     '--box-width': width,

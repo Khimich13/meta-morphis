@@ -332,20 +332,44 @@ export function visibleName(card: Card, showingBack: boolean): string {
 }
 
 /**
+ * The part of a card a question asks about:
+ *   main          - the card itself: a double-faced card's front, an
+ *                   adventure's or prepare card's main part
+ *   back          - a double-faced card's back side
+ *   spell         - an adventure's or prepare card's spell
+ *   first, second - a split card's halves, as stored (see halves)
+ */
+export type Part = 'main' | 'back' | 'spell' | 'first' | 'second';
+
+/**
+ * The parts of the card a question can ask about: a split card's two
+ * halves, an adventure's or prepare card's main part and its spell -
+ * when the spell's name can be covered - a double-faced card's two
+ * sides, or any other card whole
+ */
+export function partsOf(card: Card): Part[] {
+  if (card.halves) return ['first', 'second'];
+  if (card.spell?.name_box) return ['main', 'spell'];
+  if (card.back) return ['main', 'back'];
+  return ['main'];
+}
+
+/** Which of a split card's halves the part is, 0 or 1; null for any other part */
+export function halfIndex(part: Part): 0 | 1 | null {
+  return part === 'first' ? 0 : part === 'second' ? 1 : null;
+}
+
+/**
  * The name of the part a question asks about, for its answer button:
  * one side's of a double-faced card (see visibleName), and of a card with
  * a spell, the spell's or the main part's alone, and of a split card,
- * the half's (0 or 1). Any other card's whole name.
+ * the half's. Any other card's whole name.
  */
-export function partName(
-  card: Card,
-  back: boolean,
-  spell: boolean,
-  half: number | null = null,
-): string {
+export function partName(card: Card, part: Part): string {
+  const half = halfIndex(part);
   if (card.halves && half !== null) return card.halves[half].name;
-  if (card.spell) return spell ? card.spell.name : card.name.split(' // ')[0];
-  return visibleName(card, back);
+  if (card.spell) return part === 'spell' ? card.spell.name : card.name.split(' // ')[0];
+  return visibleName(card, part === 'back');
 }
 
 /**
@@ -353,14 +377,10 @@ export function partName(
  * part, for the question about its full picture: "Name the creature".
  * "card" in files written before types were added.
  */
-export function partType(
-  card: Card,
-  back: boolean,
-  spell: boolean,
-  half: number | null = null,
-): string {
+export function partType(card: Card, part: Part): string {
+  const half = halfIndex(part);
   if (card.halves && half !== null) return card.halves[half].type ?? 'card';
-  if (card.spell && spell) return card.spell.type ?? 'card';
-  if (back && card.back) return card.back.type ?? 'card';
+  if (card.spell && part === 'spell') return card.spell.type ?? 'card';
+  if (part === 'back' && card.back) return card.back.type ?? 'card';
   return card.type ?? 'card';
 }

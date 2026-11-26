@@ -3,7 +3,15 @@
 // offers. A new kind is a new entry in KINDS. No React in here, like
 // quiz.ts.
 
-import { type Card, partName, partType, type PowerToughness } from './cards';
+import {
+  type Card,
+  halfIndex,
+  type Part,
+  partName,
+  partsOf,
+  partType,
+  type PowerToughness,
+} from './cards';
 import { nearCosts } from './manaCost';
 import type { RightSide } from './nameFill';
 import { type Random, shuffle } from './random';
@@ -25,24 +33,6 @@ export interface Option {
    * asked about on every answer.
    */
   name: string;
-}
-
-/** The part of the card a question asks about */
-export interface Part {
-  /** Asked about a double-faced card's back side */
-  back: boolean;
-  /**
-   * Asked about an adventure's or prepare card's spell alone, by the
-   * full picture with the spell's name covered (see SpellPart in cards.ts)
-   */
-  spell: boolean;
-  /**
-   * The half of a split card asked about, 0 for the first and 1 for the
-   * second: by its half of the artwork, or by the full picture with its
-   * name covered and the other's in sight (see halves in cards.ts). Null
-   * for every other card.
-   */
-  half: number | null;
 }
 
 /** Where wrong answers come from, each list in turn (see makeQuestion in quiz.ts) */
@@ -90,12 +80,13 @@ export type QuestionKind = 'picture' | 'artwork' | 'cost' | 'powerToughness' | '
  */
 export const KINDS: Record<QuestionKind, Kind> = {
   // The full card, the side asked about, with its name covered (see
-  // name_box in cards.ts), or a spell's alone (see Part's spell), or a
-  // split card's half's (see Part's half)
+  // name_box in cards.ts); for a spell, with the spell's name covered and
+  // the main part's in sight, and for a split card's half, with that
+  // half's covered and the other's in sight
   picture: {
     asks: (card, part) => !!namedPart(card, part).name_box,
-    prompt: (card, { back, spell, half }) => `Name the ${partType(card, back, spell, half)}`,
-    answer: partNameOf,
+    prompt: (card, part) => `Name the ${partType(card, part)}`,
+    answer: partName,
     options: nameOptions,
     cover: {
       boxes: (card, part) => {
@@ -111,16 +102,16 @@ export const KINDS: Record<QuestionKind, Kind> = {
   },
   // The card's artwork alone
   artwork: {
-    asks: (_card, part) => !part.spell,
+    asks: (_card, part) => part !== 'spell',
     prompt: () => 'What is this art from?',
-    answer: partNameOf,
+    answer: partName,
     options: nameOptions,
     cover: null,
   },
   // The full card with its mana cost covered (see cost in cards.ts),
   // asking what it costs
   cost: {
-    asks: (card, part) => !part.spell && !!card.cost,
+    asks: (card, part) => part !== 'spell' && !!card.cost,
     prompt: () => 'Name the cost',
     answer: (card) => card.cost?.mana_cost ?? '',
     options: (card, _part, _pools, random) =>
@@ -136,7 +127,7 @@ export const KINDS: Record<QuestionKind, Kind> = {
   // The full card with its power and toughness covered (see
   // power_toughness in cards.ts), asking what they are
   powerToughness: {
-    asks: (card, part) => !part.spell && !!card.power_toughness,
+    asks: (card, part) => part !== 'spell' && !!card.power_toughness,
     prompt: () => 'Power and toughness?',
     answer: (card) => (card.power_toughness ? printedPowerToughness(card.power_toughness) : ''),
     options: (card, _part, _pools, random) =>
@@ -150,7 +141,7 @@ export const KINDS: Record<QuestionKind, Kind> = {
   // The full card with its type line covered (see creature_type in
   // cards.ts), asking its creature types
   creatureType: {
-    asks: (card, part) => !part.spell && !!card.creature_type,
+    asks: (card, part) => part !== 'spell' && !!card.creature_type,
     prompt: () => 'Creature type?',
     answer: (card) => card.creature_type?.types.join(' ') ?? '',
     options: (card, _part, pools, random) =>
@@ -172,16 +163,12 @@ export const QUESTION_KINDS = Object.keys(KINDS) as QuestionKind[];
  * full picture covers: its name_box is null or missing when the name
  * can't be covered (see name_box in cards.ts)
  */
-function namedPart(card: Card, { back, spell, half }: Part) {
+function namedPart(card: Card, part: Part) {
+  const half = halfIndex(part);
   if (half !== null && card.halves) return card.halves[half];
-  if (spell && card.spell) return card.spell;
-  if (back && card.back) return card.back;
+  if (part === 'spell' && card.spell) return card.spell;
+  if (part === 'back' && card.back) return card.back;
   return card;
-}
-
-/** The name of the part asked about, as its answer button shows it (see partName) */
-function partNameOf(card: Card, { back, spell, half }: Part): string {
-  return partName(card, back, spell, half);
 }
 
 /**
@@ -194,8 +181,8 @@ function partNameOf(card: Card, { back, spell, half }: Part): string {
  * type do cards of other types fill in (see wrongOptions).
  */
 function nameOptions(card: Card, part: Part, pools: Pools, random: Random): Option[] {
-  const right = { card, name: partNameOf(card, part) };
-  const wrong = wrongOptions(card, partType(card, part.back, part.spell, part.half), pools, random);
+  const right = { card, name: partName(card, part) };
+  const wrong = wrongOptions(card, partType(card, part), pools, random);
   return shuffle([right, ...wrong], random);
 }
 
@@ -332,20 +319,11 @@ function creatureTypeOptions(
 }
 
 /**
- * The parts of a card that can be asked about, each with its name, as
- * its answer button shows it, and its type: a split card's halves, an
- * adventure's or prepare card's main part and spell, a double-faced
- * card's sides, or any other card whole
+ * The parts of a card that can be asked about (see partsOf), each with
+ * its name, as its answer button shows it, and its type
  */
 function answerParts(card: Card): { name: string; type: string }[] {
-  const part = (back: boolean, spell: boolean, half: number | null = null) => ({
-    name: partName(card, back, spell, half),
-    type: partType(card, back, spell, half),
-  });
-  if (card.halves) return [part(false, false, 0), part(false, false, 1)];
-  if (card.spell?.name_box) return [part(false, false), part(false, true)];
-  if (card.images.length > 1) return [part(false, false), part(true, false)];
-  return [part(false, false)];
+  return partsOf(card).map((part) => ({ name: partName(card, part), type: partType(card, part) }));
 }
 
 /**

@@ -3,27 +3,21 @@
 // rules are in questionKinds.ts. No React in here, so it can be tested
 // without a browser.
 
-import type { Card } from './cards';
+import { type Card, type Part, partsOf } from './cards';
 import { isDue, type Progress } from './progress';
-import {
-  KINDS,
-  type Option,
-  type Part,
-  type Pools,
-  QUESTION_KINDS,
-  type QuestionKind,
-} from './questionKinds';
+import { KINDS, type Option, type Pools, QUESTION_KINDS, type QuestionKind } from './questionKinds';
 import { type Random, shuffle } from './random';
 
 export const LESSON_LENGTH = 10;
 /** At most this many cards never seen before in a lesson, when others are waiting */
 export const NEW_PER_LESSON = 3;
 
-/** A question about a part of the card (see Part in questionKinds.ts) */
-export interface Question extends Part {
+export interface Question {
   /** The card being asked about */
   card: Card;
   kind: QuestionKind;
+  /** The part of the card asked about (see Part in cards.ts) */
+  part: Part;
   /** The answers to choose from, in the order shown: the card itself and wrong ones */
   options: Option[];
 }
@@ -41,27 +35,19 @@ export function makeQuestion(
   card: Card,
   allCards: readonly Card[],
   random: Random = Math.random,
-  same?: Pick<Question, 'kind' | 'back' | 'spell' | 'half'>,
+  same?: Pick<Question, 'kind' | 'part'>,
   moreCards: Pools = [],
 ): Question {
-  // Either side, half the time each, for a card with a back to ask about,
-  // either part, for a card with a spell whose name can be hidden, and
-  // either half of a split card
-  const back = same?.back ?? (card.back ? random() < 0.5 : false);
-  const spell = same?.spell ?? (card.spell?.name_box ? random() < 0.5 : false);
-  const half = same?.half ?? (card.halves ? pickHalf(random) : null);
-  const part = { back, spell, half };
+  // Either of the card's parts, half the time each, when it has two (see
+  // partsOf): no card has more
+  const parts = partsOf(card);
+  const part = same?.part ?? (parts.length > 1 ? parts[random() < 0.5 ? 1 : 0] : parts[0]);
   // Then any kind it can be asked by there, as often each
   const kinds = QUESTION_KINDS.filter((kind) => KINDS[kind].asks(card, part));
   const kind =
     same?.kind ?? (kinds.length > 1 ? kinds[Math.floor(random() * kinds.length)] : kinds[0]);
   const options = KINDS[kind].options(card, part, [allCards, ...moreCards], random);
-  return { card, kind, ...part, options };
-}
-
-/** Either half of a split card, half the time each */
-function pickHalf(random: Random): number {
-  return random() < 0.5 ? 1 : 0;
+  return { card, kind, part, options };
 }
 
 /**
@@ -112,7 +98,7 @@ export function chooseLessonCards(
 export function isCorrect(question: Question, picked: Option): boolean {
   return (
     picked.card.oracle_id === question.card.oracle_id &&
-    picked.name === KINDS[question.kind].answer(question.card, question)
+    picked.name === KINDS[question.kind].answer(question.card, question.part)
   );
 }
 

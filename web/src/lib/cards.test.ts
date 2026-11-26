@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { type Card, halfArt, partName, partType, shortDay, visibleName } from './cards';
+import { type Card, halfArt, partName, partsOf, partType, shortDay, visibleName } from './cards';
 
 test('shortDay writes the day without its year, the way of the language', () => {
   expect(shortDay('2026-11-19', 'en-US')).toBe('Nov 19');
@@ -53,9 +53,9 @@ test('partName names a split card by the half asked', () => {
       { name: 'Tear', name_box: null },
     ],
   };
-  expect(partName(split, false, false, 0)).toBe('Wear');
-  expect(partName(split, false, false, 1)).toBe('Tear');
-  expect(partName(split, false, false)).toBe('Wear // Tear');
+  expect(partName(split, 'first')).toBe('Wear');
+  expect(partName(split, 'second')).toBe('Tear');
+  expect(partName(split, 'main')).toBe('Wear // Tear');
 });
 
 test('partType gives the type of the part asked about', () => {
@@ -82,12 +82,12 @@ test('partType gives the type of the part asked about', () => {
       { name: 'Ritual Chamber', name_box: null, type: 'Room' },
     ],
   };
-  expect(partType(delver, true, false)).toBe('creature');
-  expect(partType(azcanta, false, false)).toBe('enchantment');
-  expect(partType(azcanta, true, false)).toBe('land');
-  expect(partType(borrower, false, true)).toBe('instant');
-  expect(partType(borrower, false, false)).toBe('creature');
-  expect(partType(room, false, false, 1)).toBe('Room');
+  expect(partType(delver, 'back')).toBe('creature');
+  expect(partType(azcanta, 'main')).toBe('enchantment');
+  expect(partType(azcanta, 'back')).toBe('land');
+  expect(partType(borrower, 'spell')).toBe('instant');
+  expect(partType(borrower, 'main')).toBe('creature');
+  expect(partType(room, 'second')).toBe('Room');
 });
 
 test('partType says card in files written before types were added', () => {
@@ -98,6 +98,26 @@ test('partType says card in files written before types were added', () => {
       { name: 'Tear', name_box: null },
     ],
   };
-  expect(partType(card('Lightning Bolt', 1), false, false)).toBe('card');
-  expect(partType(old, false, false, 0)).toBe('card');
+  expect(partType(card('Lightning Bolt', 1), 'main')).toBe('card');
+  expect(partType(old, 'first')).toBe('card');
+});
+
+test('partsOf lists the parts a question can ask about', () => {
+  const back = { art: 'back.webp', artist: 'Some Artist', art_box: null };
+  const spell = { name: 'Petty Theft', name_text_boxes: [] };
+  const half = { name: 'Wear', name_box: null };
+  expect(partsOf(card('Lightning Bolt', 1))).toEqual(['main']);
+  expect(partsOf({ ...card('Delver', 2), back })).toEqual(['main', 'back']);
+  expect(partsOf({ ...card('Borrower', 1), spell: { ...spell, name_box: [0, 0, 1, 1] } })).toEqual([
+    'main',
+    'spell',
+  ]);
+  // A spell whose name can't be covered is never asked about
+  expect(partsOf({ ...card('Borrower', 1), spell: { ...spell, name_box: null } })).toEqual([
+    'main',
+  ]);
+  expect(partsOf({ ...card('Wear // Tear', 1), halves: [half, half] })).toEqual([
+    'first',
+    'second',
+  ]);
 });

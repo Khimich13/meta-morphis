@@ -112,9 +112,7 @@ test('a question about the cost offers its cost and three near ones', () => {
   for (const seed of SEEDS) {
     const question = makeQuestion(COSTED, CARDS, seeded(seed), {
       kind: 'cost',
-      back: false,
-      spell: false,
-      half: null,
+      part: 'main',
     });
     const costs = question.options.map((option) => option.name);
     expect(new Set(costs).size).toBe(OPTION_COUNT);
@@ -148,9 +146,7 @@ function creature(power: string, toughness: string): Card {
 function askPowerToughness(card: Card, seed: number) {
   return makeQuestion(card, CARDS, seeded(seed), {
     kind: 'powerToughness',
-    back: false,
-    spell: false,
-    half: null,
+    part: 'main',
   });
 }
 
@@ -224,7 +220,7 @@ function askCreatureType(
   allCards: readonly Card[] = CREATURES,
   moreCards: readonly (readonly Card[])[] = [],
 ) {
-  const same = { kind: 'creatureType', back: false, spell: false, half: null } as const;
+  const same = { kind: 'creatureType', part: 'main' } as const;
   return makeQuestion(card, allCards, seeded(seed), same, moreCards);
 }
 
@@ -321,15 +317,17 @@ function doubleFaced(n: number): Card {
 test('a double-faced card is asked by either side, named by the side asked', () => {
   const card = doubleFaced(0);
   const asked = SEEDS.map((seed) => makeQuestion(card, CARDS, seeded(seed)));
-  expect(new Set(asked.map((question) => question.back))).toEqual(new Set([false, true]));
+  expect(new Set(asked.map((question) => question.part))).toEqual(new Set(['main', 'back']));
   for (const question of asked) {
     const right = question.options.find((option) => option.card === card);
-    expect(right?.name).toBe(question.back ? 'Back 0' : 'Front 0');
+    expect(right?.name).toBe(question.part === 'back' ? 'Back 0' : 'Front 0');
     // This back's name can't be hidden on its picture: only its artwork
-    if (question.back) expect(question.kind).toBe('artwork');
+    if (question.part === 'back') expect(question.kind).toBe('artwork');
   }
   // The front is still asked both ways
-  const front = asked.filter((question) => !question.back).map((question) => question.kind);
+  const front = asked
+    .filter((question) => question.part === 'main')
+    .map((question) => question.kind);
   expect(new Set(front)).toEqual(new Set(['artwork', 'picture']));
 });
 
@@ -340,14 +338,14 @@ test("a transform card's back is asked both ways too, when its name can be hidde
     back: { ...front.back!, name_box: [0.08, 0.052, 0.75, 0.051] },
   };
   const backs = SEEDS.map((seed) => makeQuestion(card, CARDS, seeded(seed))).filter(
-    (question) => question.back,
+    (question) => question.part === 'back',
   );
   expect(new Set(backs.map((question) => question.kind))).toEqual(new Set(['artwork', 'picture']));
 });
 
 test('a double-faced card without a back to ask about is asked by its front', () => {
   const card: Card = { ...doubleFaced(0), back: null };
-  for (const seed of SEEDS) expect(makeQuestion(card, CARDS, seeded(seed)).back).toBe(false);
+  for (const seed of SEEDS) expect(makeQuestion(card, CARDS, seeded(seed)).part).toBe('main');
 });
 
 test('a double-faced wrong answer is named by either side', () => {
@@ -377,14 +375,16 @@ function withSpell(n: number, spellBox: Card['name_box'] = [0.08, 0.637, 0.29, 0
 test('a card with a spell is asked by either part, named by the part asked', () => {
   const card = withSpell(0);
   const asked = SEEDS.map((seed) => makeQuestion(card, CARDS, seeded(seed)));
-  expect(new Set(asked.map((question) => question.spell))).toEqual(new Set([false, true]));
+  expect(new Set(asked.map((question) => question.part))).toEqual(new Set(['main', 'spell']));
   for (const question of asked) {
     const right = question.options.find((option) => option.card === card);
-    expect(right?.name).toBe(question.spell ? 'Spell 0' : 'Main 0');
+    expect(right?.name).toBe(question.part === 'spell' ? 'Spell 0' : 'Main 0');
     // The artwork is the main part's: a spell only by the picture
-    if (question.spell) expect(question.kind).toBe('picture');
+    if (question.part === 'spell') expect(question.kind).toBe('picture');
   }
-  const main = asked.filter((question) => !question.spell).map((question) => question.kind);
+  const main = asked
+    .filter((question) => question.part === 'main')
+    .map((question) => question.kind);
   expect(new Set(main)).toEqual(new Set(['artwork', 'picture']));
 });
 
@@ -392,7 +392,7 @@ test("a spell whose name can't be hidden is never asked about", () => {
   const card = withSpell(0, null);
   for (const seed of SEEDS) {
     const question = makeQuestion(card, CARDS, seeded(seed));
-    expect(question.spell).toBe(false);
+    expect(question.part).toBe('main');
     // Still named by its main part alone
     expect(question.options.find((option) => option.card === card)?.name).toBe('Main 0');
   }
@@ -431,14 +431,14 @@ function split(n: number, firstBox: Card['name_box'] = [0.077, 0.59, 0.052, 0.31
 test('a split card is asked by either half, named by the half asked', () => {
   const card = split(0);
   const asked = SEEDS.map((seed) => makeQuestion(card, CARDS, seeded(seed)));
-  expect(new Set(asked.map((question) => question.half))).toEqual(new Set([0, 1]));
+  expect(new Set(asked.map((question) => question.part))).toEqual(new Set(['first', 'second']));
   for (const question of asked) {
     const right = question.options.find((option) => option.card === card);
-    expect(right?.name).toBe(question.half ? 'Right 0' : 'Left 0');
+    expect(right?.name).toBe(question.part === 'second' ? 'Right 0' : 'Left 0');
   }
   // Each half by its artwork or its picture
-  for (const half of [0, 1]) {
-    const kinds = asked.filter((question) => question.half === half).map((q) => q.kind);
+  for (const half of ['first', 'second']) {
+    const kinds = asked.filter((question) => question.part === half).map((q) => q.kind);
     expect(new Set(kinds)).toEqual(new Set(['artwork', 'picture']));
   }
 });
@@ -446,7 +446,7 @@ test('a split card is asked by either half, named by the half asked', () => {
 test("a split card's half whose name can't be hidden is asked by its artwork", () => {
   const card = split(0, null);
   const asked = SEEDS.map((seed) => makeQuestion(card, CARDS, seeded(seed)));
-  const first = asked.filter((question) => question.half === 0);
+  const first = asked.filter((question) => question.part === 'first');
   expect(first.length).toBeGreaterThan(0);
   for (const question of first) expect(question.kind).toBe('artwork');
 });
@@ -466,7 +466,7 @@ test('a split wrong answer is named by either half', () => {
 });
 
 test('a card without halves is asked whole', () => {
-  for (const seed of SEEDS) expect(makeQuestion(CARDS[0], CARDS, seeded(seed)).half).toBe(null);
+  for (const seed of SEEDS) expect(makeQuestion(CARDS[0], CARDS, seeded(seed)).part).toBe('main');
 });
 
 function typed(n: number, type: string): Card {
@@ -687,10 +687,10 @@ test('a missed card comes back on the same part', () => {
   const parted = CARDS.map((_, n) => withSpell(n));
   for (const seed of SEEDS) {
     let lesson = startLesson(parted, EMPTY_PROGRESS, TODAY, seeded(seed));
-    const spell = lesson.queue[0].spell;
+    const part = lesson.queue[0].part;
     for (let round = 0; round < 3; round++) {
       lesson = afterAnswer(lesson, false, parted, seeded(seed + round));
-      expect(lesson.queue[lesson.queue.length - 1].spell).toBe(spell);
+      expect(lesson.queue[lesson.queue.length - 1].part).toBe(part);
       for (let i = 0; i < LESSON_LENGTH - 1; i++) {
         lesson = { ...lesson, queue: [...lesson.queue.slice(1), lesson.queue[0]] };
       }
@@ -702,10 +702,10 @@ test('a missed split card comes back on the same half', () => {
   const halved = CARDS.map((_, n) => split(n));
   for (const seed of SEEDS) {
     let lesson = startLesson(halved, EMPTY_PROGRESS, TODAY, seeded(seed));
-    const half = lesson.queue[0].half;
+    const part = lesson.queue[0].part;
     for (let round = 0; round < 3; round++) {
       lesson = afterAnswer(lesson, false, halved, seeded(seed + round));
-      expect(lesson.queue[lesson.queue.length - 1].half).toBe(half);
+      expect(lesson.queue[lesson.queue.length - 1].part).toBe(part);
       for (let i = 0; i < LESSON_LENGTH - 1; i++) {
         lesson = { ...lesson, queue: [...lesson.queue.slice(1), lesson.queue[0]] };
       }
@@ -717,10 +717,10 @@ test('a missed card comes back on the same side', () => {
   const sided = CARDS.map((_, n) => doubleFaced(n));
   for (const seed of SEEDS) {
     let lesson = startLesson(sided, EMPTY_PROGRESS, TODAY, seeded(seed));
-    const back = lesson.queue[0].back;
+    const part = lesson.queue[0].part;
     for (let round = 0; round < 3; round++) {
       lesson = afterAnswer(lesson, false, sided, seeded(seed + round));
-      expect(lesson.queue[lesson.queue.length - 1].back).toBe(back);
+      expect(lesson.queue[lesson.queue.length - 1].part).toBe(part);
       for (let i = 0; i < LESSON_LENGTH - 1; i++) {
         lesson = { ...lesson, queue: [...lesson.queue.slice(1), lesson.queue[0]] };
       }
