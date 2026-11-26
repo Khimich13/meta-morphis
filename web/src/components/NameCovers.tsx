@@ -1,5 +1,5 @@
 // The covers over a card's name, for the question that shows the full
-// card: on the card in the lesson (NameHidden in Lesson.tsx), and on its
+// card: on the card in the lesson (CoveredCard in Lesson.tsx), and on its
 // large view, which a turn of the phone opens for a card printed
 // sideways (see TurningLargeView in CardPicture.tsx).
 

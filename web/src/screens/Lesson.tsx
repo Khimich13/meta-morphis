@@ -18,7 +18,6 @@ import {
   type Card,
   halfArt,
   isHorizontal,
-  partType,
   SIDEWAYS_ART_BOX,
   SIDEWAYS_HALF_ART_BOXES,
 } from '../lib/cards';
@@ -43,7 +42,7 @@ import {
   startLesson,
 } from '../lib/quiz';
 import { useLargeView } from '../lib/largeView';
-import { type Option, type QuestionKind } from '../lib/questionKinds';
+import { type Cover, KINDS, type Option, type Part } from '../lib/questionKinds';
 import { FILL_REACH, fillName } from '../lib/nameFill';
 import { playAnswerSound } from '../lib/sounds';
 import './Lesson.css';
@@ -187,6 +186,8 @@ export default function Lesson({
 
   const question = lesson.queue[0];
   const card = question.card;
+  // What the question shows and asks, see questionKinds.ts
+  const kind = KINDS[question.kind];
   const repeat = !isFirstTry(lesson, card);
   // Read from the saved progress, so after an answer it includes it
   const record = progress.cards[card.oracle_id];
@@ -221,30 +222,20 @@ export default function Lesson({
         <>
           {/* The question and what it asks about, together, so the line
               can span exactly the card's width (see Lesson.css) */}
-          <div className={`question-body ${question.kind}-question`}>
+          <div
+            className={`question-body ${question.kind}-question${kind.cover ? ' covered-question' : ''}`}
+          >
             {/* The question over the left edge, its label over the right */}
             <div className="question-line">
-              <h2 className="question">
-                {question.kind === 'picture'
-                  ? `Name the ${partType(card, question.back, question.spell, question.half)}`
-                  : question.kind === 'cost'
-                    ? 'Name the cost'
-                    : question.kind === 'powerToughness'
-                      ? 'Power and toughness?'
-                      : question.kind === 'creatureType'
-                        ? 'Creature type?'
-                        : 'What is this art from?'}
-              </h2>
+              <h2 className="question">{kind.prompt(card, question)}</h2>
               <QuestionLabel repeat={repeat} standing={cardStanding(record)} />
             </div>
-            {question.kind !== 'artwork' ? (
-              <NameHidden
+            {kind.cover ? (
+              <CoveredCard
                 key={`${card.oracle_id}-${question.kind}-${question.back}-${question.spell}-${question.half}`}
                 card={card}
-                back={question.back}
-                spell={question.spell}
-                half={question.half}
-                kind={question.kind}
+                part={question}
+                hides={kind.cover}
               />
             ) : (
               /* A figure ties the credit to the artwork, for screen readers too */
@@ -277,10 +268,7 @@ export default function Lesson({
         <>
           {/* After a question about the full card, the covered card turns
               into this one (see Lesson.css), uncovering what it asked for */}
-          <div
-            ref={pictureBox}
-            className={question.kind !== 'artwork' ? 'picture after-picture' : 'picture'}
-          >
+          <div ref={pictureBox} className={kind.cover ? 'picture after-picture' : 'picture'}>
             {/* One side at a time, which a double-faced card can turn over:
                 first the side asked about. The full card shows its own
                 artist and copyright. */}
@@ -292,7 +280,7 @@ export default function Lesson({
               startOnBack={question.back}
             />
             {/* Where the artwork lands after an answer: the side's art box */}
-            {question.kind === 'artwork' && (
+            {!kind.cover && (
               <div
                 className={isHorizontal(card, question.back) ? 'art-target sideways' : 'art-target'}
                 aria-hidden="true"
@@ -357,7 +345,7 @@ function OptionButton({ children, onPick }: { children: ReactNode; onPick: () =>
 
 /** What an answer shows: a card's name, a cost's symbols, or a power and toughness */
 function AnswerLabel({ question, option }: { question: Question; option: Option }) {
-  return question.kind === 'cost' ? <ManaCost cost={option.name} /> : option.name;
+  return KINDS[question.kind].symbols ? <ManaCost cost={option.name} /> : option.name;
 }
 
 /**
@@ -438,61 +426,27 @@ function Artwork({
 }
 
 /**
- * The question's full card with its name hidden: in the title bar, it is
- * painted over by the bar around it (see lib/nameFill.ts); wherever else
- * it is printed in the text box, a plain bar covers it (see NameCovers).
- * Everything on the card but its name. The paint is a layer over the
- * picture, which stays as it is, and never covers the artist or
+ * The question's full card with what it asks for hidden, as `hides`, its
+ * kind's cover (see questionKinds.ts), says: the name, the mana cost, the
+ * power and toughness, or the type line up to its set symbol. The first
+ * box is painted over by the bar around it (see lib/nameFill.ts); a name
+ * also printed in the text box gets a plain bar there (see NameCovers).
+ * Everything else on the card stays in sight. The paint is a layer over
+ * the picture, which stays as it is, and never covers the artist or
  * copyright. Until it is painted - or if the picture's pixels can't be
- * read - a plain bar covers the title too. `back` shows a transform
- * card's back, with its own name hidden, and `spell` the card with its
- * spell's name hidden instead of its own, and `half` a split card with
- * that half's name hidden. A name printed sideways is painted along its
- * own line, as it reads. `kind` "cost" paints over the mana cost in the
- * title bar instead, the same way, "powerToughness" the power and
- * toughness in their box, and "creatureType" the type line up to its set
- * symbol, all leaving the name in sight.
+ * read - a plain bar covers the first box too. `part` picks what is
+ * asked about: a transform card's back, with its own name hidden, a
+ * card's spell, with the spell's name hidden instead of its own, or a
+ * split card's half, with that half's name hidden. A name printed
+ * sideways is painted along its own line, as it reads.
  *
  * A card printed sideways opens in the large view when the phone turns
  * sideways, the right way up and its name still hidden, as the answer
  * card does (see useOpenOnTurn in CardPicture.tsx).
  */
-function NameHidden({
-  card,
-  back,
-  spell,
-  half,
-  kind,
-}: {
-  card: Card;
-  back: boolean;
-  spell: boolean;
-  half: number | null;
-  /**
-   * What the question asks for, which is covered: the name ("picture"),
-   * the mana cost, the power and toughness, or the type line
-   */
-  kind: Exclude<QuestionKind, 'artwork'>;
-}) {
-  const side =
-    half !== null && card.halves
-      ? card.halves[half]
-      : spell && card.spell
-        ? card.spell
-        : back && card.back
-          ? card.back
-          : card;
-  const boxes =
-    kind === 'cost' && card.cost
-      ? [card.cost.box]
-      : kind === 'powerToughness' && card.power_toughness
-        ? [card.power_toughness.box]
-        : kind === 'creatureType' && card.creature_type
-          ? [card.creature_type.box]
-          : [
-              side.name_box ?? [0, 0, 0, 0],
-              ...(('name_text_boxes' in side && side.name_text_boxes) || []),
-            ];
+function CoveredCard({ card, part, hides }: { card: Card; part: Part; hides: Cover }) {
+  const { back } = part;
+  const boxes = hides.boxes(card, part);
   const sideways = isHorizontal(card, back);
   const picture = useRef<HTMLImageElement>(null);
   const cardBox = useRef<HTMLDivElement>(null);
@@ -533,12 +487,8 @@ function NameHidden({
         : [around.width, around.height];
       context.drawImage(image, fromX, fromY, fromW, fromH, 0, 0, fromW, fromH);
       const pixels = context.getImageData(0, 0, around.width, around.height).data;
-      // A mana cost ends where the title bar does, and a type line a few
-      // pixels before its set symbol (see RightSide)
-      const rightSide =
-        kind === 'cost' ? 'barEnd' : kind === 'creatureType' ? 'beforeSymbol' : 'past';
       const filled = new ImageData(
-        fillName(pixels, around.width, reach, Math.random, rightSide),
+        fillName(pixels, around.width, reach, Math.random, hides.rightSide),
         along,
         crosswise,
       );
@@ -571,7 +521,7 @@ function NameHidden({
   }
 
   // A picture already saved on the device may have loaded before onLoad
-  // was listening. Each card gets its own NameHidden (see its key), so
+  // was listening. Each card gets its own CoveredCard (see its key), so
   // this runs once per card.
   useEffect(() => {
     if (picture.current?.complete) paint();
@@ -579,10 +529,10 @@ function NameHidden({
   }, []);
 
   return (
-    <div className="name-hidden">
+    <div className="covered-card">
       <div
         ref={cardBox}
-        className="name-hidden-card"
+        className="covered-card-box"
         // The large view's copy stands in for it as it eases back
         style={{ visibility: standsIn(turn, large) ? 'hidden' : undefined }}
       >
@@ -592,15 +542,7 @@ function NameHidden({
           ref={picture}
           className="card-side"
           src={card.images[back ? 1 : 0]}
-          alt={
-            kind === 'cost'
-              ? 'Card with its mana cost hidden'
-              : kind === 'powerToughness'
-                ? 'Card with its power and toughness hidden'
-                : kind === 'creatureType'
-                  ? 'Card with its type line hidden'
-                  : 'Card with its name hidden'
-          }
+          alt={hides.alt}
           crossOrigin="anonymous"
           onLoad={paint}
         />

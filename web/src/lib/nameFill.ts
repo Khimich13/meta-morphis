@@ -1,5 +1,5 @@
 // Paints over a card's name with its own title bar, for the question that
-// shows the full card (NameHidden in Lesson.tsx). No React in here, so it
+// shows the full card (CoveredCard in Lesson.tsx). No React in here, so it
 // can be tested without a browser.
 
 /** Returns a number from 0 up to, but not including, 1 - like Math.random */

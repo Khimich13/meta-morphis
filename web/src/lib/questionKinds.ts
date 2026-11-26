@@ -1,9 +1,11 @@
 // Each kind of question the quiz asks, in one place: which cards it can
-// ask about, its right answer, and the answers it offers. A new kind is
-// a new entry in KINDS. No React in here, like quiz.ts.
+// ask about, what it shows and asks, its right answer, and the answers it
+// offers. A new kind is a new entry in KINDS. No React in here, like
+// quiz.ts.
 
 import { type Card, partName, partType, type PowerToughness } from './cards';
 import { nearCosts } from './manaCost';
+import type { RightSide } from './nameFill';
 import { type Random, shuffle } from './random';
 
 export const OPTION_COUNT = 4;
@@ -50,10 +52,34 @@ export type Pools = readonly (readonly Card[])[];
 export interface Kind {
   /** Whether the card, on the part chosen, can be asked this way */
   asks(card: Card, part: Part): boolean;
+  /** The question over the card: "Name the cost" */
+  prompt(card: Card, part: Part): string;
   /** The right answer's words: a name, "{1}{U}{U}", "2/3", "Goblin Warrior" */
   answer(card: Card, part: Part): string;
   /** Every answer to choose from, the right one among them, in the order shown */
   options(card: Card, part: Part, pools: Pools, random: Random): Option[];
+  /**
+   * What is hidden on the full card, which the question shows; null for
+   * a question that shows the artwork alone instead
+   */
+  cover: Cover | null;
+  /** Its answers are mana costs, drawn as their symbols (see ManaCost) */
+  symbols?: boolean;
+}
+
+/** What a question that shows the full card hides on it (see CoveredCard in Lesson.tsx) */
+export interface Cover {
+  /**
+   * Where on the picture of the side asked about, as [left, top, width,
+   * height] shares of it: the first is painted over from the bar around
+   * it (see nameFill.ts), and the others, a name printed in the text box,
+   * are covered by a plain bar (see NameCovers)
+   */
+  boxes(card: Card, part: Part): number[][];
+  /** Where the first box's paint takes its right side's colors from */
+  rightSide: RightSide;
+  /** The picture's alt text, which must not give the answer away */
+  alt: string;
 }
 
 export type QuestionKind = 'picture' | 'artwork' | 'cost' | 'powerToughness' | 'creatureType';
@@ -67,39 +93,74 @@ export const KINDS: Record<QuestionKind, Kind> = {
   // name_box in cards.ts), or a spell's alone (see Part's spell), or a
   // split card's half's (see Part's half)
   picture: {
-    asks: (card, part) => part.spell || !!nameBox(card, part),
+    asks: (card, part) => !!namedPart(card, part).name_box,
+    prompt: (card, { back, spell, half }) => `Name the ${partType(card, back, spell, half)}`,
     answer: partNameOf,
     options: nameOptions,
+    cover: {
+      boxes: (card, part) => {
+        const named = namedPart(card, part);
+        return [
+          named.name_box ?? [0, 0, 0, 0],
+          ...(('name_text_boxes' in named && named.name_text_boxes) || []),
+        ];
+      },
+      rightSide: 'past',
+      alt: 'Card with its name hidden',
+    },
   },
   // The card's artwork alone
   artwork: {
     asks: (_card, part) => !part.spell,
+    prompt: () => 'What is this art from?',
     answer: partNameOf,
     options: nameOptions,
+    cover: null,
   },
   // The full card with its mana cost covered (see cost in cards.ts),
   // asking what it costs
   cost: {
     asks: (card, part) => !part.spell && !!card.cost,
+    prompt: () => 'Name the cost',
     answer: (card) => card.cost?.mana_cost ?? '',
     options: (card, _part, _pools, random) =>
       card.cost ? costOptions(card, card.cost.mana_cost, random) : [],
+    cover: {
+      boxes: (card) => (card.cost ? [card.cost.box] : []),
+      // A mana cost ends where the title bar does
+      rightSide: 'barEnd',
+      alt: 'Card with its mana cost hidden',
+    },
+    symbols: true,
   },
   // The full card with its power and toughness covered (see
   // power_toughness in cards.ts), asking what they are
   powerToughness: {
     asks: (card, part) => !part.spell && !!card.power_toughness,
+    prompt: () => 'Power and toughness?',
     answer: (card) => (card.power_toughness ? printedPowerToughness(card.power_toughness) : ''),
     options: (card, _part, _pools, random) =>
       card.power_toughness ? powerToughnessOptions(card, card.power_toughness, random) : [],
+    cover: {
+      boxes: (card) => (card.power_toughness ? [card.power_toughness.box] : []),
+      rightSide: 'past',
+      alt: 'Card with its power and toughness hidden',
+    },
   },
   // The full card with its type line covered (see creature_type in
   // cards.ts), asking its creature types
   creatureType: {
     asks: (card, part) => !part.spell && !!card.creature_type,
+    prompt: () => 'Creature type?',
     answer: (card) => card.creature_type?.types.join(' ') ?? '',
     options: (card, _part, pools, random) =>
       card.creature_type ? creatureTypeOptions(card, card.creature_type.types, pools, random) : [],
+    cover: {
+      boxes: (card) => (card.creature_type ? [card.creature_type.box] : []),
+      // A type line ends a few pixels before its set symbol
+      rightSide: 'beforeSymbol',
+      alt: 'Card with its type line hidden',
+    },
   },
 };
 
@@ -107,12 +168,15 @@ export const KINDS: Record<QuestionKind, Kind> = {
 export const QUESTION_KINDS = Object.keys(KINDS) as QuestionKind[];
 
 /**
- * Where the name of the side or half asked about sits on its picture
- * (see name_box in cards.ts): null or missing when it can't be covered
+ * The side, half or spell asked about, whose name a question about the
+ * full picture covers: its name_box is null or missing when the name
+ * can't be covered (see name_box in cards.ts)
  */
-function nameBox(card: Card, { back, half }: Part) {
-  if (card.halves && half !== null) return card.halves[half].name_box;
-  return back ? card.back?.name_box : card.name_box;
+function namedPart(card: Card, { back, spell, half }: Part) {
+  if (half !== null && card.halves) return card.halves[half];
+  if (spell && card.spell) return card.spell;
+  if (back && card.back) return card.back;
+  return card;
 }
 
 /** The name of the part asked about, as its answer button shows it (see partName) */
